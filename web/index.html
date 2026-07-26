@@ -32,7 +32,7 @@ function shell(){document.getElementById("root").innerHTML=`
 <button class="tb ${S.tab==='performance'?'on':''}" onclick="go('performance')">📊 الأداء</button>
 <button class="tb ${S.tab==='settings'?'on':''}" onclick="go('settings')">⚙️ الإعدادات</button>
 </div><div id="ct" class="fade">${render()}</div></div>`;loadH()}
-function go(t){S.tab=t;shell();if(t==='tracking')loadRecs();if(t==='performance')loadPerf();if(t==='settings')loadCfg()}
+function go(t){S.tab=t;shell();if(t==='tracking')loadRecs();if(t==='performance')loadPerf();if(t==='settings')loadCfg();if(t==='indicators')loadSyncStatus()}
 function render(){return S.tab==='settings'?pgSettings():S.tab==='tracking'?pgTracking():S.tab==='performance'?pgPerf():pgInd()}
 async function loadH(){try{const h=await api("/api/health");const p=document.getElementById("hp");if(!p)return;const ms=h.market_status;const mc=ms==='live'?'var(--g)':ms==='weekend'?'var(--r)':'var(--ac2)';p.innerHTML=`<span style="color:${mc}">${ms==='live'?'🟢 مفتوح':ms==='post_close'?'🔴 مغلق':ms==='pre_open'?'🟡 قبل الافتتاح':'⚪ عطلة'}</span> ${h.time_riyadh||''}`}catch(e){}}
 
@@ -63,15 +63,29 @@ async function setupTb(){const m=document.getElementById("cm");m.textContent="�
 
 // ═══ المؤشرات ═══
 function pgInd(){const has=S.data!==null;return `
-<div class="sh"><div class="d"></div><h2>تحليل المؤشرات</h2><span class="tg">فلسفة: اصطياد التجميع الصامت قبل الانطلاق</span></div>
+<div class="sh"><div class="d"></div><h2>تحليل المؤشرات</h2><span class="tg">اصطياد التجميع الصامت قبل الانطلاق</span></div>
 <div class="pn"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
 <button class="bt" onclick="fetchSh()">📡 سحب من Google Sheets</button>
 <label class="bs" style="cursor:pointer"><input type="file" accept=".xlsx,.xls" onchange="upF(this.files[0])" style="display:none">📂 رفع ملف</label>
 <span id="im" style="font-size:.82rem;color:var(--mt)"></span></div>
 <div style="font-size:.75rem;color:var(--mt)">يقرأ آخر تبويب · يصنّف المؤشرات · أعلى-3 إشارات فقط · يكشف الفخاخ</div></div>
+<div class="pn" id="syncPanel" style="border:1px solid rgba(0,212,255,.2)">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+<div><span style="font-weight:700;color:var(--ac2)">⏰ المزامنة التلقائية</span>
+<span style="font-size:.75rem;color:var(--mt);margin-right:8px">10:30 · 12:00 · 2:00 · 4:00 أيام التداول</span></div>
+<div style="display:flex;gap:8px;align-items:center">
+<button class="bs" onclick="toggleSync()" id="syncToggle">⏳</button>
+<button class="bs" onclick="syncNow()">🔄 مزامنة الآن</button>
+<button class="bs" onclick="syncNow(true)">🔄 إجبار</button>
+</div></div>
+<div id="syncStatus" style="font-size:.78rem;color:var(--mt);margin-top:6px">جاري التحميل...</div>
+</div>
 ${has?renderA():'<div class="pn" style="text-align:center;color:var(--mt);padding:35px">اسحب من Google Sheets أو ارفع ملف إكسل</div>'}`}
 async function fetchSh(){const m=document.getElementById("im");m.textContent="⏳ جاري السحب...";try{const d=await api("/api/sheets/fetch",{method:"POST"});S.data=d;m.innerHTML=`✅ ${d.summary.total_stocks} سهم`;shell()}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
 async function upF(f){if(!f)return;const m=document.getElementById("im");m.textContent=`⏳ ${f.name}...`;const fd=new FormData();fd.append("file",f);try{const d=await api("/api/indicators/analyze",{method:"POST",body:fd});S.data=d;m.innerHTML=`✅ ${d.summary.total_stocks} سهم`;shell()}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
+async function loadSyncStatus(){try{const d=await api("/api/sync/status");const st=document.getElementById("syncStatus");const btn=document.getElementById("syncToggle");if(!st)return;const ls=d.last_sync||{};btn.textContent=d.scheduler_active?"⏸️ إيقاف":"▶️ تشغيل";btn.className=`bs${d.scheduler_active?' on':''}`;let msg=d.scheduler_active?'🟢 المجدوِل نشط':'🔴 المجدوِل متوقف';if(ls.status==='success')msg+=` · ✅ آخر سحب: ${ls.tab||''} (${ls.stocks} سهم) ${ls.time?.slice(11,16)||''}`;else if(ls.status==='no_update')msg+=` · ⚠️ لا تحديث جديد — البيانات سارية منذ ${ls.time?.slice(11,16)||''}`;else if(ls.status==='error')msg+=` · ❌ ${ls.error||'خطأ'}`;msg+=` · القادم: ${d.next_sync||''}`;st.innerHTML=msg}catch(e){}}
+async function toggleSync(){try{const d=await api("/api/sync/status");if(d.scheduler_active)await api("/api/sync/stop",{method:"POST"});else await api("/api/sync/start",{method:"POST"});loadSyncStatus()}catch(e){toast("❌ "+e.message)}}
+async function syncNow(force=false){const st=document.getElementById("syncStatus");st.innerHTML="⏳ جاري المزامنة...";try{const d=await api(`/api/sync/now?force=${force}`,{method:"POST"});if(d.skipped)st.innerHTML=`⚠️ ${d.message}`;else if(d.ok){st.innerHTML=`✅ ${d.stocks} سهم · ${d.mood} · ${d.tab}`;shell()}else st.innerHTML=`❌ ${d.error||'خطأ'}`}catch(e){st.innerHTML=`❌ ${e.message}`}}
 
 function renderA(){const d=S.data;if(!d)return'';const s=d.summary,md=s.market_mood;const mc=md.state==="صاعد"?"var(--g)":md.state==="هابط"?"var(--r)":"var(--ac2)";const src=d.source||{};
 let h=`<div class="pn"><div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:space-between">
@@ -161,5 +175,5 @@ const ss=d.signal_stats||[];if(ss.length){h+=`<div class="pn"><b style="color:va
 if(!d.mature)h+=`<div class="pn" style="font-size:.78rem;color:var(--mt)">⚠️ العينة صغيرة (${d.closed||0}/20) — النتائج أولية</div>`;
 b.innerHTML=h}catch(e){b.innerHTML=`<div class="pn" style="color:var(--r)">❌ ${e.message}</div>`}}
 
-shell();
+shell();setTimeout(loadSyncStatus,500);
 </script></body></html>

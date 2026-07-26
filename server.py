@@ -487,6 +487,54 @@ def setup_tables():
 
 
 # ══════════════════════════════════════════════════════════════
+#  المزامنة التلقائية
+# ══════════════════════════════════════════════════════════════
+@app.get("/api/sync/status")
+def sync_status():
+    from scheduler import get_sync_status
+    return get_sync_status()
+
+
+@app.post("/api/sync/now")
+def sync_now(force: bool = False):
+    """مزامنة فورية — يسحب من الشيت ويحلّل."""
+    from scheduler import run_sync
+    return run_sync(force=force)
+
+
+@app.post("/api/sync/start")
+def sync_start():
+    """تشغيل المجدوِل التلقائي."""
+    from scheduler import start_scheduler
+    return start_scheduler()
+
+
+@app.post("/api/sync/stop")
+def sync_stop():
+    """إيقاف المجدوِل."""
+    from scheduler import stop_scheduler
+    return stop_scheduler()
+
+
+@app.get("/api/cron/sync")
+def cron_sync():
+    """نقطة وصول لخدمات cron خارجية (cron-job.org)."""
+    from scheduler import run_sync
+    from market_clock import is_trading_day, now_riyadh
+    if not is_trading_day():
+        return {"skipped": True, "reason": "عطلة"}
+    return run_sync()
+
+
+# تشغيل المجدوِل تلقائياً عند بدء السيرفر
+@app.on_event("startup")
+def _auto_start_scheduler():
+    from scheduler import start_scheduler
+    start_scheduler()
+    print("📡 المجدوِل التلقائي يعمل: " + ", ".join(["10:30","12:00","14:00","16:00"]))
+
+
+# ══════════════════════════════════════════════════════════════
 #  Static Files
 # ══════════════════════════════════════════════════════════════
 if WEB_DIR.exists():
