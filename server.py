@@ -522,6 +522,42 @@ def sync_history():
     return {"log": status.get("log", []), "last_sync": status.get("last_sync", {})}
 
 
+@app.get("/api/recommendations/latest")
+def recommendations_latest():
+    """آخر التوصيات الصادرة (أحدث دفعة) لعرضها تلقائياً."""
+    sb = _get_supabase()
+    if not sb:
+        return {"picks": [], "note": "Supabase غير متصل"}
+    try:
+        rows = sb.table("idx_recommendations").select("*") \
+            .order("appeared_date", desc=True).order("created_at", desc=True) \
+            .limit(50).execute().data or []
+        if not rows:
+            return {"picks": [], "date": None}
+
+        # أحدث تاريخ إصدار
+        latest_date = rows[0].get("appeared_date")
+        latest = [r for r in rows if r.get("appeared_date") == latest_date]
+
+        picks = []
+        for r in latest:
+            picks.append({
+                "symbol": r["symbol"], "name": r.get("name", ""),
+                "price": r.get("entry_price"), "entry_price": r.get("entry_price"),
+                "target_price": r.get("target_price"),
+                "current_price": r.get("current_price"),
+                "current_pct": r.get("current_pct", 0),
+                "confidence": round(r.get("score", 0) / 10, 1) if r.get("score", 0) > 10 else r.get("score", 0),
+                "reasoning": r.get("reason", ""),
+                "category": r.get("category", ""),
+                "status": r.get("status"), "outcome": r.get("outcome"),
+                "peak_pct": r.get("peak_pct", 0),
+            })
+        return {"picks": picks, "date": latest_date, "count": len(picks)}
+    except Exception as e:
+        return {"picks": [], "error": str(e)[:150]}
+
+
 @app.get("/api/recommendations/performance")
 def recommendations_performance():
     """تقرير أداء التوصيات."""

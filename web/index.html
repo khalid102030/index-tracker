@@ -31,7 +31,7 @@ function shell(){document.getElementById("root").innerHTML=`
 <div class="w"><div class="tabs">
 <button class="tb ${S.tab==='analyze'?'on':''}" onclick="go('analyze')">🎯 التحليل</button>
 <button class="tb ${S.tab==='settings'?'on':''}" onclick="go('settings')">⚙️ الإعدادات</button>
-</div><div id="ct" class="fade">${S.tab==='settings'?pgSettings():pgAnalyze()}</div></div>`;loadH();if(S.tab==='analyze'){loadSync();loadAccuracy()}if(S.tab==='settings')loadCfg()}
+</div><div id="ct" class="fade">${S.tab==='settings'?pgSettings():pgAnalyze()}</div></div>`;loadH();if(S.tab==='analyze'){loadSync();loadAccuracy();if(!S.result)loadLatest()}if(S.tab==='settings')loadCfg()}
 function go(t){S.tab=t;shell()}
 async function loadH(){try{const h=await api("/api/health");const p=document.getElementById("hp");if(!p)return;const ms=h.market_status;const mc=ms==='live'?'var(--g)':ms==='weekend'?'var(--r)':'var(--ac2)';p.innerHTML=`<span style="color:${mc}">${ms==='live'?'🟢 مفتوح':ms==='post_close'?'🔴 مغلق':ms==='pre_open'?'🟡 قبل الافتتاح':'⚪ عطلة'}</span> ${h.time_riyadh||''}`}catch(e){}}
 
@@ -74,6 +74,20 @@ if(catRows.length){h+=`<div style="display:flex;gap:16px;flex-wrap:wrap;margin-t
 for(const[k,v]of catRows){const vc=v.rate>=50?"var(--g)":"var(--r)";h+=`<div style="font-size:.78rem"><span style="color:var(--mt)">${cl[k]||k}:</span> <b style="color:${vc}">${v.rate}%</b> <span style="color:var(--mt);font-size:.7rem">(${v.success}/${v.total})</span></div>`}h+=`</div>`}
 if(!d.mature)h+=`<div style="font-size:.68rem;color:var(--mt);margin-top:8px">⚠️ العينة ${d.closed}/20 — الدقة تتحسّن مع تراكم النتائج</div>`;
 h+=`</div>`;c.innerHTML=h}catch(e){c.innerHTML=''}}
+async function loadLatest(){const box=document.getElementById("resultBox");if(!box)return;try{const d=await api("/api/recommendations/latest");const picks=d.picks||[];if(!picks.length)return;
+let h=`<div class="sh"><div class="d" style="background:var(--o);box-shadow:0 0 14px var(--o)"></div><h2>🏆 آخر التوصيات الصادرة</h2><span class="tg">${d.date||''} · ${picks.length} سهم</span></div>`;
+for(const p of picks){const cc=p.confidence>=9?"var(--g)":p.confidence>=7?"var(--ac2)":"var(--mt)";const cp=p.current_pct||0;const cpc=cp>0?"var(--g)":cp<0?"var(--r)":"var(--mt)";const bg=p.status==='active'?'':p.outcome==='success'?' <span style="color:var(--g)">✅ ناجحة</span>':p.outcome==='failed'?' <span style="color:var(--r)">❌ فاشلة</span>':p.outcome==='flat'?' <span style="color:var(--mt)">⚪</span>':'';
+h+=`<div class="rc" style="border-color:rgba(255,152,0,.3)">
+<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:center">
+<div><b style="font-size:1.12rem">${p.name||''}</b> <span style="font-family:'IBM Plex Mono';color:var(--mt);font-size:.82rem">${p.symbol}</span>${bg}</div>
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+<span style="font-size:.78rem;color:var(--mt)">دخول ${p.entry_price}</span>
+${p.current_price?`<span style="font-size:.82rem">حالي <b>${p.current_price}</b> <span style="color:${cpc}">${cp>0?'+':''}${cp}%</span></span>`:''}
+<span style="font-size:.78rem;color:var(--mt)">هدف ${p.target_price}</span>
+<span style="background:${cc}22;color:${cc};padding:3px 10px;border-radius:8px;font-weight:800;font-size:.85rem">ثقة ${p.confidence}</span></div></div>
+${p.reasoning?`<div style="margin-top:6px;font-size:.85rem;line-height:1.6">${p.reasoning}</div>`:''}</div>`}
+h+=`<div style="font-size:.68rem;color:var(--mt);margin-top:10px;text-align:center">⚠️ تحليل فني مساعد وليس توصية مالية · اضغط "حلّل الآن" لتوصيات محدّثة</div>`;
+box.innerHTML=h}catch(e){}}
 async function loadTracking(){const b=document.getElementById("trackBox");b.innerHTML='<div style="color:var(--mt);font-size:.82rem"><span class="spin"></span> جاري التحميل...</div>';try{const d=await api("/api/recommendations/tracking");const c=d.counts||{};
 let h=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
 <span style="background:rgba(90,175,255,.12);color:#5aafff;padding:4px 12px;border-radius:8px;font-size:.82rem;font-weight:700">🔵 ${c.active||0} جارية</span>
