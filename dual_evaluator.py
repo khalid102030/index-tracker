@@ -113,9 +113,11 @@ LEARN_PROMPT = """أنت خبير في تحسين استراتيجيات الت�
 
 # ═══════ التقييم المزدوج ═══════
 
-def dual_evaluate(analysis_result: dict, performance: dict = None) -> dict:
+def dual_evaluate(analysis_result: dict, performance: dict = None,
+                  prev_picks: list = None) -> dict:
     """
     ① Claude يقيّم → ② Gemini يراجع → ③ توافق نهائي
+    مع مراعاة الأداء السابق والتوصيات السابقة لتجويد الترتيب.
     """
     stocks = analysis_result.get("stocks", [])
     recs = analysis_result.get("recommendations", {})
@@ -139,9 +141,30 @@ def dual_evaluate(analysis_result: dict, performance: dict = None) -> dict:
 
     cand_json = json.dumps(candidates, ensure_ascii=False, indent=1)
 
+    # سياق الأداء السابق (لتجويد القرار)
+    history_context = ""
+    if performance and performance.get("closed", 0) >= 3:
+        sig_stats = performance.get("signal_stats", [])
+        top_signals = [f"{s['signal']} ({s['rate']}%)" for s in sig_stats[:3] if s.get("rate", 0) >= 55]
+        weak_signals = [f"{s['signal']} ({s['rate']}%)" for s in sig_stats if s.get("rate", 100) <= 40]
+        history_context = f"""
+
+📊 من نتائجك السابقة ({performance.get('closed')} توصية محسومة، نجاح {performance.get('success_rate')}%):
+- أنجح الإشارات: {', '.join(top_signals) if top_signals else 'لا يوجد بعد'}
+- أضعف الإشارات: {', '.join(weak_signals) if weak_signals else 'لا يوجد'}
+رجّح المرشحين الذين يحملون الإشارات الناجحة، واحذر من الإشارات الضعيفة."""
+
+    prev_context = ""
+    if prev_picks:
+        prev_syms = [f"{p.get('symbol')} (ثقة {p.get('confidence')})" for p in prev_picks]
+        prev_context = f"""
+
+🔁 توصياتك النشطة السابقة: {', '.join(prev_syms)}
+إذا ظهر أحدها بين المرشحين وما زال قوياً، ثبّته. إذا ضعف، أخرجه."""
+
     # ① Claude يقيّم
     claude_prompt = f"""هؤلاء {len(candidates)} مرشح من {analysis_result['summary']['total_stocks']} سهم:
-{cand_json}
+{cand_json}{history_context}{prev_context}
 
 اختر 3–5 فقط يستحقون المراهنة (ثقة ≥7). أجب بـ JSON:
 {{"market_note":"...","picks":[{{"symbol":"...","name":"...","confidence":1-10,"horizon":"...","reasoning":"...","key_signal":"...","risk":"..."}}],
@@ -154,7 +177,7 @@ def dual_evaluate(analysis_result: dict, performance: dict = None) -> dict:
     review_prompt = REVIEW_PROMPT.format(
         candidates=cand_json,
         claude_picks=json.dumps(claude_result, ensure_ascii=False, indent=1)
-    )
+    ) + history_context
     gemini_raw = _call_gemini(review_prompt)
     gemini_result = _parse_json(gemini_raw)
 

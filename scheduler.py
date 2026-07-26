@@ -10,16 +10,67 @@ import threading, time, json, os
 from datetime import datetime, timedelta
 from market_clock import now_riyadh, is_trading_day, RIYADH_TZ
 
+# أوقات المزامنة — قابلة للتعديل من الموقع
 SYNC_TIMES = ["10:30", "12:00", "14:00", "16:30"]
 _scheduler_running = False
+_scheduler_paused = False  # إيقاف مؤقت حتى إشعار آخر
 _scheduler_thread = None
 _last_sync = {"time": None, "tab": None, "status": None, "stocks": 0, "error": None}
 _sync_log = []  # آخر 20 محاولة
+
+_STATE_FILE = os.path.join(os.path.dirname(__file__), "scheduler_state.json")
+
+
+def _load_state():
+    global SYNC_TIMES, _scheduler_paused
+    try:
+        if os.path.exists(_STATE_FILE):
+            with open(_STATE_FILE) as f:
+                st = json.load(f)
+                SYNC_TIMES = st.get("sync_times", SYNC_TIMES)
+                _scheduler_paused = st.get("paused", False)
+    except Exception:
+        pass
+
+
+def _save_state():
+    try:
+        with open(_STATE_FILE, "w") as f:
+            json.dump({"sync_times": SYNC_TIMES, "paused": _scheduler_paused}, f)
+    except Exception:
+        pass
+
+
+def set_sync_times(times: list):
+    """يضبط أوقات المزامنة من الموقع."""
+    global SYNC_TIMES
+    SYNC_TIMES = sorted(times)
+    _save_state()
+    return {"sync_times": SYNC_TIMES}
+
+
+def pause_scheduler():
+    """إيقاف مؤقت حتى إشعار آخر."""
+    global _scheduler_paused
+    _scheduler_paused = True
+    _save_state()
+    return {"paused": True}
+
+
+def resume_scheduler():
+    global _scheduler_paused
+    _scheduler_paused = False
+    _save_state()
+    return {"paused": False}
+
+
+_load_state()
 
 
 def get_sync_status() -> dict:
     return {
         "scheduler_active": _scheduler_running,
+        "paused": _scheduler_paused,
         "last_sync": _last_sync,
         "schedule": SYNC_TIMES,
         "next_sync": _next_sync_time(),
@@ -160,8 +211,8 @@ def _scheduler_loop():
             today_key = now.strftime("%Y-%m-%d")
             current_time = now.strftime("%H:%M")
 
-            # يوم تداول فقط
-            if is_trading_day(now):
+            # يوم تداول فقط + غير موقوف
+            if is_trading_day(now) and not _scheduler_paused:
                 for sync_time in SYNC_TIMES:
                     key = f"{today_key}_{sync_time}"
                     if key not in triggered_today and current_time >= sync_time:

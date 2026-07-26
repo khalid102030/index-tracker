@@ -43,6 +43,12 @@ def _load_config():
     _config.setdefault("supabase_url", os.getenv("SUPABASE_URL", ""))
     _config.setdefault("supabase_key", os.getenv("SUPABASE_KEY", ""))
     _config.setdefault("sahmk_api_key", os.getenv("SAHMK_API_KEY", ""))
+    _config.setdefault("gemini_key", os.getenv("GEMINI_API_KEY", ""))
+    # مزامنة المفاتيح مع متغيرات البيئة لتستخدمها الوحدات الأخرى
+    if _config.get("claude_key"): os.environ["ANTHROPIC_API_KEY"] = _config["claude_key"]
+    if _config.get("gemini_key"): os.environ["GEMINI_API_KEY"] = _config["gemini_key"]
+    if _config.get("sahmk_api_key"): os.environ["SAHMK_API_KEY"] = _config["sahmk_api_key"]
+    if _config.get("sheet_url"): os.environ["SHEET_URL"] = _config["sheet_url"]
     return _config
 
 _load_config()
@@ -84,6 +90,7 @@ def health():
 class ConfigReq(BaseModel):
     sheet_url: str = ""
     claude_key: str = ""
+    gemini_key: str = ""
     supabase_url: str = ""
     supabase_key: str = ""
     sahmk_api_key: str = ""
@@ -95,6 +102,7 @@ def get_config():
     return {
         "sheet_url": _config.get("sheet_url", ""),
         "claude_key": "•••" + _config.get("claude_key", "")[-8:] if _config.get("claude_key") else "",
+        "gemini_key": "•••" + _config.get("gemini_key", "")[-6:] if _config.get("gemini_key") else "",
         "supabase_url": _config.get("supabase_url", ""),
         "supabase_key": "•••" + _config.get("supabase_key", "")[-8:] if _config.get("supabase_key") else "",
         "sahmk_api_key": "•••" + _config.get("sahmk_api_key", "")[-6:] if _config.get("sahmk_api_key") else "",
@@ -103,12 +111,19 @@ def get_config():
 
 @app.post("/api/config")
 def save_config(req: ConfigReq):
-    """يحفظ الإعدادات في config.json."""
+    """يحفظ الإعدادات + يزامنها مع متغيرات البيئة."""
     global _config
     updates = req.dict()
     for k, v in updates.items():
         if v and not v.startswith("•••"):
             _config[k] = v
+    # مزامنة مع البيئة فوراً
+    env_map = {"claude_key": "ANTHROPIC_API_KEY", "gemini_key": "GEMINI_API_KEY",
+               "sahmk_api_key": "SAHMK_API_KEY", "sheet_url": "SHEET_URL",
+               "supabase_url": "SUPABASE_URL", "supabase_key": "SUPABASE_KEY"}
+    for ck, ek in env_map.items():
+        if _config.get(ck):
+            os.environ[ek] = _config[ck]
     cfg_path = _ROOT / "config.json"
     cfg_path.write_text(json.dumps(_config, ensure_ascii=False, indent=2), "utf-8")
     return {"ok": True, "message": "تم حفظ الإعدادات"}
@@ -152,29 +167,109 @@ async def indicators_analyze(file: UploadFile = File(...)):
 # ══════════════════════════════════════════════════════════════
 _last_analysis = {}  # كاش آخر تحليل للتقييم
 
+@app.post("/api/analyze-full")
+def analyze_full(url: str = None):
+    """
+    الزر الواحد: يسحب البيانات → يحدّث النتائج السابقة →
+    Claude + Gemini يقيّمون مع مراعاة الأداء → يحفظ التوصيات.
+    كل شي في خطوة واحدة بدون مراحل.
+    """
+    from sheets_reader import fetch_latest_snapshot
+    from indicator_analyzer import analyze_dataframe
+    from market_clock import classify_snapshot_time
+    from dual_evaluator import dual_evaluate
+    from tracker import create_recommendation, update_active, update_post_watch, performance_report
+    from price_feed import fetch_prices_bulk
+
+    sheet_url = url or _config.get("sheet_url")
+    if not sheet_url:
+        raise HTTPException(status_code=400, detail="حدد رابط الشيت في الإعدادات")
+
+    sb = _get_supabase()
+
+    try:
+        # ① سحب وتحليل
+        snap = fetch_latest_snapshot(sheet_url)
+        analysis = analyze_dataframe(snap["df"])
+        analysis["source"] = {"tab": snap["tab_name"],
+                              "market_status": classify_snapshot_time()}
+        _last_analysis["data"] = analysis
+
+        # ② تحديث النتائج السابقة (قبل التقييم الجديد)
+        prev_picks = []
+        performance = None
+        if sb:
+            try:
+                # أسعار حالية لتحديث التوصيات القديمة
+                active = sb.table("idx_recommendations").select("*").eq("status", "active").execute().data or []
+                prev_picks = [{"symbol": r["symbol"], "confidence": r.get("score", 0)} for r in active]
+                symbols = list(set(r["symbol"] for r in active))
+                prices = {}
+                if symbols and os.getenv("SAHMK_API_KEY"):
+                    prices = fetch_prices_bulk(symbols)
+                if len(prices) < len(symbols):
+                    sheet_prices = {}
+                    for _, row in snap["df"].iterrows():
+                        try:
+                            sym_c = next((c for c in snap["df"].columns if "الرمز" in str(c)), None)
+                            px_c = next((c for c in snap["df"].columns if "آخر" in str(c) or "السعر" in str(c)), None)
+                            if sym_c and px_c:
+                                sheet_prices[str(row[sym_c])] = float(row[px_c])
+                        except Exception:
+                            pass
+                    for s in symbols:
+                        if s not in prices and s in sheet_prices:
+                            prices[s] = sheet_prices[s]
+                update_active(prices, sb)
+                update_post_watch(prices, sb)
+                performance = performance_report(sb)
+            except Exception:
+                pass
+
+        # ③ التقييم المزدوج (مع مراعاة الأداء والسابق)
+        eval_result = dual_evaluate(analysis, performance, prev_picks)
+
+        # ④ حفظ التوصيات الجديدة
+        saved = 0
+        if sb and eval_result.get("picks"):
+            for pick in eval_result["picks"]:
+                orig = next((s for s in analysis["stocks"] if s["symbol"] == pick["symbol"]), {})
+                merged = {**orig, **pick, "reason": pick.get("reasoning", "")}
+                cat = "short_term" if "يوم" in pick.get("horizon", "") or "ساع" in pick.get("horizon", "") else "long_term"
+                create_recommendation(merged, cat, sb)
+                saved += 1
+
+        return {
+            "ok": True,
+            "tab": snap["tab_name"],
+            "total_stocks": analysis["summary"]["total_stocks"],
+            "market_mood": analysis["summary"]["market_mood"],
+            "picks": eval_result.get("picks", []),
+            "market_note": eval_result.get("market_note", ""),
+            "consensus_note": eval_result.get("consensus_note", ""),
+            "rejected": eval_result.get("rejected", []),
+            "saved": saved,
+            "models": eval_result.get("models", []),
+            "performance": performance,
+        }
+
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/evaluate")
 def evaluate_picks():
-    """التقييم المزدوج — Claude + Gemini يناقشون ويختارون."""
+    """التقييم المزدوج فقط — Claude + Gemini (بدون سحب جديد)."""
     from dual_evaluator import dual_evaluate
+    from tracker import performance_report
     analysis = _last_analysis.get("data")
     if not analysis:
         raise HTTPException(status_code=400, detail="شغّل التحليل أولاً")
     try:
-        result = dual_evaluate(analysis)
-        # حفظ في Supabase
         sb = _get_supabase()
-        if sb:
-            try:
-                sb.table("idx_evaluations").insert({
-                    "candidates_count": result.get("candidates_count"),
-                    "picks_count": len(result.get("picks", [])),
-                    "picks": result.get("picks", []),
-                    "rejected": result.get("rejected", []),
-                    "market_note": result.get("market_note", ""),
-                    "model": ",".join(result.get("models", [])),
-                }).execute()
-            except Exception:
-                pass
+        perf = performance_report(sb) if sb else None
+        result = dual_evaluate(analysis, perf)
         return result
     except Exception as e:
         traceback.print_exc()
@@ -514,6 +609,35 @@ def sync_stop():
     """إيقاف المجدوِل."""
     from scheduler import stop_scheduler
     return stop_scheduler()
+
+
+@app.post("/api/sync/pause")
+def sync_pause():
+    """إيقاف مؤقت حتى إشعار آخر."""
+    from scheduler import pause_scheduler
+    return pause_scheduler()
+
+
+@app.post("/api/sync/resume")
+def sync_resume():
+    """استئناف بعد الإيقاف المؤقت."""
+    from scheduler import resume_scheduler
+    return resume_scheduler()
+
+
+@app.post("/api/sync/times")
+def sync_set_times(times: list[str]):
+    """ضبط أوقات المزامنة من الموقع."""
+    from scheduler import set_sync_times
+    return set_sync_times(times)
+
+
+@app.get("/api/wake")
+def wake():
+    """نقطة إيقاظ خفيفة لخدمات cron (تمنع نوم Render Free)."""
+    from market_clock import now_riyadh, classify_snapshot_time
+    return {"awake": True, "time": now_riyadh().strftime("%H:%M"),
+            "market": classify_snapshot_time()}
 
 
 @app.get("/api/cron/sync")
