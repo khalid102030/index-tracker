@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS idx_recommendations (
     target_price    FLOAT,
     target_pct      FLOAT DEFAULT 1.5,
     score           FLOAT DEFAULT 0,
+    confidence      FLOAT DEFAULT 0,
     trend           TEXT,
     reason          TEXT,
     signals_summary JSONB DEFAULT '{}',

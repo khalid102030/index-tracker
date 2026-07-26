@@ -618,18 +618,25 @@ def recommendations_latest():
 
         picks = []
         for r in latest:
+            # الثقة الحقيقية من Claude/Gemini (1-10)
+            conf = r.get("confidence", 0)
+            if not conf or conf == 0:
+                raw = r.get("score", 0)
+                conf = round(min(10, raw / 14), 1) if raw > 10 else round(raw, 1)
+            conf = round(min(10, conf), 1)
             picks.append({
                 "symbol": r["symbol"], "name": r.get("name", ""),
                 "price": r.get("entry_price"), "entry_price": r.get("entry_price"),
                 "target_price": r.get("target_price"),
                 "current_price": r.get("current_price"),
                 "current_pct": r.get("current_pct", 0),
-                "confidence": round(r.get("score", 0) / 10, 1) if r.get("score", 0) > 10 else r.get("score", 0),
+                "confidence": conf,
                 "reasoning": r.get("reason", ""),
                 "category": r.get("category", ""),
                 "status": r.get("status"), "outcome": r.get("outcome"),
                 "peak_pct": r.get("peak_pct", 0),
             })
+        picks.sort(key=lambda x: x["confidence"], reverse=True)
         return {"picks": picks, "date": latest_date, "count": len(picks)}
     except Exception as e:
         return {"picks": [], "error": str(e)[:150]}

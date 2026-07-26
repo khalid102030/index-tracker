@@ -5,4 +5,5 @@
 
 ALTER TABLE idx_recommendations
     ADD COLUMN IF NOT EXISTS current_price FLOAT,
-    ADD COLUMN IF NOT EXISTS current_pct FLOAT DEFAULT 0;
+    ADD COLUMN IF NOT EXISTS current_pct FLOAT DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS confidence FLOAT DEFAULT 0;

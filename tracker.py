@@ -22,7 +22,9 @@ def create_recommendation(stock, category, supabase=None):
     rec = {
         "symbol":stock["symbol"],"name":stock["name"],"category":category,
         "entry_price":entry,"target_price":target,"target_pct":TARGET_PCT,
-        "score":stock.get("bet_score",0),"trend":stock.get("trend",""),
+        "score":stock.get("bet_score",0),
+        "confidence":stock.get("confidence",0),
+        "trend":stock.get("trend",""),
         "reason":stock.get("reason",""),
         "signals_summary":{f:stock.get("frame_scores",{}).get(f,{}) for f in ["short","mid","long"]},
         "top3_signals":stock.get("top3_signals",[]),
