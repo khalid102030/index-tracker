@@ -62,10 +62,10 @@ let h=`<div class="pn" style="background:linear-gradient(165deg,var(--p),var(--b
 <div style="text-align:center"><div style="font-size:2.2rem;font-weight:900;color:${rc};line-height:1">${rate}%</div><div style="font-size:.68rem;color:var(--mt)">دقة التوصيات</div></div>
 <div style="height:44px;width:1px;background:var(--ln2)"></div>
 <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:.82rem">
-<span style="color:var(--g)">✅ ${d.success||0}</span>
-<span style="color:var(--r)">❌ ${d.failed||0}</span>
-<span style="color:var(--mt)">⚪ ${d.flat||0}</span>
-<span style="color:#5aafff">🔵 ${d.active||0}</span>
+<span style="color:var(--g)" title="ناجحة">✅ ${d.success||0}</span>
+<span style="color:var(--r)" title="فاشلة">❌ ${d.failed||0}</span>
+<span style="color:var(--mt)" title="بلا حركة">⚪ ${d.flat||0}</span>
+<span style="color:#5aafff" title="كل الجارية">🔵 ${d.active||0} جارية (الكل)</span>
 ${d.late_success>0?`<span style="color:var(--ac2)">🔄 ${d.late_success}</span>`:''}</div></div>
 <div style="text-align:left;font-size:.72rem;color:var(--mt)">${d.avg_peak?`متوسط الذروة ${d.avg_peak}%`:''}</div></div>`;
 // دقة كل فئة
@@ -75,7 +75,7 @@ for(const[k,v]of catRows){const vc=v.rate>=50?"var(--g)":"var(--r)";h+=`<div sty
 if(!d.mature)h+=`<div style="font-size:.68rem;color:var(--mt);margin-top:8px">⚠️ العينة ${d.closed}/20 — الدقة تتحسّن مع تراكم النتائج</div>`;
 h+=`</div>`;c.innerHTML=h}catch(e){c.innerHTML=''}}
 async function loadLatest(){const box=document.getElementById("resultBox");if(!box)return;try{const d=await api("/api/recommendations/latest");const picks=d.picks||[];if(!picks.length)return;
-let h=`<div class="sh"><div class="d" style="background:var(--o);box-shadow:0 0 14px var(--o)"></div><h2>🏆 آخر التوصيات الصادرة</h2><span class="tg">${d.date||''} · ${picks.length} سهم</span></div>`;
+let h=`<div class="sh"><div class="d" style="background:var(--o);box-shadow:0 0 14px var(--o)"></div><h2>🏆 آخر التوصيات الصادرة</h2><span class="tg">دفعة ${d.date||''} · ${picks.length} سهم</span></div>`;
 for(const p of picks){const cc=p.confidence>=9?"var(--g)":p.confidence>=7?"var(--ac2)":"var(--mt)";const cp=p.current_pct||0;const cpc=cp>0?"var(--g)":cp<0?"var(--r)":"var(--mt)";const bg=p.status==='active'?'':p.outcome==='success'?' <span style="color:var(--g)">✅ ناجحة</span>':p.outcome==='failed'?' <span style="color:var(--r)">❌ فاشلة</span>':p.outcome==='flat'?' <span style="color:var(--mt)">⚪</span>':'';const posW=Math.round((p.confidence||0)*10);const posLbl=p.confidence>=9?"إيجابية عالية جداً":p.confidence>=8?"إيجابية عالية":p.confidence>=7?"إيجابية جيدة":"إيجابية معتدلة";
 h+=`<div class="rc" style="border-color:rgba(255,152,0,.3)">
 <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:center">
