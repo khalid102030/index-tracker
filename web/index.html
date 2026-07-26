@@ -76,7 +76,7 @@ if(!d.mature)h+=`<div style="font-size:.68rem;color:var(--mt);margin-top:8px">�
 h+=`</div>`;c.innerHTML=h}catch(e){c.innerHTML=''}}
 async function loadLatest(){const box=document.getElementById("resultBox");if(!box)return;try{const d=await api("/api/recommendations/latest");const picks=d.picks||[];if(!picks.length)return;
 let h=`<div class="sh"><div class="d" style="background:var(--o);box-shadow:0 0 14px var(--o)"></div><h2>🏆 آخر التوصيات الصادرة</h2><span class="tg">${d.date||''} · ${picks.length} سهم</span></div>`;
-for(const p of picks){const cc=p.confidence>=9?"var(--g)":p.confidence>=7?"var(--ac2)":"var(--mt)";const cp=p.current_pct||0;const cpc=cp>0?"var(--g)":cp<0?"var(--r)":"var(--mt)";const bg=p.status==='active'?'':p.outcome==='success'?' <span style="color:var(--g)">✅ ناجحة</span>':p.outcome==='failed'?' <span style="color:var(--r)">❌ فاشلة</span>':p.outcome==='flat'?' <span style="color:var(--mt)">⚪</span>':'';
+for(const p of picks){const cc=p.confidence>=9?"var(--g)":p.confidence>=7?"var(--ac2)":"var(--mt)";const cp=p.current_pct||0;const cpc=cp>0?"var(--g)":cp<0?"var(--r)":"var(--mt)";const bg=p.status==='active'?'':p.outcome==='success'?' <span style="color:var(--g)">✅ ناجحة</span>':p.outcome==='failed'?' <span style="color:var(--r)">❌ فاشلة</span>':p.outcome==='flat'?' <span style="color:var(--mt)">⚪</span>':'';const posW=Math.round((p.confidence||0)*10);const posLbl=p.confidence>=9?"إيجابية عالية جداً":p.confidence>=8?"إيجابية عالية":p.confidence>=7?"إيجابية جيدة":"إيجابية معتدلة";
 h+=`<div class="rc" style="border-color:rgba(255,152,0,.3)">
 <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:center">
 <div><b style="font-size:1.12rem">${p.name||''}</b> <span style="font-family:'IBM Plex Mono';color:var(--mt);font-size:.82rem">${p.symbol}</span>${bg}</div>
@@ -85,7 +85,8 @@ h+=`<div class="rc" style="border-color:rgba(255,152,0,.3)">
 ${p.current_price?`<span style="font-size:.82rem">حالي <b>${p.current_price}</b> <span style="color:${cpc}">${cp>0?'+':''}${cp}%</span></span>`:''}
 <span style="font-size:.78rem;color:var(--mt)">هدف ${p.target_price}</span>
 <span style="background:${cc}22;color:${cc};padding:3px 10px;border-radius:8px;font-weight:800;font-size:.85rem">ثقة ${p.confidence}</span></div></div>
-${p.reasoning?`<div style="margin-top:6px;font-size:.85rem;line-height:1.6">${p.reasoning}</div>`:''}</div>`}
+<div style="margin-top:8px"><div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--mt);margin-bottom:3px"><span>درجة الإيجابية</span><span style="color:${cc};font-weight:700">${posLbl}</span></div><div class="sb"><div class="sf" style="width:${posW}%;background:linear-gradient(90deg,${cc},var(--g))"></div></div></div>
+${p.reasoning?`<div style="margin-top:8px;font-size:.85rem;line-height:1.6">${p.reasoning}</div>`:''}</div>`}
 h+=`<div style="font-size:.68rem;color:var(--mt);margin-top:10px;text-align:center">⚠️ تحليل فني مساعد وليس توصية مالية · اضغط "حلّل الآن" لتوصيات محدّثة</div>`;
 box.innerHTML=h}catch(e){}}
 async function loadTracking(){const b=document.getElementById("trackBox");b.innerHTML='<div style="color:var(--mt);font-size:.82rem"><span class="spin"></span> جاري التحميل...</div>';try{const d=await api("/api/recommendations/tracking");const c=d.counts||{};
@@ -117,16 +118,23 @@ ${d.consensus_note?`<div style="font-size:.8rem;color:var(--ac2);margin-top:4px"
 
 h+=`<div class="sh"><div class="d" style="background:var(--o);box-shadow:0 0 14px var(--o)"></div><h2>🏆 التوصيات النهائية</h2><span class="tg">${picks.length} سهم · ${(d.models||[]).join(' + ')}</span></div>`;
 if(!picks.length)h+=`<div class="pn" style="text-align:center;color:var(--mt);padding:25px">لم يتفق النموذجان على مرشح يستحق المراهنة في هذه اللقطة</div>`;
-for(const p of picks){const cc=p.confidence>=9?"var(--g)":p.confidence>=7?"var(--ac2)":"var(--mt)";const chg=p.change_pct>0?"var(--g)":p.change_pct<0?"var(--r)":"var(--mt)";
+for(const p of picks){const cc=p.confidence>=9?"var(--g)":p.confidence>=7?"var(--ac2)":"var(--mt)";const chg=p.change_pct>0?"var(--g)":p.change_pct<0?"var(--r)":"var(--mt)";const posW=Math.round((p.confidence||0)*10);const posLbl=p.confidence>=9?"إيجابية عالية جداً":p.confidence>=8?"إيجابية عالية":p.confidence>=7?"إيجابية جيدة":"إيجابية معتدلة";
 h+=`<div class="rc" style="border-color:rgba(255,152,0,.3)">
 <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:center">
 <div><b style="font-size:1.12rem">${p.name||''}</b> <span style="font-family:'IBM Plex Mono';color:var(--mt);font-size:.82rem">${p.symbol}</span>
 <span style="color:${chg};font-weight:700;font-size:.85rem">${p.change_pct>0?'+':''}${p.change_pct||0}%</span></div>
 <div style="display:flex;gap:8px;align-items:center"><span style="font-family:'IBM Plex Mono';font-weight:700">${p.price||''}</span>
 <span style="background:${cc}22;color:${cc};padding:4px 12px;border-radius:8px;font-weight:800">ثقة ${p.confidence}/10</span></div></div>
+<div style="margin-top:8px"><div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--mt);margin-bottom:3px"><span>درجة الإيجابية</span><span style="color:${cc};font-weight:700">${posLbl}</span></div><div class="sb"><div class="sf" style="width:${posW}%;background:linear-gradient(90deg,${cc},var(--g))"></div></div></div>
 <div style="margin-top:8px;font-size:.88rem;line-height:1.7">${p.reasoning||''}</div>
-<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:.78rem">
-<span style="color:var(--ac2)">🔑 ${p.key_signal||''}</span><span style="color:var(--mt)">⏱️ ${p.horizon||''}</span><span style="color:var(--r)">⚠️ ${p.risk||''}</span></div></div>`}
+<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+<div style="flex:1;min-width:180px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.2);border-radius:8px;padding:8px 10px">
+<div style="font-size:.68rem;color:var(--g);font-weight:700;margin-bottom:2px">✓ سبب الترشيح</div>
+<div style="font-size:.8rem">${p.key_signal||''}</div></div>
+<div style="flex:1;min-width:180px;background:rgba(255,82,82,.07);border:1px solid rgba(255,82,82,.18);border-radius:8px;padding:8px 10px">
+<div style="font-size:.68rem;color:var(--r);font-weight:700;margin-bottom:2px">⚠ نقطة الحذر</div>
+<div style="font-size:.8rem">${p.risk||''}</div></div></div>
+<div style="font-size:.72rem;color:var(--mt);margin-top:6px">⏱️ الأفق: ${p.horizon||''}</div></div>`}
 
 const perf=d.performance;if(perf&&perf.closed>0){h+=`<div class="pn" style="margin-top:10px"><b style="color:var(--ac2)">📊 دقة النظام حتى الآن</b>
 <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:.85rem">
