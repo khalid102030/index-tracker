@@ -10,7 +10,7 @@ import threading, time, json, os
 from datetime import datetime, timedelta
 from market_clock import now_riyadh, is_trading_day, RIYADH_TZ
 
-SYNC_TIMES = ["10:30", "12:00", "14:00", "16:00"]
+SYNC_TIMES = ["10:30", "12:00", "14:00", "16:30"]
 _scheduler_running = False
 _scheduler_thread = None
 _last_sync = {"time": None, "tab": None, "status": None, "stocks": 0, "error": None}

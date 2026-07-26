@@ -38,7 +38,7 @@ def _load_config():
         except Exception:
             _config = {}
     # متغيرات البيئة تتفوق
-    _config.setdefault("sheet_url", os.getenv("SHEET_URL", ""))
+    _config.setdefault("sheet_url", os.getenv("SHEET_URL", "https://docs.google.com/spreadsheets/d/1Gqhre_LvpzF0vUpIQSzONDXFeMD-R5zql84zctv9wR8/edit"))
     _config.setdefault("claude_key", os.getenv("ANTHROPIC_API_KEY", ""))
     _config.setdefault("supabase_url", os.getenv("SUPABASE_URL", ""))
     _config.setdefault("supabase_key", os.getenv("SUPABASE_KEY", ""))
@@ -531,7 +531,7 @@ def cron_sync():
 def _auto_start_scheduler():
     from scheduler import start_scheduler
     start_scheduler()
-    print("📡 المجدوِل التلقائي يعمل: " + ", ".join(["10:30","12:00","14:00","16:00"]))
+    print("📡 المجدوِل التلقائي يعمل: " + ", ".join(["10:30","12:00","14:00","16:30"]))
 
 
 # ══════════════════════════════════════════════════════════════
