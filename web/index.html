@@ -1,0 +1,161 @@
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>متابعة المؤشرات</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a1628;--bg2:#0f1f38;--p:#132744;--p2:#183050;--ln:rgba(0,212,255,.18);--ln2:rgba(255,255,255,.07);--ac:#00d4ff;--ac2:#4dd0e1;--ink:#e8ecf0;--mt:#7a8fa3;--g:#00e676;--r:#ff5252}
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Tajawal',sans-serif;background:radial-gradient(140% 100% at 90% -10%,rgba(0,212,255,.08),transparent),linear-gradient(170deg,var(--bg),var(--bg2));color:var(--ink);min-height:100vh}
+.bar{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;border-bottom:1px solid var(--ln);background:rgba(10,22,40,.85);backdrop-filter:blur(12px);position:sticky;top:0;z-index:50}
+.br{display:flex;align-items:center;gap:10px}.br .lg{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,var(--ac),#0077b6);display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 4px 16px rgba(0,212,255,.25)}.br .nm{font-weight:900;font-size:1.15rem}.br .nm small{display:block;font-size:.58rem;color:var(--ac2);font-weight:700;letter-spacing:3px}
+.w{max-width:1100px;margin:0 auto;padding:22px 24px}
+.tabs{display:flex;gap:5px;background:var(--p);border:1px solid var(--ln2);border-radius:14px;padding:5px;margin-bottom:20px;flex-wrap:wrap}.tb{flex:1;text-align:center;padding:10px 6px;border-radius:10px;cursor:pointer;font-weight:700;font-size:.88rem;color:var(--mt);border:none;background:none;font-family:'Tajawal';min-width:80px;transition:.15s}.tb.on{background:linear-gradient(135deg,var(--p2),#132744);color:var(--ac2);border:1px solid var(--ln)}.tb:hover:not(.on){color:var(--ink)}
+.pn{background:var(--p);border:1px solid var(--ln2);border-radius:15px;padding:20px;margin-bottom:14px}
+.sh{display:flex;align-items:center;gap:9px;margin:20px 0 12px}.sh .d{width:8px;height:8px;border-radius:50%;background:var(--ac);box-shadow:0 0 10px var(--ac)}.sh h2{font-size:1.15rem;font-weight:800}.sh .tg{margin-right:auto;font-size:.7rem;color:var(--mt);background:var(--p);padding:4px 10px;border-radius:99px;border:1px solid var(--ln2)}
+.bt{background:linear-gradient(135deg,var(--ac),#0077b6);color:#fff;border:none;padding:11px 20px;border-radius:10px;font-weight:800;font-family:'Tajawal';font-size:.92rem;cursor:pointer;box-shadow:0 4px 14px rgba(0,212,255,.2)}.bt:hover{transform:translateY(-1px)}
+.bs{background:var(--bg2);border:1px solid var(--ln2);color:var(--ac2);border-radius:8px;padding:6px 12px;font-family:'Tajawal';font-weight:700;font-size:.8rem;cursor:pointer}.bs:hover{border-color:var(--ac)}.bs.on{background:var(--p2)!important;border-color:var(--ln)!important}
+input[type=text],input[type=password],input[type=url]{width:100%;padding:9px 12px;border-radius:9px;border:1px solid var(--ln2);background:var(--bg2);color:var(--ink);font-family:'Tajawal';font-size:.88rem;margin-bottom:8px}input:focus{outline:none;border-color:var(--ac)}
+.rc{background:linear-gradient(165deg,var(--p),var(--bg2));border:1px solid var(--ln2);border-radius:13px;padding:14px 16px;margin-bottom:9px}.rc:hover{border-color:var(--ln)}
+.sb{height:5px;background:var(--bg);border-radius:99px;overflow:hidden;margin-top:4px}.sf{height:100%;border-radius:99px;transition:width .5s}
+.fade{animation:fd .3s ease}@keyframes fd{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--p2);border:1px solid var(--ac);color:var(--ac2);padding:10px 22px;border-radius:11px;font-weight:700;z-index:100}
+@media(max-width:768px){.w{padding:14px}.tabs{gap:3px}.tb{padding:8px 4px;font-size:.78rem}}
+</style></head><body><div id="root"></div>
+<script>
+const S={tab:"indicators",data:null};
+async function api(p,o){const r=await fetch(p,o);if(!r.ok){let m="";try{const e=await r.json();m=e.detail||JSON.stringify(e)}catch(_){m=r.statusText}throw new Error(m||"خطأ "+r.status)}return r.json()}
+function toast(m){const e=document.createElement("div");e.className="toast";e.textContent=m;document.body.appendChild(e);setTimeout(()=>e.remove(),2500)}
+
+function shell(){document.getElementById("root").innerHTML=`
+<div class="bar"><div class="br"><div class="lg">📡</div><div class="nm">متابعة المؤشرات<small>INDEX TRACKER</small></div></div><div id="hp" style="font-size:.72rem;color:var(--mt)">…</div></div>
+<div class="w"><div class="tabs">
+<button class="tb ${S.tab==='indicators'?'on':''}" onclick="go('indicators')">📡 المؤشرات</button>
+<button class="tb ${S.tab==='tracking'?'on':''}" onclick="go('tracking')">🎯 التوصيات</button>
+<button class="tb ${S.tab==='performance'?'on':''}" onclick="go('performance')">📊 الأداء</button>
+<button class="tb ${S.tab==='settings'?'on':''}" onclick="go('settings')">⚙️ الإعدادات</button>
+</div><div id="ct" class="fade">${render()}</div></div>`;loadH()}
+function go(t){S.tab=t;shell();if(t==='tracking')loadRecs();if(t==='performance')loadPerf();if(t==='settings')loadCfg()}
+function render(){return S.tab==='settings'?pgSettings():S.tab==='tracking'?pgTracking():S.tab==='performance'?pgPerf():pgInd()}
+async function loadH(){try{const h=await api("/api/health");const p=document.getElementById("hp");if(!p)return;const ms=h.market_status;const mc=ms==='live'?'var(--g)':ms==='weekend'?'var(--r)':'var(--ac2)';p.innerHTML=`<span style="color:${mc}">${ms==='live'?'🟢 مفتوح':ms==='post_close'?'🔴 مغلق':ms==='pre_open'?'🟡 قبل الافتتاح':'⚪ عطلة'}</span> ${h.time_riyadh||''}`}catch(e){}}
+
+// ═══ الإعدادات ═══
+function pgSettings(){return `
+<div class="sh"><div class="d" style="background:#ff9800;box-shadow:0 0 10px #ff9800"></div><h2>الإعدادات</h2></div>
+<div class="pn">
+<label style="font-weight:700;font-size:.88rem;display:block;margin-bottom:5px">📋 رابط Google Sheets</label>
+<input type="url" id="cs" placeholder="https://docs.google.com/spreadsheets/d/...">
+<div style="font-size:.72rem;color:var(--mt);margin-bottom:14px">الشيت لازم يكون عام · كل تبويب = لقطة بتاريخ ووقت</div>
+<label style="font-weight:700;font-size:.88rem;display:block;margin-bottom:5px">🔑 مفتاح Claude API</label>
+<input type="password" id="ck" placeholder="sk-ant-...">
+<label style="font-weight:700;font-size:.88rem;display:block;margin-bottom:5px;margin-top:8px">🗄️ Supabase URL</label>
+<input type="url" id="su" placeholder="https://xxxxx.supabase.co">
+<label style="font-weight:700;font-size:.88rem;display:block;margin-bottom:5px">🔐 Supabase Key</label>
+<input type="password" id="sk" placeholder="eyJ...">
+<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px">
+<button class="bt" onclick="saveCfg()">💾 حفظ</button>
+<button class="bs" onclick="setupTb()">🗄️ إنشاء الجداول</button>
+<span id="cm" style="font-size:.82rem;color:var(--mt)"></span>
+</div></div>
+<div class="pn"><div style="font-weight:700;color:var(--ac2);margin-bottom:8px">ℹ️ ساعات السوق</div>
+<div style="font-size:.82rem;color:var(--mt);line-height:1.8">أحد–خميس · 9:30ص–3:20م · الجمعة والسبت عطلة<br>
+تسمية التبويبات: <code style="color:var(--ac2)">2026-07-25_15-43</code> (سنة-شهر-يوم_ساعة-دقيقة)</div></div>`}
+async function loadCfg(){try{const c=await api("/api/config");const f=(i,v)=>{const e=document.getElementById(i);if(e)e.value=v||""};f("cs",c.sheet_url);f("ck",c.claude_key);f("su",c.supabase_url);f("sk",c.supabase_key)}catch(e){}}
+async function saveCfg(){const m=document.getElementById("cm");m.textContent="⏳";try{await api("/api/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sheet_url:document.getElementById("cs")?.value,claude_key:document.getElementById("ck")?.value,supabase_url:document.getElementById("su")?.value,supabase_key:document.getElementById("sk")?.value})});m.innerHTML=`<span style="color:var(--g)">✅ تم</span>`}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
+async function setupTb(){const m=document.getElementById("cm");m.textContent="⏳ جاري الإنشاء...";try{const r=await api("/api/setup/tables",{method:"POST"});m.innerHTML=r.sql?`<span style="color:#ff9800">⚠️ أنشئ يدوياً — انسخ SQL من console</span>`:`<span style="color:var(--g)">✅ ${r.message}</span>`;if(r.sql)console.log("SQL:\n",r.sql)}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
+
+// ═══ المؤشرات ═══
+function pgInd(){const has=S.data!==null;return `
+<div class="sh"><div class="d"></div><h2>تحليل المؤشرات</h2><span class="tg">فلسفة: اصطياد التجميع الصامت قبل الانطلاق</span></div>
+<div class="pn"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+<button class="bt" onclick="fetchSh()">📡 سحب من Google Sheets</button>
+<label class="bs" style="cursor:pointer"><input type="file" accept=".xlsx,.xls" onchange="upF(this.files[0])" style="display:none">📂 رفع ملف</label>
+<span id="im" style="font-size:.82rem;color:var(--mt)"></span></div>
+<div style="font-size:.75rem;color:var(--mt)">يقرأ آخر تبويب · يصنّف المؤشرات · أعلى-3 إشارات فقط · يكشف الفخاخ</div></div>
+${has?renderA():'<div class="pn" style="text-align:center;color:var(--mt);padding:35px">اسحب من Google Sheets أو ارفع ملف إكسل</div>'}`}
+async function fetchSh(){const m=document.getElementById("im");m.textContent="⏳ جاري السحب...";try{const d=await api("/api/sheets/fetch",{method:"POST"});S.data=d;m.innerHTML=`✅ ${d.summary.total_stocks} سهم`;shell()}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
+async function upF(f){if(!f)return;const m=document.getElementById("im");m.textContent=`⏳ ${f.name}...`;const fd=new FormData();fd.append("file",f);try{const d=await api("/api/indicators/analyze",{method:"POST",body:fd});S.data=d;m.innerHTML=`✅ ${d.summary.total_stocks} سهم`;shell()}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
+
+function renderA(){const d=S.data;if(!d)return'';const s=d.summary,md=s.market_mood;const mc=md.state==="صاعد"?"var(--g)":md.state==="هابط"?"var(--r)":"var(--ac2)";const src=d.source||{};
+let h=`<div class="pn"><div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:space-between">
+<div><b style="color:var(--ac2)">السوق:</b> <span style="background:${mc}22;color:${mc};padding:4px 10px;border-radius:99px;font-size:.85rem;font-weight:700">${md.state}</span>
+<span style="color:var(--mt);font-size:.82rem;margin-right:8px">${md.positive_count}↑ ${md.negative_count}↓ ${md.strong_signals_count} قوي</span></div>
+${src.tab?`<span style="font-size:.72rem;color:var(--mt)">📋 ${src.tab}</span>`:''}</div></div>`;
+const rc=d.recommendations;
+h+=recoS("🎯 فرص قريبة","توافق إشارات + سعر هادئ + الربع الذهبي",rc.short_term,"var(--g)");
+h+=recoS("📈 طويلة المدى","إشارات أسبوعية/شهرية قوية",rc.long_term,"var(--ac2)");
+h+=recoS("⚡ مضاربة","إشارات قصيرة بدون اشتعال",rc.speculative,"#ff9800");
+if(rc.traps?.length)h+=recoS("⚠️ فخاخ","مؤشرات مشتعلة مع صعود سابق — احذر",rc.traps,"var(--r)");
+h+=`<div class="pn" style="border:1px solid rgba(255,152,0,.3)"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+<button class="bt" style="background:linear-gradient(135deg,#ff9800,#e65100)" onclick="runEval()">🧠 تقييم نهائي (Claude)</button>
+<button class="bt" onclick="genRecs()">💾 حفظ وتتبع الكل</button>
+<span id="sv" style="font-size:.82rem;color:var(--mt)"></span></div>
+<div style="font-size:.72rem;color:var(--mt);margin-top:6px">المُقيّم يعرض المرشحين على Claude ويختار 3–5 فقط يراهن عليها النظام</div></div>`;
+h+=`<div id="evalBox"></div>`;
+h+=`<div class="sh"><div class="d"></div><h2>أقوى 15 سهم</h2></div>`;h+=stTbl(d.stocks.slice(0,15));return h}
+async function genRecs(){const m=document.getElementById("sv");m.textContent="⏳";try{const r=await api("/api/recommendations/generate",{method:"POST"});m.innerHTML=`<span style="color:var(--g)">✅ حُفظت ${r.total} توصية</span>`}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
+async function runEval(){const b=document.getElementById("evalBox");const m=document.getElementById("sv");m.textContent="⏳ جاري التقييم...";b.innerHTML=`<div class="pn" style="text-align:center;color:var(--mt);padding:30px"><div style="font-size:1.5rem;margin-bottom:8px">🧠</div>المُقيّم يحلّل المرشحين...</div>`;
+try{const d=await api("/api/evaluate",{method:"POST"});m.textContent="";const picks=d.picks||[];const rej=d.rejected_notable||[];
+let h=`<div class="sh"><div class="d" style="background:#ff9800;box-shadow:0 0 14px #ff9800"></div><h2>🏆 التوصيات النهائية</h2><span class="tg">${picks.length} سهم فقط · ثقة ≥7</span></div>`;
+if(d.market_note)h+=`<div class="pn" style="font-size:.85rem;color:var(--ac2)">📊 ${d.market_note}</div>`;
+if(!picks.length){h+=`<div class="pn" style="text-align:center;color:var(--mt);padding:25px">المُقيّم لم يجد مرشحين يستحقون المراهنة في هذه اللقطة</div>`}
+for(const p of picks){const cc=p.confidence>=9?"var(--g)":p.confidence>=7?"var(--ac2)":"var(--mt)";
+h+=`<div class="rc" style="border-color:rgba(255,152,0,.3)">
+<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px">
+<div><b style="font-size:1.1rem">${p.name||''}</b> <span style="font-family:'IBM Plex Mono';color:var(--mt);font-size:.82rem">${p.symbol}</span></div>
+<div style="display:flex;gap:8px;align-items:center"><span style="font-family:'IBM Plex Mono';font-weight:700">${p.price||''}</span>
+<span style="background:${cc}22;color:${cc};padding:4px 12px;border-radius:8px;font-weight:800;font-size:.9rem">ثقة ${p.confidence}/10</span></div></div>
+<div style="margin-top:8px;font-size:.88rem;line-height:1.7;color:var(--ink)">${p.reasoning||''}</div>
+<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:.78rem">
+<span style="color:var(--ac2)">🔑 ${p.key_signal||''}</span>
+<span style="color:var(--mt)">⏱️ ${p.horizon||''}</span>
+<span style="color:var(--mt)">📍 ${p.entry_zone||''}</span>
+<span style="color:var(--r)">⚠️ ${p.risk||''}</span></div></div>`}
+if(rej.length){h+=`<div style="margin-top:10px"><div style="font-size:.82rem;font-weight:700;color:var(--mt);margin-bottom:6px">🚫 مرفوضون:</div>`;
+for(const r of rej)h+=`<div style="font-size:.78rem;color:var(--mt);margin-bottom:3px"><span style="font-weight:700">${r.symbol}</span> — ${r.reason}</div>`;h+=`</div>`}
+h+=`<div style="font-size:.68rem;color:var(--mt);margin-top:10px;text-align:center">⚠️ تحليل فني مساعد وليس توصية مالية · ${d.candidates_count||0} مرشح → ${picks.length} توصية</div>`;
+b.innerHTML=h}catch(e){m.textContent="";b.innerHTML=`<div class="pn" style="color:var(--r)">❌ ${e.message}</div>`}}
+
+function recoS(t,sub,items,cl){if(!items?.length)return'';let h=`<div class="sh"><div class="d" style="background:${cl};box-shadow:0 0 10px ${cl}"></div><h2>${t}</h2><span class="tg">${items.length} · ${sub}</span></div>`;
+for(const r of items){const fs=r.frame_scores||{};const bars=[{l:"قصير",p:fs.short?.pct||0,c:"#29b6f6"},{l:"متوسط",p:fs.mid?.pct||0,c:"var(--ac2)"},{l:"طويل",p:fs.long?.pct||0,c:"var(--g)"}];const cc=r.change_pct>0?"var(--g)":r.change_pct<0?"var(--r)":"var(--mt)";
+h+=`<div class="rc"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px">
+<div><b style="font-size:1.02rem">${r.name}</b> <span style="font-family:'IBM Plex Mono';color:var(--mt);font-size:.8rem">${r.symbol}</span> <span style="color:${cc};font-weight:700;font-size:.88rem">${r.change_pct>0?'+':''}${r.change_pct}%</span>
+${r.is_trap?'<span style="color:var(--r);font-size:.75rem">⚠️ فخ</span>':''}</div>
+<div style="display:flex;gap:6px;align-items:center"><span style="font-family:'IBM Plex Mono';font-weight:700">${r.price}</span>
+<span style="background:${cl}22;color:${cl};padding:2px 8px;border-radius:7px;font-size:.76rem;font-weight:700">${(r.bet_score||r.weighted_score||0).toFixed?.(0)||0}</span></div></div>
+<div style="font-size:.78rem;color:var(--mt);margin-top:5px">${r.reason||''} ${r.target_horizon?' · '+r.target_horizon:''}</div>
+${r.top3_signals?.length?`<div style="font-size:.72rem;color:var(--ac2);margin-top:4px">🔑 ${r.top3_signals.join(' · ')}</div>`:''}
+<div style="display:flex;gap:10px;margin-top:8px">${bars.map(b=>`<div style="flex:1"><div style="font-size:.65rem;color:var(--mt);display:flex;justify-content:space-between"><span>${b.l}</span><span>${b.p}%</span></div><div class="sb"><div class="sf" style="width:${b.p}%;background:${b.c}"></div></div></div>`).join('')}</div></div>`}return h}
+
+function stTbl(st){if(!st?.length)return'';let h=`<div class="pn" style="padding:0;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem">
+<thead><tr style="background:var(--bg);color:var(--ac2);font-size:.72rem"><th style="padding:8px 5px">#</th><th style="padding:8px 5px;text-align:right">الرمز</th><th style="padding:8px 5px;text-align:right">الاسم</th><th style="padding:8px 5px">السعر</th><th style="padding:8px 5px">التغير</th><th style="padding:8px 5px">النقاط</th><th style="padding:8px 5px">الاتجاه</th><th style="padding:8px 5px">نشط</th><th style="padding:8px 5px">الإشارات</th></tr></thead><tbody>`;
+st.forEach((s,i)=>{const cc=s.change_pct>0?"var(--g)":s.change_pct<0?"var(--r)":"var(--mt)";const tc=s.trend.includes("قوي")?"var(--g)":s.trend.includes("صاعد")?"var(--ac2)":"var(--mt)";
+h+=`<tr style="border-bottom:1px solid var(--ln2)${s.is_trap?';background:rgba(255,82,82,.05)':''}"><td style="padding:7px 5px;text-align:center;color:var(--mt)">${i+1}</td><td style="padding:7px 5px;font-family:'IBM Plex Mono';color:var(--ac2);font-weight:700">${s.symbol}</td><td style="padding:7px 5px">${s.name} ${s.is_trap?'⚠️':''}</td><td style="padding:7px 5px;text-align:center">${s.price}</td><td style="padding:7px 5px;text-align:center;color:${cc};font-weight:700">${s.change_pct>0?'+':''}${s.change_pct}%</td><td style="padding:7px 5px;text-align:center;font-weight:800;color:var(--ac2)">${s.bet_score}</td><td style="padding:7px 5px;color:${tc};font-size:.75rem;white-space:nowrap">${s.trend}</td><td style="padding:7px 5px;text-align:center;font-size:.75rem">${s.total_active}</td><td style="padding:7px 5px;font-size:.7rem;color:var(--mt)">${(s.top3_signals||[]).join(' · ')}</td></tr>`});return h+`</tbody></table></div></div>`}
+
+// ═══ التوصيات ═══
+function pgTracking(){return `<div class="sh"><div class="d"></div><h2>تتبع التوصيات</h2><span class="tg">هدف +1.5% · صلاحية 3 أيام · حد 5</span></div>
+<div class="pn"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+<button class="bt" onclick="updRecs()">🔄 تحديث الأسعار</button>
+<button class="bs" onclick="loadRecs('active')">🔵 جارية</button>
+<button class="bs" onclick="loadRecs('closed')">📁 منتهية</button>
+<span id="tm" style="font-size:.82rem;color:var(--mt)"></span></div></div><div id="rb"></div>`}
+async function loadRecs(st='active'){const b=document.getElementById("rb");if(!b)return;b.innerHTML=`<div class="pn" style="text-align:center;color:var(--mt)">⏳</div>`;try{const d=await api(`/api/recommendations?status=${st}&limit=100`);const rows=d.results||[];if(!rows.length){b.innerHTML=`<div class="pn" style="text-align:center;color:var(--mt)">لا توجد توصيات</div>`;return}
+let h='';for(const r of rows){const pk=r.peak_pct||0;const pc=pk>=1.5?"var(--g)":pk<=-2?"var(--r)":"var(--mt)";const bg=r.status==='active'?'<span style="color:#5aafff">🔵 جارية</span>':r.outcome==='success'?'<span style="color:var(--g)">✅</span>':r.outcome==='flat'?'<span style="color:var(--mt)">⚪</span>':'<span style="color:var(--r)">❌</span>';const lt=r.post_watch_hit?' <span style="color:var(--ac2);font-size:.72rem">🔄 حققت لاحقاً!</span>':'';
+h+=`<div class="rc"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px"><div><b>${r.symbol}</b> <span style="color:var(--mt);font-size:.82rem">${r.name||''}</span> ${bg}${lt}</div><div style="font-size:.82rem"><span style="color:var(--mt)">دخول:</span>${r.entry_price} → ${r.target_price} <span style="color:${pc};font-weight:700">ذروة:${pk.toFixed(1)}%</span></div></div>
+<div style="font-size:.75rem;color:var(--mt);margin-top:4px">${r.category||''} · ${r.appeared_date} → ${r.expiry_date}</div></div>`}b.innerHTML=h}catch(e){b.innerHTML=`<div class="pn" style="color:var(--r)">❌ ${e.message}</div>`}}
+async function updRecs(){const m=document.getElementById("tm");m.textContent="⏳";try{const r=await api("/api/recommendations/update",{method:"POST"});const a=r.active||{};m.innerHTML=`✅ نجاح:${a.success||0} فشل:${a.failed||0} نشطة:${a.still_active||0}`;loadRecs()}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
+
+// ═══ الأداء ═══
+function pgPerf(){return `<div class="sh"><div class="d" style="background:var(--g);box-shadow:0 0 10px var(--g)"></div><h2>تقرير الأداء</h2><span class="tg">دقة التوصيات · تعلّم مستمر</span></div><div id="pb"><div class="pn" style="text-align:center;color:var(--mt)">⏳</div></div>`}
+async function loadPerf(){const b=document.getElementById("pb");if(!b)return;try{const d=await api("/api/recommendations/performance");
+let h=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+<div class="pn" style="flex:1;min-width:120px;text-align:center"><div style="font-size:1.8rem;font-weight:800;color:var(--ac2)">${d.total||0}</div><div style="font-size:.75rem;color:var(--mt)">إجمالي</div></div>
+<div class="pn" style="flex:1;min-width:120px;text-align:center"><div style="font-size:1.8rem;font-weight:800;color:var(--g)">${d.success||0}</div><div style="font-size:.75rem;color:var(--mt)">ناجحة ✅</div></div>
+<div class="pn" style="flex:1;min-width:120px;text-align:center"><div style="font-size:1.8rem;font-weight:800;color:var(--r)">${d.failed||0}</div><div style="font-size:.75rem;color:var(--mt)">فاشلة ❌</div></div>
+<div class="pn" style="flex:1;min-width:120px;text-align:center;background:${(d.success_rate||0)>=50?'rgba(0,230,118,.06)':'rgba(255,82,82,.06)'}"><div style="font-size:1.8rem;font-weight:800;color:${(d.success_rate||0)>=50?'var(--g)':'var(--r)'}">${d.success_rate||0}%</div><div style="font-size:.75rem;color:var(--mt)">نسبة النجاح</div></div></div>`;
+if(d.late_success>0)h+=`<div class="pn"><span style="color:var(--ac2);font-weight:700">🔄 ${d.late_success} فاشلة حققت لاحقاً (${d.late_success_pct}%)</span></div>`;
+const cats=d.by_category||{};const cl={short_term:"قريبة",long_term:"طويلة",speculative:"مضاربة"};
+if(Object.keys(cats).length){h+=`<div class="pn"><b style="color:var(--ac2)">📊 دقة كل فئة</b>`;for(const[k,v]of Object.entries(cats)){if(v.total>0){const c=v.rate>=50?"var(--g)":"var(--r)";h+=`<div style="margin-top:10px"><div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:3px"><span style="font-weight:700">${cl[k]||k}</span><span style="color:${c};font-weight:800">${v.rate}% (${v.success}/${v.total})</span></div><div class="sb"><div class="sf" style="width:${v.rate}%;background:${c}"></div></div></div>`}}h+=`</div>`}
+const ss=d.signal_stats||[];if(ss.length){h+=`<div class="pn"><b style="color:var(--ac2)">🔑 دقة الإشارات (أساس التعلّم)</b><table style="width:100%;border-collapse:collapse;font-size:.8rem;margin-top:8px">`;for(const s of ss){const c=s.rate>=60?"var(--g)":s.rate<=40?"var(--r)":"var(--mt)";h+=`<tr style="border-bottom:1px solid var(--ln2)"><td style="padding:5px">${s.signal}</td><td style="padding:5px;text-align:center">${s.total}</td><td style="padding:5px;text-align:center;color:${c};font-weight:800">${s.rate}%</td></tr>`}h+=`</table></div>`}
+if(!d.mature)h+=`<div class="pn" style="font-size:.78rem;color:var(--mt)">⚠️ العينة صغيرة (${d.closed||0}/20) — النتائج أولية</div>`;
+b.innerHTML=h}catch(e){b.innerHTML=`<div class="pn" style="color:var(--r)">❌ ${e.message}</div>`}}
+
+shell();
+</script></body></html>
