@@ -31,7 +31,7 @@ function shell(){document.getElementById("root").innerHTML=`
 <div class="w"><div class="tabs">
 <button class="tb ${S.tab==='analyze'?'on':''}" onclick="go('analyze')">🎯 التحليل</button>
 <button class="tb ${S.tab==='settings'?'on':''}" onclick="go('settings')">⚙️ الإعدادات</button>
-</div><div id="ct" class="fade">${S.tab==='settings'?pgSettings():pgAnalyze()}</div></div>`;loadH();if(S.tab==='analyze')loadSync();if(S.tab==='settings')loadCfg()}
+</div><div id="ct" class="fade">${S.tab==='settings'?pgSettings():pgAnalyze()}</div></div>`;loadH();if(S.tab==='analyze'){loadSync();loadAccuracy()}if(S.tab==='settings')loadCfg()}
 function go(t){S.tab=t;shell()}
 async function loadH(){try{const h=await api("/api/health");const p=document.getElementById("hp");if(!p)return;const ms=h.market_status;const mc=ms==='live'?'var(--g)':ms==='weekend'?'var(--r)':'var(--ac2)';p.innerHTML=`<span style="color:${mc}">${ms==='live'?'🟢 مفتوح':ms==='post_close'?'🔴 مغلق':ms==='pre_open'?'🟡 قبل الافتتاح':'⚪ عطلة'}</span> ${h.time_riyadh||''}`}catch(e){}}
 
@@ -43,6 +43,7 @@ function pgAnalyze(){return `
 <div style="display:flex;gap:6px"><button class="bs" onclick="togglePause()" id="pauseBtn">⏸️ إيقاف مؤقت</button></div>
 </div><div id="syncStatus" style="font-size:.78rem;color:var(--mt);margin-top:6px">…</div></div>
 
+<div id="accuracyCard"></div>
 <div class="pn" style="text-align:center">
 <button class="bt btbig" onclick="runFull()" id="mainBtn">🚀 حلّل الآن — Claude + Gemini</button>
 <div style="font-size:.75rem;color:var(--mt);margin-top:8px">يسحب البيانات · يحدّث النتائج السابقة · يقيّم · يطلع 3–5 توصيات</div>
@@ -54,6 +55,25 @@ function pgAnalyze(){return `
 </div><div id="trackBox" style="margin-top:8px"></div></div>
 <div id="resultBox">${S.result?renderResult():''}</div>`}
 
+async function loadAccuracy(){const c=document.getElementById("accuracyCard");if(!c)return;try{const d=await api("/api/recommendations/performance");if(d.error||d.total===0||d.total===undefined){c.innerHTML='';return}const rate=d.success_rate||0;const rc=rate>=70?"var(--g)":rate>=50?"var(--ac2)":"var(--r)";const cats=d.by_category||{};const cl={short_term:"قريبة",long_term:"طويلة",speculative:"مضاربة"};
+let h=`<div class="pn" style="background:linear-gradient(165deg,var(--p),var(--bg2));border:1px solid ${rate>=50?'rgba(0,230,118,.25)':'rgba(255,82,82,.2)'}">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+<div style="display:flex;align-items:center;gap:14px">
+<div style="text-align:center"><div style="font-size:2.2rem;font-weight:900;color:${rc};line-height:1">${rate}%</div><div style="font-size:.68rem;color:var(--mt)">دقة التوصيات</div></div>
+<div style="height:44px;width:1px;background:var(--ln2)"></div>
+<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:.82rem">
+<span style="color:var(--g)">✅ ${d.success||0}</span>
+<span style="color:var(--r)">❌ ${d.failed||0}</span>
+<span style="color:var(--mt)">⚪ ${d.flat||0}</span>
+<span style="color:#5aafff">🔵 ${d.active||0}</span>
+${d.late_success>0?`<span style="color:var(--ac2)">🔄 ${d.late_success}</span>`:''}</div></div>
+<div style="text-align:left;font-size:.72rem;color:var(--mt)">${d.avg_peak?`متوسط الذروة ${d.avg_peak}%`:''}</div></div>`;
+// دقة كل فئة
+const catRows=Object.entries(cats).filter(([k,v])=>v.total>0);
+if(catRows.length){h+=`<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--ln2)">`;
+for(const[k,v]of catRows){const vc=v.rate>=50?"var(--g)":"var(--r)";h+=`<div style="font-size:.78rem"><span style="color:var(--mt)">${cl[k]||k}:</span> <b style="color:${vc}">${v.rate}%</b> <span style="color:var(--mt);font-size:.7rem">(${v.success}/${v.total})</span></div>`}h+=`</div>`}
+if(!d.mature)h+=`<div style="font-size:.68rem;color:var(--mt);margin-top:8px">⚠️ العينة ${d.closed}/20 — الدقة تتحسّن مع تراكم النتائج</div>`;
+h+=`</div>`;c.innerHTML=h}catch(e){c.innerHTML=''}}
 async function loadTracking(){const b=document.getElementById("trackBox");b.innerHTML='<div style="color:var(--mt);font-size:.82rem"><span class="spin"></span> جاري التحميل...</div>';try{const d=await api("/api/recommendations/tracking");const c=d.counts||{};
 let h=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
 <span style="background:rgba(90,175,255,.12);color:#5aafff;padding:4px 12px;border-radius:8px;font-size:.82rem;font-weight:700">🔵 ${c.active||0} جارية</span>
