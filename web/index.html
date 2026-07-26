@@ -47,7 +47,28 @@ function pgAnalyze(){return `
 <button class="bt btbig" onclick="runFull()" id="mainBtn">🚀 حلّل الآن — Claude + Gemini</button>
 <div style="font-size:.75rem;color:var(--mt);margin-top:8px">يسحب البيانات · يحدّث النتائج السابقة · يقيّم · يطلع 3–5 توصيات</div>
 </div>
+<div class="pn" style="border:1px solid rgba(0,230,118,.15)">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+<span style="font-weight:700;color:var(--g)">📈 تتبع التوصيات</span>
+<div style="display:flex;gap:6px"><button class="bs" onclick="loadTracking()">🔄 عرض التتبع</button><button class="bs" onclick="updateTracking()">💹 تحديث الأسعار</button></div>
+</div><div id="trackBox" style="margin-top:8px"></div></div>
 <div id="resultBox">${S.result?renderResult():''}</div>`}
+
+async function loadTracking(){const b=document.getElementById("trackBox");b.innerHTML='<div style="color:var(--mt);font-size:.82rem"><span class="spin"></span> جاري التحميل...</div>';try{const d=await api("/api/recommendations/tracking");const c=d.counts||{};
+let h=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+<span style="background:rgba(90,175,255,.12);color:#5aafff;padding:4px 12px;border-radius:8px;font-size:.82rem;font-weight:700">🔵 ${c.active||0} جارية</span>
+<span style="background:rgba(0,230,118,.12);color:var(--g);padding:4px 12px;border-radius:8px;font-size:.82rem;font-weight:700">✅ ${c.success||0} ناجحة</span>
+<span style="background:rgba(255,82,82,.12);color:var(--r);padding:4px 12px;border-radius:8px;font-size:.82rem;font-weight:700">❌ ${c.failed||0} فاشلة</span>
+<span style="background:rgba(144,164,174,.12);color:var(--mt);padding:4px 12px;border-radius:8px;font-size:.82rem;font-weight:700">⚪ ${c.flat||0} بلا حركة</span>
+${c.late>0?`<span style="background:rgba(0,212,255,.12);color:var(--ac2);padding:4px 12px;border-radius:8px;font-size:.82rem;font-weight:700">🔄 ${c.late} حققت لاحقاً</span>`:''}</div>`;
+const rows=(d.active||[]).concat(d.success||[],d.failed||[],d.flat||[]);
+if(!rows.length){h+='<div style="color:var(--mt);font-size:.82rem;text-align:center;padding:15px">لا توجد توصيات محفوظة بعد — اضغط "حلّل الآن"</div>';b.innerHTML=h;return}
+h+=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem">
+<tr style="color:var(--mt);font-size:.72rem;border-bottom:1px solid var(--ln2)"><th style="padding:6px;text-align:right">السهم</th><th style="padding:6px">الحالة</th><th style="padding:6px">الدخول</th><th style="padding:6px">الهدف</th><th style="padding:6px">أعلى سعر</th><th style="padding:6px">الذروة</th><th style="padding:6px">ظهر</th><th style="padding:6px">ينتهي</th></tr>`;
+for(const r of rows){const pk=r.peak_pct||0;const pc=pk>=1.5?"var(--g)":pk<=-2?"var(--r)":"var(--mt)";const bg=r.status==='active'?'<span style="color:#5aafff">🔵 جارية</span>':r.outcome==='success'?'<span style="color:var(--g)">✅ ناجحة</span>':r.outcome==='flat'?'<span style="color:var(--mt)">⚪ بلا حركة</span>':'<span style="color:var(--r)">❌ فاشلة</span>';const lt=r.post_watch_hit?' 🔄':'';
+h+=`<tr style="border-bottom:1px solid var(--ln2)"><td style="padding:6px"><b>${r.symbol}</b> <span style="color:var(--mt);font-size:.72rem">${r.name||''}</span>${lt}</td><td style="padding:6px;text-align:center">${bg}</td><td style="padding:6px;text-align:center">${r.entry_price||'-'}</td><td style="padding:6px;text-align:center">${r.target_price||'-'}</td><td style="padding:6px;text-align:center">${r.highest_price||'-'}</td><td style="padding:6px;text-align:center;color:${pc};font-weight:700">${pk.toFixed(1)}%</td><td style="padding:6px;text-align:center;font-size:.72rem;color:var(--mt)">${r.appeared_date||''}</td><td style="padding:6px;text-align:center;font-size:.72rem;color:var(--mt)">${r.expiry_date||''}</td></tr>`}
+h+=`</table></div>`;b.innerHTML=h}catch(e){b.innerHTML=`<div style="color:var(--r);font-size:.82rem">❌ ${e.message}</div>`}}
+async function updateTracking(){const b=document.getElementById("trackBox");b.innerHTML='<div style="color:var(--mt);font-size:.82rem"><span class="spin"></span> جاري تحديث الأسعار...</div>';try{const d=await api("/api/recommendations/update",{method:"POST"});const a=d.active||{};toast(`✅ نجاح:${a.success||0} فشل:${a.failed||0} جارية:${a.still_active||0} · المصدر: ${d.price_source||''}`);loadTracking()}catch(e){b.innerHTML=`<div style="color:var(--r);font-size:.82rem">❌ ${e.message}</div>`}}
 
 async function runFull(){if(S.busy)return;S.busy=true;const btn=document.getElementById("mainBtn");btn.disabled=true;btn.innerHTML=`<span class="spin"></span> جاري التحليل والتقييم... (~20 ثانية)`;const box=document.getElementById("resultBox");box.innerHTML="";
 try{const d=await api("/api/analyze-full",{method:"POST"});S.result=d;shell()}catch(e){box.innerHTML=`<div class="pn" style="color:var(--r)">❌ ${e.message}</div>`;btn.disabled=false;btn.innerHTML="🚀 حلّل الآن — Claude + Gemini"}S.busy=false}

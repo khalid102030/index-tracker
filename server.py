@@ -470,6 +470,57 @@ def list_recommendations(status: str = None, category: str = None, limit: int = 
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/recommendations/tracking")
+def recommendations_tracking():
+    """يعرض التوصيات مع حالتها اللحظية وسجل التتبع."""
+    sb = _get_supabase()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase غير متصل")
+    try:
+        rows = sb.table("idx_recommendations").select("*") \
+            .order("appeared_date", desc=True).limit(200).execute().data or []
+
+        active = [r for r in rows if r["status"] == "active"]
+        success = [r for r in rows if r.get("outcome") == "success"]
+        failed = [r for r in rows if r.get("outcome") == "failed"]
+        flat = [r for r in rows if r.get("outcome") == "flat"]
+        late = [r for r in rows if r.get("post_watch_hit")]
+
+        def _slim_rec(r):
+            return {
+                "symbol": r["symbol"], "name": r.get("name", ""),
+                "entry_price": r.get("entry_price"), "target_price": r.get("target_price"),
+                "peak_pct": r.get("peak_pct", 0), "highest_price": r.get("highest_price"),
+                "status": r["status"], "outcome": r.get("outcome"),
+                "appeared_date": r.get("appeared_date"), "expiry_date": r.get("expiry_date"),
+                "closed_date": r.get("closed_date"), "score": r.get("score", 0),
+                "category": r.get("category", ""), "reason": r.get("reason", ""),
+                "post_watch": r.get("post_watch"), "post_watch_hit": r.get("post_watch_hit"),
+                "post_watch_peak": r.get("post_watch_peak", 0),
+            }
+
+        return {
+            "active": [_slim_rec(r) for r in active],
+            "success": [_slim_rec(r) for r in success],
+            "failed": [_slim_rec(r) for r in failed],
+            "flat": [_slim_rec(r) for r in flat],
+            "late_success": [_slim_rec(r) for r in late],
+            "counts": {"active": len(active), "success": len(success),
+                       "failed": len(failed), "flat": len(flat), "late": len(late)},
+        }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/sync/history")
+def sync_history():
+    """سجل عمليات السحب والتحديث."""
+    from scheduler import get_sync_status
+    status = get_sync_status()
+    return {"log": status.get("log", []), "last_sync": status.get("last_sync", {})}
+
+
 @app.get("/api/recommendations/performance")
 def recommendations_performance():
     """تقرير أداء التوصيات."""
