@@ -490,6 +490,7 @@ def recommendations_tracking():
             return {
                 "symbol": r["symbol"], "name": r.get("name", ""),
                 "entry_price": r.get("entry_price"), "target_price": r.get("target_price"),
+                "current_price": r.get("current_price"), "current_pct": r.get("current_pct", 0),
                 "peak_pct": r.get("peak_pct", 0), "highest_price": r.get("highest_price"),
                 "status": r["status"], "outcome": r.get("outcome"),
                 "appeared_date": r.get("appeared_date"), "expiry_date": r.get("expiry_date"),

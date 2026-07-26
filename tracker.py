@@ -30,6 +30,7 @@ def create_recommendation(stock, category, supabase=None):
         "expiry_date":expiry.isoformat(),"max_expiry_date":max_exp.isoformat(),
         "status":"active","outcome":None,
         "highest_price":entry,"lowest_price":entry,"peak_pct":0.0,
+        "current_price":entry,"current_pct":0.0,
         "closed_date":None,"post_watch":False,
         "post_watch_peak":0.0,"post_watch_hit":False,
     }
@@ -51,7 +52,9 @@ def update_active(prices, supabase=None):
         highest = max(rec.get("highest_price",entry), cur)
         lowest = min(rec.get("lowest_price",entry), cur)
         peak = round((highest-entry)/entry*100,2)
-        upd = {"highest_price":highest,"lowest_price":lowest,"peak_pct":peak}
+        cur_pct = round((cur-entry)/entry*100,2)
+        upd = {"highest_price":highest,"lowest_price":lowest,"peak_pct":peak,
+               "current_price":cur,"current_pct":cur_pct}
         if peak >= TARGET_PCT:
             upd.update(status="closed",outcome="success",closed_date=today.isoformat())
             stats["success"]+=1

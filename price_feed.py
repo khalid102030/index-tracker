@@ -19,12 +19,19 @@ def fetch_price(symbol: str) -> dict:
     if elapsed < 0.4:
         time.sleep(0.4 - elapsed)
     try:
-        r = requests.get(
+        r = _session.get(
             f"{SAHMK_BASE}/quote/{symbol}/",
-            headers={"X-API-Key": key, "Accept": "application/json"},
+            headers={"X-API-Key": key, "Accept": "application/json",
+                     "User-Agent": "index-tracker/1.0"},
             timeout=15,
         )
         _throttle[0] = time.time()
+        if r.status_code == 401:
+            return {"symbol": symbol, "error": "مفتاح سهمك غير صحيح (401)"}
+        if r.status_code == 404:
+            return {"symbol": symbol, "error": "الرمز غير موجود"}
+        if r.status_code == 429:
+            return {"symbol": symbol, "error": "تجاوز حد الطلبات (429)"}
         if r.status_code != 200:
             return {"symbol": symbol, "error": f"HTTP {r.status_code}"}
         d = r.json()

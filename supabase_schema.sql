@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS idx_recommendations (
     outcome         TEXT,                          -- success | flat | failed
     highest_price   FLOAT,
     lowest_price    FLOAT,
+    current_price   FLOAT,
+    current_pct     FLOAT DEFAULT 0,
     peak_pct        FLOAT DEFAULT 0,
     closed_date     DATE,
     post_watch      BOOLEAN DEFAULT FALSE,         -- متابعة ما بعد الحسم
