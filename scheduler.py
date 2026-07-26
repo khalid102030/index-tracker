@@ -89,19 +89,21 @@ def _next_sync_time() -> str:
     return "غداً الساعة " + SYNC_TIMES[0]
 
 
-def run_sync(force: bool = False) -> dict:
-    """يسحب من Google Sheets ويحلّل — يكشف التكرار تلقائياً."""
+def run_sync(force: bool = False, full: bool = True) -> dict:
+    """
+    يسحب من Google Sheets ويحلّل.
+    إذا full=True: يكمّل التحليل الكامل (Claude+Gemini) ويحفظ التوصيات.
+    يتوقف تلقائياً إذا ما فيه تحديث جديد للبيانات.
+    """
     global _last_sync
 
     sheet_url = os.getenv("SHEET_URL", "")
     if not sheet_url:
-        # محاولة من config.json
         try:
             cfg_path = os.path.join(os.path.dirname(__file__), "config.json")
             if os.path.exists(cfg_path):
                 with open(cfg_path, "r") as f:
-                    cfg = json.load(f)
-                    sheet_url = cfg.get("sheet_url", "")
+                    sheet_url = json.load(f).get("sheet_url", "")
         except Exception:
             pass
 
@@ -120,52 +122,99 @@ def run_sync(force: bool = False) -> dict:
         tab = snap["tab_name"]
         snap_time = snap["snapshot_time"]
 
-        # كشف التكرار: هل هذا نفس التبويب اللي سحبناه قبل؟
+        # ── كشف التكرار: لو نفس التبويب، توقّف ولا تكمّل ──
         if not force and _last_sync.get("tab") == tab:
             result = {
                 "ok": True, "skipped": True,
-                "message": f"⚠️ آخر تحديث لا يزال ساري — لم تتغير البيانات منذ {_last_sync.get('time', '?')}",
+                "message": f"⚠️ آخر تحديث لا يزال ساري — البيانات لم تتغير منذ {_last_sync.get('time','?')[11:16]}. تم إيقاف التحليل.",
                 "tab": tab, "time": now_riyadh().isoformat(),
             }
             _last_sync["status"] = "no_update"
             _log(result)
             return result
 
-        # تحليل جديد
+        # ── تحليل جديد ──
         df = snap["df"]
         analysis = analyze_dataframe(df)
         analysis["source"] = {
-            "type": "google_sheets_auto",
-            "tab": tab,
+            "type": "auto", "tab": tab,
             "snapshot_time": snap_time.isoformat() if snap_time else None,
             "market_status": classify_snapshot_time(),
         }
 
-        # تحديث الكاش العام (يستخدمه التقييم)
-        # نستورد _last_analysis من server مباشرة
+        # تحديث الكاش العام
         try:
             import server
             server._last_analysis["data"] = analysis
         except Exception:
             pass
 
-        _last_sync.update(
-            time=now_riyadh().isoformat(),
-            tab=tab,
-            status="success",
-            stocks=analysis["summary"]["total_stocks"],
-            error=None,
-        )
-
         result = {
-            "ok": True, "skipped": False,
-            "tab": tab, "stocks": analysis["summary"]["total_stocks"],
+            "ok": True, "skipped": False, "tab": tab,
+            "stocks": analysis["summary"]["total_stocks"],
             "mood": analysis["summary"]["market_mood"]["state"],
             "time": now_riyadh().isoformat(),
-            "recommendations": {
-                k: len(v) for k, v in analysis.get("recommendations", {}).items()
-            },
         }
+
+        # ── التحليل الكامل التلقائي (Claude + Gemini + حفظ) ──
+        if full:
+            try:
+                from dual_evaluator import dual_evaluate
+                from tracker import (create_recommendation, update_active,
+                                     update_post_watch, performance_report)
+                from price_feed import fetch_prices_bulk
+                import server as _srv
+
+                sb = _srv._get_supabase()
+                performance, prev_picks = None, []
+
+                if sb:
+                    # حدّث التوصيات السابقة أولاً
+                    active = sb.table("idx_recommendations").select("*").eq("status", "active").execute().data or []
+                    prev_picks = [{"symbol": r["symbol"], "confidence": r.get("score", 0)} for r in active]
+                    symbols = list(set(r["symbol"] for r in active))
+                    prices = {}
+                    if symbols and os.getenv("SAHMK_API_KEY"):
+                        prices = fetch_prices_bulk(symbols)
+                    # كمّل من الشيت
+                    if len(prices) < len(symbols):
+                        for _, row in df.iterrows():
+                            try:
+                                sc = next((c for c in df.columns if "الرمز" in str(c)), None)
+                                pc = next((c for c in df.columns if "آخر" in str(c) or "السعر" in str(c)), None)
+                                if sc and pc and str(row[sc]) in symbols and str(row[sc]) not in prices:
+                                    prices[str(row[sc])] = float(row[pc])
+                            except Exception:
+                                pass
+                    update_active(prices, sb)
+                    update_post_watch(prices, sb)
+                    performance = performance_report(sb)
+
+                # التقييم المزدوج
+                eval_result = dual_evaluate(analysis, performance, prev_picks)
+
+                # حفظ التوصيات
+                saved = 0
+                if sb and eval_result.get("picks"):
+                    for pick in eval_result["picks"]:
+                        orig = next((s for s in analysis["stocks"] if s["symbol"] == pick["symbol"]), {})
+                        merged = {**orig, **pick, "reason": pick.get("reasoning", "")}
+                        cat = "short_term" if ("يوم" in pick.get("horizon","") or "ساع" in pick.get("horizon","")) else "long_term"
+                        create_recommendation(merged, cat, sb)
+                        saved += 1
+
+                result["picks_count"] = len(eval_result.get("picks", []))
+                result["saved"] = saved
+                result["market_note"] = eval_result.get("market_note", "")
+                result["evaluated"] = True
+            except Exception as e:
+                result["eval_error"] = str(e)[:150]
+                result["evaluated"] = False
+
+        _last_sync.update(
+            time=now_riyadh().isoformat(), tab=tab, status="success",
+            stocks=analysis["summary"]["total_stocks"], error=None,
+        )
         _log(result)
         return result
 

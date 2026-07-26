@@ -642,10 +642,10 @@ def sync_status():
 
 
 @app.post("/api/sync/now")
-def sync_now(force: bool = False):
-    """مزامنة فورية — يسحب من الشيت ويحلّل."""
+def sync_now(force: bool = False, full: bool = True):
+    """مزامنة فورية — يسحب ويحلّل كامل (Claude+Gemini)."""
     from scheduler import run_sync
-    return run_sync(force=force)
+    return run_sync(force=force, full=full)
 
 
 @app.post("/api/sync/start")
@@ -693,12 +693,12 @@ def wake():
 
 @app.get("/api/cron/sync")
 def cron_sync():
-    """نقطة وصول لخدمات cron خارجية (cron-job.org)."""
+    """نقطة وصول لخدمات cron خارجية — يسحب ويحلّل كامل."""
     from scheduler import run_sync
-    from market_clock import is_trading_day, now_riyadh
+    from market_clock import is_trading_day
     if not is_trading_day():
         return {"skipped": True, "reason": "عطلة"}
-    return run_sync()
+    return run_sync(full=True)
 
 
 # تشغيل المجدوِل تلقائياً عند بدء السيرفر
