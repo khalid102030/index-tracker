@@ -165,8 +165,9 @@ function pgSettings(){return `
 <label style="font-weight:700;font-size:.88rem;display:block;margin-bottom:5px;margin-top:6px">🗄️ Supabase URL</label><input type="url" id="su" placeholder="https://xxx.supabase.co">
 <label style="font-weight:700;font-size:.88rem;display:block;margin-bottom:5px">🔐 Supabase Key</label><input type="password" id="sk" placeholder="sb_secret_...">
 <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px">
-<button class="bt" onclick="saveCfg()">💾 حفظ</button><button class="bs" onclick="setupTb()">🗄️ إنشاء الجداول</button>
-<span id="cm" style="font-size:.82rem;color:var(--mt)"></span></div></div>
+<button class="bt" onclick="saveCfg()">💾 حفظ</button><button class="bs" onclick="setupTb()">🗄️ إنشاء الجداول</button><button class="bs" onclick="testKeys()">🔌 اختبار المفاتيح</button>
+<span id="cm" style="font-size:.82rem;color:var(--mt)"></span></div>
+<div id="keyTest" style="margin-top:10px"></div></div>
 
 <div class="pn">
 <div style="font-weight:700;color:var(--ac2);margin-bottom:10px">⏰ أوقات السحب التلقائي</div>
@@ -190,6 +191,7 @@ async function saveTimes(){const m=document.getElementById("tmsg");m.textContent
 async function saveCfg(){const m=document.getElementById("cm");m.textContent="⏳";try{await api("/api/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sheet_url:v("cs"),claude_key:v("ck"),gemini_key:v("cg"),sahmk_api_key:v("csh"),supabase_url:v("su"),supabase_key:v("sk")})});m.innerHTML='<span style="color:var(--g)">✅ تم</span>'}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
 function v(i){return document.getElementById(i)?.value||""}
 async function setupTb(){const m=document.getElementById("cm");m.textContent="⏳";try{const r=await api("/api/setup/tables",{method:"POST"});m.innerHTML=r.sql?'<span style="color:var(--o)">⚠️ أنشئ يدوياً من SQL Editor</span>':`<span style="color:var(--g)">✅ ${r.message}</span>`}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
+async function testKeys(){const b=document.getElementById("keyTest");b.innerHTML='<div style="color:var(--mt);font-size:.85rem"><span class="spin"></span> جاري اختبار المفاتيح...</div>';try{const d=await api("/api/test/keys");const names={sahmk:"📊 سهمك",claude:"🔑 Claude",gemini:"✨ Gemini",supabase:"🗄️ Supabase",sheet:"📋 Google Sheets"};let h='';for(const[k,v]of Object.entries(d)){const c=v.ok?"var(--g)":"var(--r)";const ic=v.ok?"✅":"❌";h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg2);border:1px solid ${v.ok?'rgba(0,230,118,.2)':'rgba(255,82,82,.2)'};border-radius:8px;margin-bottom:6px"><span style="font-weight:700">${names[k]||k}</span><span style="color:${c};font-size:.82rem">${ic} ${v.msg}</span></div>`}b.innerHTML=h}catch(e){b.innerHTML=`<div style="color:var(--r);font-size:.85rem">❌ ${e.message}</div>`}}
 
 shell();
 </script></body></html>

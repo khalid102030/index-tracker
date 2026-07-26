@@ -522,6 +522,83 @@ def sync_history():
     return {"log": status.get("log", []), "last_sync": status.get("last_sync", {})}
 
 
+@app.get("/api/test/keys")
+def test_keys():
+    """يختبر كل المفاتيح ويرجّع حالة كل واحد."""
+    import requests as _rq
+    results = {}
+
+    # ① سهمك — جرّب جلب سعر الراجحي
+    sahmk = os.getenv("SAHMK_API_KEY", "")
+    if not sahmk:
+        results["sahmk"] = {"ok": False, "msg": "المفتاح غير مضاف"}
+    else:
+        try:
+            from price_feed import fetch_price
+            d = fetch_price("1120")
+            if d.get("price"):
+                results["sahmk"] = {"ok": True, "msg": f"الراجحي: {d['price']} ريال"}
+            else:
+                results["sahmk"] = {"ok": False, "msg": d.get("error", "لا سعر")}
+        except Exception as e:
+            results["sahmk"] = {"ok": False, "msg": str(e)[:100]}
+
+    # ② Claude
+    claude = os.getenv("ANTHROPIC_API_KEY", "")
+    if not claude:
+        results["claude"] = {"ok": False, "msg": "المفتاح غير مضاف"}
+    else:
+        try:
+            r = _rq.post("https://api.anthropic.com/v1/messages",
+                headers={"x-api-key": claude, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+                json={"model": "claude-sonnet-4-6", "max_tokens": 10, "messages": [{"role": "user", "content": "قل تمام"}]},
+                timeout=20)
+            results["claude"] = {"ok": r.status_code == 200,
+                                 "msg": "يعمل ✓" if r.status_code == 200 else f"HTTP {r.status_code}"}
+        except Exception as e:
+            results["claude"] = {"ok": False, "msg": str(e)[:100]}
+
+    # ③ Gemini
+    gemini = os.getenv("GEMINI_API_KEY", "")
+    if not gemini:
+        results["gemini"] = {"ok": False, "msg": "المفتاح غير مضاف"}
+    else:
+        try:
+            r = _rq.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini}",
+                headers={"Content-Type": "application/json"},
+                json={"contents": [{"parts": [{"text": "قل تمام"}]}]}, timeout=20)
+            results["gemini"] = {"ok": r.status_code == 200,
+                                 "msg": "يعمل ✓" if r.status_code == 200 else f"HTTP {r.status_code}"}
+        except Exception as e:
+            results["gemini"] = {"ok": False, "msg": str(e)[:100]}
+
+    # ④ Supabase
+    sb = _get_supabase()
+    if not sb:
+        results["supabase"] = {"ok": False, "msg": "غير متصل — تحقق من URL/Key"}
+    else:
+        try:
+            sb.table("idx_recommendations").select("id").limit(1).execute()
+            results["supabase"] = {"ok": True, "msg": "متصل ✓"}
+        except Exception as e:
+            results["supabase"] = {"ok": False, "msg": str(e)[:100]}
+
+    # ⑤ Google Sheets
+    sheet = os.getenv("SHEET_URL", "") or _config.get("sheet_url", "")
+    if not sheet:
+        results["sheet"] = {"ok": False, "msg": "الرابط غير مضاف"}
+    else:
+        try:
+            from sheets_reader import fetch_latest_snapshot
+            snap = fetch_latest_snapshot(sheet)
+            results["sheet"] = {"ok": True, "msg": f"آخر تبويب: {snap['tab_name']}"}
+        except Exception as e:
+            results["sheet"] = {"ok": False, "msg": str(e)[:100]}
+
+    return results
+
+
 @app.get("/api/recommendations/latest")
 def recommendations_latest():
     """آخر التوصيات الصادرة (أحدث دفعة) لعرضها تلقائياً."""
