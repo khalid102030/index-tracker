@@ -154,25 +154,107 @@ _last_analysis = {}  # كاش آخر تحليل للتقييم
 
 @app.post("/api/evaluate")
 def evaluate_picks():
-    """
-    يأخذ آخر تحليل ويعرض المرشحين على Claude للتقييم النهائي.
-    الناتج: 3–5 توصيات مضمونة فقط.
-    """
-    from evaluator import evaluate_candidates
-
-    claude_key = _config.get("claude_key")
-    if not claude_key:
-        raise HTTPException(status_code=400,
-                            detail="أضف مفتاح Claude API في الإعدادات أولاً")
-
+    """التقييم المزدوج — Claude + Gemini يناقشون ويختارون."""
+    from dual_evaluator import dual_evaluate
     analysis = _last_analysis.get("data")
     if not analysis:
-        raise HTTPException(status_code=400,
-                            detail="شغّل التحليل أولاً (سحب من الشيت أو رفع ملف)")
-
+        raise HTTPException(status_code=400, detail="شغّل التحليل أولاً")
     try:
-        result = evaluate_candidates(analysis, claude_key)
+        result = dual_evaluate(analysis)
+        # حفظ في Supabase
+        sb = _get_supabase()
+        if sb:
+            try:
+                sb.table("idx_evaluations").insert({
+                    "candidates_count": result.get("candidates_count"),
+                    "picks_count": len(result.get("picks", [])),
+                    "picks": result.get("picks", []),
+                    "rejected": result.get("rejected", []),
+                    "market_note": result.get("market_note", ""),
+                    "model": ",".join(result.get("models", [])),
+                }).execute()
+            except Exception:
+                pass
         return result
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/evaluate/learn")
+def evaluate_learn():
+    """Claude + Gemini يقيّمون النتائج ويعدّلون الاستراتيجية."""
+    from dual_evaluator import evaluate_and_learn, save_strategy
+    from tracker import performance_report
+    sb = _get_supabase()
+    try:
+        perf = performance_report(sb)
+        if perf.get("closed", 0) < 5:
+            return {"skip": True, "reason": f"العينة صغيرة ({perf.get('closed',0)}/5) — انتظر المزيد"}
+        result = evaluate_and_learn(perf)
+        if result.get("save_strategy") and sb:
+            save_result = save_strategy(result.get("new_weights", {}), result.get("target_recommendation", {}), sb)
+            result["save_result"] = save_result
+        return result
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ══════════════════════════════════════════════════════════════
+#  الأسعار اللحظية من سهمك
+# ══════════════════════════════════════════════════════════════
+@app.get("/api/prices/{symbol}")
+def get_price(symbol: str):
+    from price_feed import fetch_price
+    return fetch_price(symbol)
+
+
+@app.post("/api/prices/bulk")
+def get_prices_bulk(symbols: list[str] = None):
+    """أسعار مجموعة أسهم — يستخدمها تحديث التوصيات."""
+    from price_feed import fetch_prices_bulk
+    if not symbols:
+        # جلب رموز التوصيات النشطة
+        sb = _get_supabase()
+        if sb:
+            try:
+                active = sb.table("idx_recommendations").select("symbol").eq("status", "active").execute().data or []
+                symbols = list(set(r["symbol"] for r in active))
+            except Exception:
+                symbols = []
+    if not symbols:
+        return {"prices": {}, "note": "لا توجد رموز"}
+    return {"prices": fetch_prices_bulk(symbols), "count": len(symbols)}
+
+
+@app.post("/api/recommendations/update")
+def recommendations_update():
+    """يحدّث التوصيات — يستخدم أسعار سهمك اللحظية أولاً، ثم الشيت."""
+    from tracker import update_active, update_post_watch
+    from price_feed import fetch_prices_bulk
+    sb = _get_supabase()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase غير متصل")
+    try:
+        # جلب رموز التوصيات النشطة
+        active = sb.table("idx_recommendations").select("symbol").eq("status", "active").execute().data or []
+        symbols = list(set(r["symbol"] for r in active))
+        # محاولة 1: أسعار سهمك اللحظية
+        prices = {}
+        if symbols and os.getenv("SAHMK_API_KEY"):
+            prices = fetch_prices_bulk(symbols)
+        # محاولة 2: من الشيت
+        if len(prices) < len(symbols):
+            sheet_prices = _get_current_prices()
+            for s in symbols:
+                if s not in prices and s in sheet_prices:
+                    prices[s] = sheet_prices[s]
+        active_result = update_active(prices, sb)
+        post_result = update_post_watch(prices, sb)
+        return {"active": active_result, "post_watch": post_result,
+                "price_source": "سهمك" if os.getenv("SAHMK_API_KEY") else "الشيت",
+                "prices_found": len(prices)}
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
@@ -290,24 +372,6 @@ def list_recommendations(status: str = None, category: str = None, limit: int = 
         rows = q.execute().data or []
         return {"count": len(rows), "results": rows}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/api/recommendations/update")
-def recommendations_update():
-    """يحدّث التوصيات النشطة بالأسعار الحالية."""
-    from tracker import update_active, update_post_watch
-    sb = _get_supabase()
-    if not sb:
-        raise HTTPException(status_code=500, detail="Supabase غير متصل")
-    try:
-        # جلب الأسعار من آخر لقطة
-        prices = _get_current_prices()
-        active_result = update_active(prices, sb)
-        post_result = update_post_watch(prices, sb)
-        return {"active": active_result, "post_watch": post_result}
-    except Exception as e:
-        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 

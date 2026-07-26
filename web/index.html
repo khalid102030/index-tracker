@@ -84,16 +84,16 @@ h+=recoS("📈 طويلة المدى","إشارات أسبوعية/شهرية ق
 h+=recoS("⚡ مضاربة","إشارات قصيرة بدون اشتعال",rc.speculative,"#ff9800");
 if(rc.traps?.length)h+=recoS("⚠️ فخاخ","مؤشرات مشتعلة مع صعود سابق — احذر",rc.traps,"var(--r)");
 h+=`<div class="pn" style="border:1px solid rgba(255,152,0,.3)"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-<button class="bt" style="background:linear-gradient(135deg,#ff9800,#e65100)" onclick="runEval()">🧠 تقييم نهائي (Claude)</button>
+<button class="bt" style="background:linear-gradient(135deg,#ff9800,#e65100)" onclick="runEval()">🧠 تقييم مزدوج (Claude + Gemini)</button>
 <button class="bt" onclick="genRecs()">💾 حفظ وتتبع الكل</button>
 <span id="sv" style="font-size:.82rem;color:var(--mt)"></span></div>
-<div style="font-size:.72rem;color:var(--mt);margin-top:6px">المُقيّم يعرض المرشحين على Claude ويختار 3–5 فقط يراهن عليها النظام</div></div>`;
+<div style="font-size:.72rem;color:var(--mt);margin-top:6px">Claude يقيّم → Gemini يراجع → يتفقون على 3–5 فقط</div></div>`;
 h+=`<div id="evalBox"></div>`;
 h+=`<div class="sh"><div class="d"></div><h2>أقوى 15 سهم</h2></div>`;h+=stTbl(d.stocks.slice(0,15));return h}
 async function genRecs(){const m=document.getElementById("sv");m.textContent="⏳";try{const r=await api("/api/recommendations/generate",{method:"POST"});m.innerHTML=`<span style="color:var(--g)">✅ حُفظت ${r.total} توصية</span>`}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
-async function runEval(){const b=document.getElementById("evalBox");const m=document.getElementById("sv");m.textContent="⏳ جاري التقييم...";b.innerHTML=`<div class="pn" style="text-align:center;color:var(--mt);padding:30px"><div style="font-size:1.5rem;margin-bottom:8px">🧠</div>المُقيّم يحلّل المرشحين...</div>`;
-try{const d=await api("/api/evaluate",{method:"POST"});m.textContent="";const picks=d.picks||[];const rej=d.rejected_notable||[];
-let h=`<div class="sh"><div class="d" style="background:#ff9800;box-shadow:0 0 14px #ff9800"></div><h2>🏆 التوصيات النهائية</h2><span class="tg">${picks.length} سهم فقط · ثقة ≥7</span></div>`;
+async function runEval(){const b=document.getElementById("evalBox");const m=document.getElementById("sv");m.textContent="⏳ Claude يقيّم...";b.innerHTML=`<div class="pn" style="text-align:center;color:var(--mt);padding:30px"><div style="font-size:1.5rem;margin-bottom:8px">🧠🤖</div>Claude يقيّم → Gemini يراجع...</div>`;
+try{const d=await api("/api/evaluate",{method:"POST"});m.textContent="";const picks=d.picks||[];const rej=d.rejected||[];
+let h=`<div class="sh"><div class="d" style="background:#ff9800;box-shadow:0 0 14px #ff9800"></div><h2>🏆 التوصيات النهائية</h2><span class="tg">${picks.length} سهم · Claude + Gemini</span></div>`;
 if(d.market_note)h+=`<div class="pn" style="font-size:.85rem;color:var(--ac2)">📊 ${d.market_note}</div>`;
 if(!picks.length){h+=`<div class="pn" style="text-align:center;color:var(--mt);padding:25px">المُقيّم لم يجد مرشحين يستحقون المراهنة في هذه اللقطة</div>`}
 for(const p of picks){const cc=p.confidence>=9?"var(--g)":p.confidence>=7?"var(--ac2)":"var(--mt)";
@@ -110,8 +110,12 @@ h+=`<div class="rc" style="border-color:rgba(255,152,0,.3)">
 <span style="color:var(--r)">⚠️ ${p.risk||''}</span></div></div>`}
 if(rej.length){h+=`<div style="margin-top:10px"><div style="font-size:.82rem;font-weight:700;color:var(--mt);margin-bottom:6px">🚫 مرفوضون:</div>`;
 for(const r of rej)h+=`<div style="font-size:.78rem;color:var(--mt);margin-bottom:3px"><span style="font-weight:700">${r.symbol}</span> — ${r.reason}</div>`;h+=`</div>`}
-h+=`<div style="font-size:.68rem;color:var(--mt);margin-top:10px;text-align:center">⚠️ تحليل فني مساعد وليس توصية مالية · ${d.candidates_count||0} مرشح → ${picks.length} توصية</div>`;
+if(d.consensus_note)h+=`<div class="pn" style="font-size:.82rem;margin-top:8px"><span style="color:var(--ac2);font-weight:700">🤝 التوافق:</span> ${d.consensus_note}</div>`;
+const review=d.gemini_review||[];if(review.length){h+=`<div style="margin-top:8px"><div style="font-size:.78rem;font-weight:700;color:var(--mt);margin-bottom:4px">مراجعة Gemini:</div>`;for(const r of review)h+=`<div style="font-size:.75rem;color:var(--mt);margin-bottom:2px">${r.agree?'✅':'❌'} <b>${r.symbol}</b> — ${r.reason||''}</div>`;h+=`</div>`}
+h+=`<div style="display:flex;gap:8px;margin-top:10px"><button class="bs" onclick="runLearn()">📚 تقييم النتائج وتعلّم</button><span id="learnMsg" style="font-size:.78rem;color:var(--mt)"></span></div>`;
+h+=`<div style="font-size:.68rem;color:var(--mt);margin-top:10px;text-align:center">⚠️ تحليل فني مساعد وليس توصية مالية · ${d.candidates_count||0} مرشح → ${picks.length} توصية · ${(d.models||[]).join(' + ')}</div>`;
 b.innerHTML=h}catch(e){m.textContent="";b.innerHTML=`<div class="pn" style="color:var(--r)">❌ ${e.message}</div>`}}
+async function runLearn(){const m=document.getElementById("learnMsg");m.textContent="⏳ Claude + Gemini يحلّلون الأداء...";try{const d=await api("/api/evaluate/learn",{method:"POST"});if(d.skip){m.innerHTML=d.reason;return}let h=`<div class="pn" style="margin-top:10px"><b style="color:var(--ac2)">📚 نتيجة التعلّم</b><div style="margin-top:6px;font-size:.85rem">${d.claude_assessment||''}</div>`;if(d.gemini_notes)h+=`<div style="font-size:.82rem;color:var(--mt);margin-top:4px">Gemini: ${d.gemini_notes}</div>`;const adj=d.adjustments||[];if(adj.length){h+=`<div style="margin-top:8px;font-size:.8rem"><b>التعديلات المقترحة:</b>`;for(const a of adj)h+=`<div style="margin-top:3px">• ${a.parameter}: ${a.current} → <b style="color:var(--ac2)">${a.suggested}</b> — ${a.reason}</div>`;h+=`</div>`}const tr=d.target_recommendation||{};if(tr.reason)h+=`<div style="margin-top:6px;font-size:.8rem">الهدف: ${tr.pct}% خلال ${tr.days} أيام — ${tr.reason}</div>`;if(d.save_result?.saved)h+=`<div style="margin-top:6px;color:var(--g);font-size:.82rem">✅ تم حفظ الاستراتيجية المحدّثة</div>`;h+=`</div>`;document.getElementById("evalBox").innerHTML+=h;m.textContent=""}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
 
 function recoS(t,sub,items,cl){if(!items?.length)return'';let h=`<div class="sh"><div class="d" style="background:${cl};box-shadow:0 0 10px ${cl}"></div><h2>${t}</h2><span class="tg">${items.length} · ${sub}</span></div>`;
 for(const r of items){const fs=r.frame_scores||{};const bars=[{l:"قصير",p:fs.short?.pct||0,c:"#29b6f6"},{l:"متوسط",p:fs.mid?.pct||0,c:"var(--ac2)"},{l:"طويل",p:fs.long?.pct||0,c:"var(--g)"}];const cc=r.change_pct>0?"var(--g)":r.change_pct<0?"var(--r)":"var(--mt)";
