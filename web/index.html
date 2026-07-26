@@ -76,8 +76,9 @@ if(!d.mature)h+=`<div style="font-size:.68rem;color:var(--mt);margin-top:8px">�
 h+=`</div>`;c.innerHTML=h}catch(e){c.innerHTML=''}}
 async function loadLatest(){const box=document.getElementById("resultBox");if(!box)return;try{const d=await api("/api/recommendations/latest");const picks=d.picks||[];if(!picks.length)return;
 let h=`<div class="sh"><div class="d" style="background:var(--o);box-shadow:0 0 14px var(--o)"></div><h2>🏆 آخر التوصيات الصادرة</h2><span class="tg">دفعة ${d.date||''} · ${picks.length} سهم</span></div>`;
+h+=summaryTable(picks);
 let rank=0;for(const p of picks){rank++;const cc=p.confidence>=9?"var(--g)":p.confidence>=7?"var(--ac2)":"var(--mt)";const cp=p.current_pct||0;const cpc=cp>0?"var(--g)":cp<0?"var(--r)":"var(--mt)";const bg=p.status==='active'?'':p.outcome==='success'?' <span style="color:var(--g)">✅ ناجحة</span>':p.outcome==='failed'?' <span style="color:var(--r)">❌ فاشلة</span>':p.outcome==='flat'?' <span style="color:var(--mt)">⚪</span>':'';const posW=Math.round((p.confidence||0)*10);const posLbl=p.confidence>=9?"إيجابية عالية جداً":p.confidence>=8?"إيجابية عالية":p.confidence>=7?"إيجابية جيدة":"إيجابية معتدلة";const medal=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`#${rank}`;
-h+=`<div class="rc" style="border-color:rgba(255,152,0,.3)">
+h+=`<div class="rc" id="card_${p.symbol}" style="border-color:rgba(255,152,0,.3)">
 <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:center">
 <div><span style="font-size:1rem;margin-left:4px">${medal}</span><b style="font-size:1.12rem">${p.name||''}</b> <span style="font-family:'IBM Plex Mono';color:var(--mt);font-size:.82rem">${p.symbol}</span>${bg}</div>
 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -108,6 +109,19 @@ async function updateTracking(){const b=document.getElementById("trackBox");b.in
 async function runFull(){if(S.busy)return;S.busy=true;const btn=document.getElementById("mainBtn");btn.disabled=true;btn.innerHTML=`<span class="spin"></span> جاري التحليل والتقييم... (~20 ثانية)`;const box=document.getElementById("resultBox");box.innerHTML="";
 try{const d=await api("/api/analyze-full",{method:"POST"});S.result=d;shell()}catch(e){box.innerHTML=`<div class="pn" style="color:var(--r)">❌ ${e.message}</div>`;btn.disabled=false;btn.innerHTML="🚀 حلّل الآن — Claude + Gemini"}S.busy=false}
 
+function summaryTable(picks){let h=`<div class="pn" style="padding:0;overflow:hidden;margin-bottom:14px"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.82rem">
+<thead><tr style="background:var(--bg);color:var(--ac2);font-size:.72rem"><th style="padding:9px 6px">#</th><th style="padding:9px 6px;text-align:right">السهم</th><th style="padding:9px 6px">الثقة</th><th style="padding:9px 6px">الدخول</th><th style="padding:9px 6px">الحالي</th><th style="padding:9px 6px">الهدف</th><th style="padding:9px 6px">الأفق</th></tr></thead><tbody>`;
+let rank=0;for(const p of picks){rank++;const cc=p.confidence>=9?"var(--g)":p.confidence>=7?"var(--ac2)":"var(--mt)";const medal=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`${rank}`;const cp=p.current_pct||0;const cpc=cp>0?"var(--g)":cp<0?"var(--r)":"var(--mt)";
+h+=`<tr style="border-bottom:1px solid var(--ln2);cursor:pointer" onclick="document.getElementById('card_${p.symbol}')?.scrollIntoView({behavior:'smooth',block:'center'})">
+<td style="padding:8px 6px;text-align:center">${medal}</td>
+<td style="padding:8px 6px"><b>${p.name||''}</b> <span style="font-family:'IBM Plex Mono';color:var(--mt);font-size:.72rem">${p.symbol}</span></td>
+<td style="padding:8px 6px;text-align:center"><span style="background:${cc}22;color:${cc};padding:2px 8px;border-radius:6px;font-weight:800">${p.confidence}</span></td>
+<td style="padding:8px 6px;text-align:center">${p.entry_price||p.price||'-'}</td>
+<td style="padding:8px 6px;text-align:center">${p.current_price?`${p.current_price} <span style="color:${cpc};font-size:.72rem">${cp>0?'+':''}${cp}%</span>`:'<span style="color:var(--mt)">-</span>'}</td>
+<td style="padding:8px 6px;text-align:center">${p.target_price||'-'}</td>
+<td style="padding:8px 6px;text-align:center;font-size:.75rem;color:var(--mt)">${p.horizon||p.category||'-'}</td></tr>`}
+return h+`</tbody></table></div></div>`}
+
 function renderResult(){const d=S.result;if(!d)return'';const md=d.market_mood||{};const mc=md.state==="صاعد"?"var(--g)":md.state==="هابط"?"var(--r)":"var(--ac2)";const picks=d.picks||[];
 let h=`<div class="pn"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center">
 <div><b style="color:var(--ac2)">السوق:</b> <span style="background:${mc}22;color:${mc};padding:4px 10px;border-radius:99px;font-size:.85rem;font-weight:700">${md.state||''}</span>
@@ -118,11 +132,12 @@ ${d.consensus_note?`<div style="font-size:.8rem;color:var(--ac2);margin-top:4px"
 
 h+=`<div class="sh"><div class="d" style="background:var(--o);box-shadow:0 0 14px var(--o)"></div><h2>🏆 التوصيات النهائية</h2><span class="tg">${picks.length} سهم · ${(d.models||[]).join(' + ')}</span></div>`;
 picks.sort((a,b)=>(b.confidence||0)-(a.confidence||0));
-if(!picks.length)h+=`<div class="pn" style="text-align:center;color:var(--mt);padding:25px">لم يتفق النموذجان على مرشح يستحق المراهنة في هذه اللقطة</div>`;
-for(const p of picks){const cc=p.confidence>=9?"var(--g)":p.confidence>=7?"var(--ac2)":"var(--mt)";const chg=p.change_pct>0?"var(--g)":p.change_pct<0?"var(--r)":"var(--mt)";const posW=Math.round((p.confidence||0)*10);const posLbl=p.confidence>=9?"إيجابية عالية جداً":p.confidence>=8?"إيجابية عالية":p.confidence>=7?"إيجابية جيدة":"إيجابية معتدلة";
-h+=`<div class="rc" style="border-color:rgba(255,152,0,.3)">
+if(!picks.length){h+=`<div class="pn" style="text-align:center;color:var(--mt);padding:25px">لم يتفق النموذجان على مرشح يستحق المراهنة في هذه اللقطة</div>`}
+else{h+=summaryTable(picks)}
+let rrank=0;for(const p of picks){rrank++;const cc=p.confidence>=9?"var(--g)":p.confidence>=7?"var(--ac2)":"var(--mt)";const chg=p.change_pct>0?"var(--g)":p.change_pct<0?"var(--r)":"var(--mt)";const posW=Math.round((p.confidence||0)*10);const posLbl=p.confidence>=9?"إيجابية عالية جداً":p.confidence>=8?"إيجابية عالية":p.confidence>=7?"إيجابية جيدة":"إيجابية معتدلة";const rmedal=rrank===1?'🥇':rrank===2?'🥈':rrank===3?'🥉':`#${rrank}`;
+h+=`<div class="rc" id="card_${p.symbol}" style="border-color:rgba(255,152,0,.3)">
 <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:center">
-<div><b style="font-size:1.12rem">${p.name||''}</b> <span style="font-family:'IBM Plex Mono';color:var(--mt);font-size:.82rem">${p.symbol}</span>
+<div><span style="font-size:1rem;margin-left:4px">${rmedal}</span><b style="font-size:1.12rem">${p.name||''}</b> <span style="font-family:'IBM Plex Mono';color:var(--mt);font-size:.82rem">${p.symbol}</span>
 <span style="color:${chg};font-weight:700;font-size:.85rem">${p.change_pct>0?'+':''}${p.change_pct||0}%</span></div>
 <div style="display:flex;gap:8px;align-items:center"><span style="font-family:'IBM Plex Mono';font-weight:700">${p.price||''}</span>
 <span style="background:${cc}22;color:${cc};padding:4px 12px;border-radius:8px;font-weight:800">ثقة ${p.confidence}/10</span></div></div>
