@@ -178,9 +178,9 @@ def run_sync(force: bool = False, full: bool = True) -> dict:
                         prices = fetch_prices_full(symbols)
                     # كمّل من الشيت (السعر + أعلى سعر)
                     if len(prices) < len(symbols):
-                        sc = next((c for c in df.columns if "الرمز" in str(c)), None)
-                        pc = next((c for c in df.columns if "آخر" in str(c) or "السعر" in str(c)), None)
-                        hc = next((c for c in df.columns if str(c).strip() == "أعلى" or "أعلى" in str(c)), None)
+                        sc = next((c for c in df.columns if str(c).strip() == "الرمز"), None) or next((c for c in df.columns if "الرمز" in str(c)), None)
+                        pc = next((c for c in df.columns if str(c).strip() == "آخر"), None) or next((c for c in df.columns if "آخر" in str(c)), None)
+                        hc = next((c for c in df.columns if str(c).strip() == "أعلى"), None)
                         for _, row in df.iterrows():
                             try:
                                 sym = str(row[sc]) if sc else None

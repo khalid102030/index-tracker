@@ -683,10 +683,10 @@ def _get_current_prices_full() -> dict:
             return result
         snap = fetch_latest_snapshot(sheet_url)
         df = snap["df"]
-        sym_col = next((c for c in df.columns if "الرمز" in str(c)), None)
-        price_col = next((c for c in df.columns if "آخر" in str(c) or "السعر" in str(c)), None)
-        high_col = next((c for c in df.columns if str(c).strip() == "أعلى" or "أعلى" in str(c)), None)
-        low_col = next((c for c in df.columns if str(c).strip() == "أدنى" or "أدنى" in str(c)), None)
+        sym_col = next((c for c in df.columns if str(c).strip() == "الرمز"), None) or next((c for c in df.columns if "الرمز" in str(c)), None)
+        price_col = next((c for c in df.columns if str(c).strip() == "آخر"), None) or next((c for c in df.columns if "آخر" in str(c) or str(c).strip() == "السعر"), None)
+        high_col = next((c for c in df.columns if str(c).strip() == "أعلى"), None)
+        low_col = next((c for c in df.columns if str(c).strip() == "أدنى"), None)
         if not (sym_col and price_col):
             return result
         for _, row in df.iterrows():
