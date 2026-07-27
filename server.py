@@ -232,6 +232,23 @@ def analyze_full(url: str = None):
                 create_recommendation(merged, cat, sb)
                 saved += 1
 
+        # ── التعلّم التلقائي: كل 10 نتائج محسومة، يعيد تقييم الاستراتيجية ──
+        learn_note = None
+        if sb and performance and performance.get("closed", 0) >= 10:
+            try:
+                from dual_evaluator import evaluate_and_learn, save_strategy
+                # يتعلّم مرة كل 10 نتائج جديدة (نتحقق من عدّاد بسيط)
+                closed_n = performance.get("closed", 0)
+                last_learn = _last_analysis.get("last_learn_at", 0)
+                if closed_n - last_learn >= 10:
+                    lr = evaluate_and_learn(performance)
+                    if lr.get("new_weights"):
+                        save_strategy(lr["new_weights"], lr.get("target_recommendation", {}), sb)
+                        _last_analysis["last_learn_at"] = closed_n
+                        learn_note = lr.get("claude_assessment", "تم تحديث الاستراتيجية")
+            except Exception:
+                pass
+
         return {
             "ok": True,
             "tab": snap["tab_name"],
@@ -244,6 +261,7 @@ def analyze_full(url: str = None):
             "saved": saved,
             "models": eval_result.get("models", []),
             "performance": performance,
+            "learn_note": learn_note,
         }
 
     except Exception as e:
@@ -479,6 +497,10 @@ def recommendations_tracking():
         late = [r for r in rows if r.get("post_watch_hit")]
 
         def _slim_rec(r):
+            conf = r.get("confidence", 0) or 0
+            if not conf:
+                raw = r.get("score", 0)
+                conf = round(min(10, raw / 14), 1) if raw > 10 else round(raw, 1)
             return {
                 "symbol": r["symbol"], "name": r.get("name", ""),
                 "entry_price": r.get("entry_price"), "target_price": r.get("target_price"),
@@ -487,12 +509,22 @@ def recommendations_tracking():
                 "status": r["status"], "outcome": r.get("outcome"),
                 "appeared_date": r.get("appeared_date"), "expiry_date": r.get("expiry_date"),
                 "closed_date": r.get("closed_date"), "score": r.get("score", 0),
+                "confidence": round(min(10, conf), 1),
+                "created_at": r.get("created_at", ""),
                 "category": r.get("category", ""), "reason": r.get("reason", ""),
                 "post_watch": r.get("post_watch"), "post_watch_hit": r.get("post_watch_hit"),
                 "post_watch_peak": r.get("post_watch_peak", 0),
             }
 
+        all_recs = [_slim_rec(r) for r in rows]
+        # ترتيب: الجارية أولاً ثم الأحدث
+        all_recs.sort(key=lambda x: (x["status"] != "active", x.get("created_at") or x.get("appeared_date") or ""), reverse=False)
+        active_first = [r for r in all_recs if r["status"] == "active"]
+        closed_recs = sorted([r for r in all_recs if r["status"] != "active"],
+                             key=lambda x: x.get("created_at") or x.get("appeared_date") or "", reverse=True)
+
         return {
+            "all": active_first + closed_recs,
             "active": [_slim_rec(r) for r in active],
             "success": [_slim_rec(r) for r in success],
             "failed": [_slim_rec(r) for r in failed],

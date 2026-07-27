@@ -13,9 +13,9 @@
 import json, os, requests
 from datetime import datetime
 
-MAX_CANDIDATES = 15
-MAX_FINAL = 5
-MIN_CONFIDENCE = 7
+MAX_CANDIDATES = 12
+MAX_FINAL = 3
+MIN_CONFIDENCE = 8
 
 # ═══════ استدعاء النماذج ═══════
 
@@ -175,7 +175,7 @@ def dual_evaluate(analysis_result: dict, performance: dict = None,
     claude_prompt = f"""هؤلاء {len(candidates)} مرشح من {analysis_result['summary']['total_stocks']} سهم:
 {cand_json}{history_context}{prev_context}
 
-اختر 3–5 فقط يستحقون المراهنة (ثقة ≥7). أجب بـ JSON:
+اختر 1–3 أسهم فقط — الأفضل حصراً (ثقة ≥8). الأقل أفضل. إذا واحد فقط يستحق، اختر واحداً. إذا لا شيء يستحق ثقة 8، لا تختر. أجب بـ JSON:
 {{"market_note":"...","picks":[{{"symbol":"...","name":"...","confidence":1-10,"horizon":"...","reasoning":"...","key_signal":"...","risk":"..."}}],
 "rejected_notable":[{{"symbol":"...","reason":"..."}}]}}"""
 
