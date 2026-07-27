@@ -167,6 +167,58 @@ async def indicators_analyze(file: UploadFile = File(...)):
 # ══════════════════════════════════════════════════════════════
 _last_analysis = {}  # كاش آخر تحليل للتقييم
 
+def _analyze_movers(analysis: dict, sb) -> dict:
+    """
+    يشرّح حركة السوق: أي الأسهم ارتفعت، وهل رشّحناها أم فاتتنا؟
+    يعطي النماذج دروساً فعلية بدل الإحصائيات المجرّدة.
+    """
+    lesson = {"caught": [], "missed": [], "note": ""}
+    try:
+        stocks = analysis.get("stocks", [])
+        if not stocks:
+            return lesson
+
+        # أعلى المرتفعين اليوم (تغير يومي إيجابي قوي)
+        risers = sorted([s for s in stocks if s.get("change_pct", 0) >= 2.5],
+                        key=lambda x: x.get("change_pct", 0), reverse=True)[:10]
+        if not risers:
+            return lesson
+
+        # التوصيات السابقة (لمعرفة ماذا رشّحنا)
+        recommended_syms = set()
+        if sb:
+            try:
+                recent = sb.table("idx_recommendations").select("symbol") \
+                    .order("created_at", desc=True).limit(50).execute().data or []
+                recommended_syms = {r["symbol"] for r in recent}
+            except Exception:
+                pass
+
+        for s in risers:
+            sym = s["symbol"]
+            info = {
+                "symbol": sym, "name": s.get("name", ""),
+                "change_pct": s.get("change_pct", 0),
+                "weekly": s.get("weekly_change", 0),
+                "rsi": s.get("rsi", 0), "rsi_state": s.get("rsi_state", ""),
+                "bet_score": s.get("bet_score", 0),
+                "total_active": s.get("total_active", 0),
+                "signals": s.get("top3_signals", []),
+                "trend": s.get("trend", ""),
+            }
+            if sym in recommended_syms:
+                lesson["caught"].append(info)
+            else:
+                lesson["missed"].append(info)
+
+        n_caught = len(lesson["caught"])
+        n_missed = len(lesson["missed"])
+        lesson["note"] = f"من {len(risers)} مرتفع اليوم: رصدنا {n_caught}، فاتنا {n_missed}"
+    except Exception:
+        pass
+    return lesson
+
+
 @app.post("/api/analyze-full")
 def analyze_full(url: str = None):
     """
@@ -219,8 +271,11 @@ def analyze_full(url: str = None):
             except Exception:
                 pass
 
-        # ③ التقييم المزدوج (مع مراعاة الأداء والسابق)
-        eval_result = dual_evaluate(analysis, performance, prev_picks)
+        # ③ تشريح حركة أمس: ماذا ارتفع؟ هل رشّحناه أم فاتنا؟
+        movers_lesson = _analyze_movers(analysis, sb)
+
+        # ④ التقييم المزدوج (مع الأداء + السابق + دروس الحركة)
+        eval_result = dual_evaluate(analysis, performance, prev_picks, movers_lesson)
 
         # ④ حفظ التوصيات الجديدة
         saved = 0
@@ -262,6 +317,8 @@ def analyze_full(url: str = None):
             "models": eval_result.get("models", []),
             "performance": performance,
             "learn_note": learn_note,
+            "missed_pattern": eval_result.get("missed_pattern", ""),
+            "movers_note": eval_result.get("movers_note", ""),
         }
 
     except Exception as e:

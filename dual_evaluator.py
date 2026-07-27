@@ -123,10 +123,10 @@ LEARN_PROMPT = """أنت خبير في تحسين استراتيجيات الت�
 # ═══════ التقييم المزدوج ═══════
 
 def dual_evaluate(analysis_result: dict, performance: dict = None,
-                  prev_picks: list = None) -> dict:
+                  prev_picks: list = None, movers_lesson: dict = None) -> dict:
     """
     ① Claude يقيّم → ② Gemini يراجع → ③ توافق نهائي
-    مع مراعاة الأداء السابق والتوصيات السابقة لتجويد الترتيب.
+    مع مراعاة: الأداء السابق + التوصيات السابقة + تشريح حركة أمس.
     """
     stocks = analysis_result.get("stocks", [])
     recs = analysis_result.get("recommendations", {})
@@ -171,13 +171,36 @@ def dual_evaluate(analysis_result: dict, performance: dict = None,
 🔁 توصياتك النشطة السابقة: {', '.join(prev_syms)}
 إذا ظهر أحدها بين المرشحين وما زال قوياً، ثبّته. إذا ضعف، أخرجه."""
 
+    # تشريح حركة السوق — الدرس الأهم للتعلّم
+    movers_context = ""
+    if movers_lesson and (movers_lesson.get("missed") or movers_lesson.get("caught")):
+        caught = movers_lesson.get("caught", [])
+        missed = movers_lesson.get("missed", [])
+        def _fmt(m):
+            return (f"{m['name']}({m['symbol']}) +{m['change_pct']}% "
+                    f"[RSI {m['rsi']:.0f}/{m['rsi_state']}, أسبوعي {m['weekly']}%, "
+                    f"نشط {m['total_active']}, {m['trend']}]")
+        missed_txt = "\n".join("  ✗ " + _fmt(m) for m in missed[:6])
+        caught_txt = "\n".join("  ✓ " + _fmt(m) for m in caught[:4])
+        movers_context = f"""
+
+🔍 تشريح حركة السوق (تعلّم فعلي — {movers_lesson.get('note','')}):
+{'أسهم ارتفعت ورصدناها:' if caught else ''}
+{caught_txt}
+{'⚠️ أسهم ارتفعت وفاتتنا (حلّل لماذا فاتتنا — ما القاسم المشترك في مؤشراتها؟):' if missed else ''}
+{missed_txt}
+
+مهمتك: افحص الأسهم التي فاتتنا رغم ارتفاعها. ما النمط المشترك؟ (RSI معيّن؟ حالة سيولة؟ توليفة إشارات؟)
+إذا وجدت مرشحاً حالياً يشبه نمط الفائتين الرابحين، ارفع ثقتك فيه. تعلّم من الفرص الضائعة."""
+
     # ① Claude يقيّم
     claude_prompt = f"""هؤلاء {len(candidates)} مرشح من {analysis_result['summary']['total_stocks']} سهم:
-{cand_json}{history_context}{prev_context}
+{cand_json}{history_context}{prev_context}{movers_context}
 
 اختر 1–3 أسهم فقط — الأفضل حصراً (ثقة ≥8). الأقل أفضل. إذا واحد فقط يستحق، اختر واحداً. إذا لا شيء يستحق ثقة 8، لا تختر. أجب بـ JSON:
 {{"market_note":"...","picks":[{{"symbol":"...","name":"...","confidence":1-10,"horizon":"...","reasoning":"...","key_signal":"...","risk":"..."}}],
-"rejected_notable":[{{"symbol":"...","reason":"..."}}]}}"""
+"rejected_notable":[{{"symbol":"...","reason":"..."}}],
+"missed_pattern":"النمط المشترك في الأسهم التي فاتتنا رغم ارتفاعها، أو فراغ"}}"""
 
     claude_raw = _call_claude(SYSTEM_EVAL, claude_prompt)
     claude_result = _parse_json(claude_raw)
@@ -186,7 +209,7 @@ def dual_evaluate(analysis_result: dict, performance: dict = None,
     review_prompt = REVIEW_PROMPT.format(
         candidates=cand_json,
         claude_picks=json.dumps(claude_result, ensure_ascii=False, indent=1)
-    ) + history_context
+    ) + history_context + movers_context
     gemini_raw = _call_gemini(review_prompt)
     gemini_result = _parse_json(gemini_raw)
 
@@ -213,6 +236,8 @@ def dual_evaluate(analysis_result: dict, performance: dict = None,
         "market_note": claude_result.get("market_note", ""),
         "consensus_note": gemini_result.get("consensus_note", ""),
         "rejected": claude_result.get("rejected_notable", []),
+        "missed_pattern": claude_result.get("missed_pattern", ""),
+        "movers_note": (movers_lesson or {}).get("note", ""),
         "eval_time": datetime.now().isoformat(),
         "candidates_count": len(candidates),
         "models": ["claude-sonnet-4-6", "gemini-2.5-flash"],

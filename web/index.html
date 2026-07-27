@@ -130,7 +130,9 @@ let h=`<div class="pn"><div style="display:flex;justify-content:space-between;fl
 ${d.saved?`<span style="color:var(--g);font-size:.8rem">💾 حُفظت ${d.saved}</span>`:''}</div>
 ${d.market_note?`<div style="font-size:.85rem;color:var(--ink);margin-top:8px">📊 ${d.market_note}</div>`:''}
 ${d.consensus_note?`<div style="font-size:.8rem;color:var(--ac2);margin-top:4px">🤝 ${d.consensus_note}</div>`:''}
-${d.learn_note?`<div style="font-size:.8rem;color:var(--g);margin-top:4px;padding-top:4px;border-top:1px solid var(--ln2)">📚 تعلّم: ${d.learn_note}</div>`:''}</div>`;
+${d.learn_note?`<div style="font-size:.8rem;color:var(--g);margin-top:4px;padding-top:4px;border-top:1px solid var(--ln2)">📚 تعلّم: ${d.learn_note}</div>`:''}
+${d.movers_note?`<div style="font-size:.78rem;color:var(--ac2);margin-top:4px">🔍 ${d.movers_note}</div>`:''}
+${d.missed_pattern&&d.missed_pattern!=='فراغ'?`<div style="font-size:.78rem;color:var(--o);margin-top:4px;background:rgba(255,152,0,.08);padding:6px 10px;border-radius:8px">💡 نمط الفرص الفائتة: ${d.missed_pattern}</div>`:''}</div>`;
 
 h+=`<div class="sh"><div class="d" style="background:var(--o);box-shadow:0 0 14px var(--o)"></div><h2>🏆 التوصيات النهائية</h2><span class="tg">${picks.length} سهم · ${(d.models||[]).join(' + ')}</span></div>`;
 picks.sort((a,b)=>(b.confidence||0)-(a.confidence||0));
