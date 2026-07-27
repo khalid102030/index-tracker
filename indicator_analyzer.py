@@ -111,12 +111,50 @@ def analyze_dataframe(df: pd.DataFrame) -> dict:
         price_v_quiet= abs(chg) < 1.5 and abs(wkly) < 3
         net_rising   = net_l > 0
 
-        # تتابع صحّي (أقوى إشارة: +11%)
+        # ═══ طبقة RSI الذكية ═══
+        # التمييز بين: خمول ميّت / هدوء قبل الانطلاق / زخم مؤكد
+        # المبدأ: RSI المنخفض وحده = ضعف. مع سيولة = تجميع. المرتفع مع سيولة = وقود.
+        rsi_state = "محايد"
+        rsi_adj = 0
         s_cnt = frame_data["short"]["count"]
         m_cnt = frame_data["mid"]["count"]
         l_cnt = frame_data["long"]["count"]
+        has_fuel = net_rising or s_cnt >= 2   # دليل دخول سيولة/زخم
+
+        if rsi > 0:  # RSI متاح
+            if rsi >= 60:
+                # زخم مؤكد — سيولة داخلة فعلاً
+                if has_fuel:
+                    rsi_state = "زخم مؤكد"
+                    rsi_adj = 22
+                else:
+                    # مرتفع بدون سيولة = قد يكون تشبّع/قمة
+                    rsi_state = "مرتفع بلا دعم"
+                    rsi_adj = -10
+            elif 50 <= rsi < 60:
+                # نطاق صحّي — ارتداد بدأ
+                rsi_state = "صاعد صحّي"
+                rsi_adj = 12 if has_fuel else 4
+            elif 45 <= rsi < 50:
+                # حيادي — يحتاج دفعة
+                rsi_state = "حيادي"
+                rsi_adj = 5 if has_fuel else -3
+            else:  # rsi < 45
+                # منخفض — الفرق بين تجميع مبكر وخمول ميّت
+                if has_fuel and price_quiet:
+                    rsi_state = "تجميع مبكر"      # هدوء قبل انطلاق — سيولة تدخل بصمت
+                    rsi_adj = 10
+                else:
+                    rsi_state = "خمول ميّت"        # ضعف حقيقي — لا سيولة لا زخم
+                    rsi_adj = -22
+
+        # تتابع صحّي (أقوى إشارة: +11%)
         cascade = s_cnt >= 1 and m_cnt >= 1 and l_cnt == 0 and price_quiet
         if cascade: bonuses.append(("تتابع صحّي", 30))
+
+        # زخم مؤكد (RSI عالي + سيولة) — وقود حقيقي
+        if rsi_state == "زخم مؤكد":
+            bonuses.append(("زخم مؤكد (RSI+سيولة)", 32))
 
         # سيولة متراكمة (+13%)
         if net_rising and price_quiet:
@@ -125,6 +163,10 @@ def analyze_dataframe(df: pd.DataFrame) -> dict:
         # تجميع صامت
         if price_quiet and net_rising and 1 <= total_active <= 5:
             bonuses.append(("تجميع صامت", 25))
+
+        # تجميع مبكر (RSI منخفض لكن مع سيولة)
+        if rsi_state == "تجميع مبكر":
+            bonuses.append(("تجميع مبكر", 20))
 
         # بوادر مبكرة
         if s_cnt >= 1 and l_cnt <= 1 and price_quiet:
@@ -154,12 +196,17 @@ def analyze_dataframe(df: pd.DataFrame) -> dict:
             penalties.append(("صعود متأخر", -25))
         if total_active >= 11:
             penalties.append(("اشتعال مفرط", -20))
+        # عقوبة الخمول الميّت
+        if rsi_state == "خمول ميّت":
+            penalties.append(("خمول — لا سيولة لا زخم", -22))
+        if rsi_state == "مرتفع بلا دعم":
+            penalties.append(("RSI مرتفع بلا سيولة", -10))
 
         penalty_total = sum(p[1] for p in penalties)
         pre_launch = max(0, min(100, pre_launch + penalty_total))
 
-        # ③ طبقة التعديل (المنطقة الميتة)
-        adj = 0
+        # ③ طبقة التعديل (المنطقة الميتة + RSI)
+        adj = rsi_adj
         if 0.7 <= wkly < 1.61:    adj += 30   # الربع الذهبي (80%)
         elif wkly >= 1.61:         adj += 20
         elif -0.53 <= wkly < 0.7:  adj -= 25   # المنطقة الميتة (51%)
@@ -194,7 +241,7 @@ def analyze_dataframe(df: pd.DataFrame) -> dict:
             "top3_signals":[b[0] for b in top3],
             "penalties":[p[0] for p in penalties],
             "weekly_change":wkly, "monthly_change":mnth,
-            "rsi":rsi, "mfi":mfi, "net_liquidity":net_l,
+            "rsi":rsi, "rsi_state":rsi_state, "mfi":mfi, "net_liquidity":net_l,
             "pe":_safe(row.get(col_idx["pe"] or "",0)),
             "eps":_safe(row.get(col_idx["eps"] or "",0)),
         })
@@ -234,23 +281,36 @@ def _build_recommendations(stocks):
             traps.append({**s, "reason":"فخ: مؤشرات كثيرة مشتعلة مع صعود سابق"})
             continue
 
-        # الربع الذهبي (أسبوعي 0.7–1.6%) + تتابع أو سيولة
+        rsi_st = s.get("rsi_state", "")
+
+        # استبعاد الخمول الميّت — RSI منخفض بلا سيولة ولا زخم
+        if rsi_st == "خمول ميّت":
+            continue  # لا يُرشّح أصلاً
+
         golden = 0.7 <= s["weekly_change"] < 1.61
         has_cascade = "تتابع صحّي" in s.get("top3_signals",[])
+        confirmed = rsi_st == "زخم مؤكد"      # RSI عالي + سيولة = وقود
+        early = rsi_st == "تجميع مبكر"          # RSI منخفض + سيولة = هدوء قبل انطلاق
 
-        # فرص قريبة: توافق قصير+متوسط + سعر هادئ
+        # وسم حالة الزخم للعرض
+        rsi_tag = ""
+        if confirmed: rsi_tag = " · زخم مؤكد 🔥"
+        elif early: rsi_tag = " · تجميع مبكر"
+        elif rsi_st == "صاعد صحّي": rsi_tag = " · ارتداد صحّي"
+
+        # فرص قريبة: توافق قصير+متوسط + سعر هادئ (+ أفضلية للزخم المؤكد)
         if s_pct>=15 and m_pct>=20 and abs(s["change_pct"])<3 and s["bet_score"]>=30:
-            short_term.append({**s,"reason":"توافق إشارات + سعر هادئ" + (" + الربع الذهبي" if golden else ""),
+            short_term.append({**s,"reason":"توافق إشارات + سعر هادئ" + (" + الربع الذهبي" if golden else "") + rsi_tag,
                                "target_horizon":"1–5 أيام","confidence":s["bet_score"]})
 
         # فرص طويلة: إشارات أسبوعية/شهرية قوية
         if l_pct>=25 and s["bet_score"]>=25 and s["weekly_change"]>=-8:
-            long_term.append({**s,"reason":"إشارات طويلة قوية" + (" + تتابع صحّي" if has_cascade else ""),
+            long_term.append({**s,"reason":"إشارات طويلة قوية" + (" + تتابع صحّي" if has_cascade else "") + rsi_tag,
                               "target_horizon":"أسابيع–أشهر","confidence":l_pct})
 
-        # مضاربة: قصيرة نشطة + تغير إيجابي
+        # مضاربة: قصيرة نشطة + تغير إيجابي (يفضّل الزخم المؤكد)
         if s_pct>=30 and s["change_pct"]>0 and s["total_active"]<=7:
-            speculative.append({**s,"reason":"إشارات قصيرة نشطة بدون اشتعال",
+            speculative.append({**s,"reason":"إشارات قصيرة نشطة بدون اشتعال" + rsi_tag,
                                 "target_horizon":"ساعات–يومين","confidence":s_pct})
 
     for lst in [short_term, long_term, speculative]:
