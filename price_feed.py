@@ -59,6 +59,20 @@ def fetch_prices_bulk(symbols: list) -> dict:
     return prices
 
 
+def fetch_prices_full(symbols: list) -> dict:
+    """يرجّع {symbol: {price, high, low, ...}} — يشمل أعلى سعر اليوم."""
+    result = {}
+    for sym in symbols:
+        d = fetch_price(sym)
+        if d.get("price") is not None:
+            result[sym] = {
+                "price": d.get("price"),
+                "high": d.get("high") or d.get("price"),
+                "low": d.get("low") or d.get("price"),
+            }
+    return result
+
+
 def fetch_prices_with_details(symbols: list) -> list:
     """يرجّع قائمة كاملة بالتفاصيل لكل سهم"""
     results = []

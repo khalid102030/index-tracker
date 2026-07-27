@@ -162,7 +162,7 @@ def run_sync(force: bool = False, full: bool = True) -> dict:
                 from dual_evaluator import dual_evaluate
                 from tracker import (create_recommendation, update_active,
                                      update_post_watch, performance_report)
-                from price_feed import fetch_prices_bulk
+                from price_feed import fetch_prices_full
                 import server as _srv
 
                 sb = _srv._get_supabase()
@@ -175,15 +175,19 @@ def run_sync(force: bool = False, full: bool = True) -> dict:
                     symbols = list(set(r["symbol"] for r in active))
                     prices = {}
                     if symbols and os.getenv("SAHMK_API_KEY"):
-                        prices = fetch_prices_bulk(symbols)
-                    # كمّل من الشيت
+                        prices = fetch_prices_full(symbols)
+                    # كمّل من الشيت (السعر + أعلى سعر)
                     if len(prices) < len(symbols):
+                        sc = next((c for c in df.columns if "الرمز" in str(c)), None)
+                        pc = next((c for c in df.columns if "آخر" in str(c) or "السعر" in str(c)), None)
+                        hc = next((c for c in df.columns if str(c).strip() == "أعلى" or "أعلى" in str(c)), None)
                         for _, row in df.iterrows():
                             try:
-                                sc = next((c for c in df.columns if "الرمز" in str(c)), None)
-                                pc = next((c for c in df.columns if "آخر" in str(c) or "السعر" in str(c)), None)
-                                if sc and pc and str(row[sc]) in symbols and str(row[sc]) not in prices:
-                                    prices[str(row[sc])] = float(row[pc])
+                                sym = str(row[sc]) if sc else None
+                                if sym and sym in symbols and sym not in prices and pc:
+                                    px = float(row[pc])
+                                    hi = float(row[hc]) if hc and str(row[hc]) not in ("nan", "") else px
+                                    prices[sym] = {"price": px, "high": max(hi, px), "low": px}
                             except Exception:
                                 pass
                     update_active(prices, sb)

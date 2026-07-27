@@ -200,26 +200,19 @@ def analyze_full(url: str = None):
         performance = None
         if sb:
             try:
-                # أسعار حالية لتحديث التوصيات القديمة
+                # أسعار حالية لتحديث التوصيات القديمة (مع أعلى سعر اليوم)
                 active = sb.table("idx_recommendations").select("*").eq("status", "active").execute().data or []
                 prev_picks = [{"symbol": r["symbol"], "confidence": r.get("score", 0)} for r in active]
                 symbols = list(set(r["symbol"] for r in active))
                 prices = {}
                 if symbols and os.getenv("SAHMK_API_KEY"):
-                    prices = fetch_prices_bulk(symbols)
+                    from price_feed import fetch_prices_full
+                    prices = fetch_prices_full(symbols)
                 if len(prices) < len(symbols):
-                    sheet_prices = {}
-                    for _, row in snap["df"].iterrows():
-                        try:
-                            sym_c = next((c for c in snap["df"].columns if "الرمز" in str(c)), None)
-                            px_c = next((c for c in snap["df"].columns if "آخر" in str(c) or "السعر" in str(c)), None)
-                            if sym_c and px_c:
-                                sheet_prices[str(row[sym_c])] = float(row[px_c])
-                        except Exception:
-                            pass
+                    sheet_full = _get_current_prices_full()
                     for s in symbols:
-                        if s not in prices and s in sheet_prices:
-                            prices[s] = sheet_prices[s]
+                        if s not in prices and s in sheet_full:
+                            prices[s] = sheet_full[s]
                 update_active(prices, sb)
                 update_post_watch(prices, sb)
                 performance = performance_report(sb)
@@ -325,26 +318,25 @@ def get_prices_bulk(symbols: list[str] = None):
 
 @app.post("/api/recommendations/update")
 def recommendations_update():
-    """يحدّث التوصيات — يستخدم أسعار سهمك اللحظية أولاً، ثم الشيت."""
+    """يحدّث التوصيات — أسعار سهمك (مع أعلى سعر اليوم) أولاً، ثم الشيت."""
     from tracker import update_active, update_post_watch
-    from price_feed import fetch_prices_bulk
+    from price_feed import fetch_prices_full
     sb = _get_supabase()
     if not sb:
         raise HTTPException(status_code=500, detail="Supabase غير متصل")
     try:
-        # جلب رموز التوصيات النشطة
         active = sb.table("idx_recommendations").select("symbol").eq("status", "active").execute().data or []
         symbols = list(set(r["symbol"] for r in active))
-        # محاولة 1: أسعار سهمك اللحظية
         prices = {}
+        # محاولة 1: سهمك (يشمل أعلى سعر اليوم High)
         if symbols and os.getenv("SAHMK_API_KEY"):
-            prices = fetch_prices_bulk(symbols)
-        # محاولة 2: من الشيت
+            prices = fetch_prices_full(symbols)
+        # محاولة 2: من الشيت (السعر + عمود "أعلى")
         if len(prices) < len(symbols):
-            sheet_prices = _get_current_prices()
+            sheet_full = _get_current_prices_full()
             for s in symbols:
-                if s not in prices and s in sheet_prices:
-                    prices[s] = sheet_prices[s]
+                if s not in prices and s in sheet_full:
+                    prices[s] = sheet_full[s]
         active_result = update_active(prices, sb)
         post_result = update_post_watch(prices, sb)
         return {"active": active_result, "post_watch": post_result,
@@ -681,9 +673,36 @@ def _get_current_prices() -> dict:
     return prices
 
 
-# ══════════════════════════════════════════════════════════════
-#  Supabase Schema — إنشاء الجداول
-# ══════════════════════════════════════════════════════════════
+def _get_current_prices_full() -> dict:
+    """يجلب {symbol: {price, high, low}} من الشيت — يشمل عمود 'أعلى'."""
+    result = {}
+    try:
+        from sheets_reader import fetch_latest_snapshot
+        sheet_url = _config.get("sheet_url")
+        if not sheet_url:
+            return result
+        snap = fetch_latest_snapshot(sheet_url)
+        df = snap["df"]
+        sym_col = next((c for c in df.columns if "الرمز" in str(c)), None)
+        price_col = next((c for c in df.columns if "آخر" in str(c) or "السعر" in str(c)), None)
+        high_col = next((c for c in df.columns if str(c).strip() == "أعلى" or "أعلى" in str(c)), None)
+        low_col = next((c for c in df.columns if str(c).strip() == "أدنى" or "أدنى" in str(c)), None)
+        if not (sym_col and price_col):
+            return result
+        for _, row in df.iterrows():
+            try:
+                sym = str(row[sym_col])
+                price = float(row[price_col])
+                high = float(row[high_col]) if high_col and str(row[high_col]) not in ("nan", "") else price
+                low = float(row[low_col]) if low_col and str(row[low_col]) not in ("nan", "") else price
+                result[sym] = {"price": price, "high": max(high, price), "low": min(low, price)}
+            except (ValueError, TypeError):
+                pass
+    except Exception:
+        pass
+    return result
+
+
 @app.post("/api/setup/tables")
 def setup_tables():
     """ينشئ جداول النظام في Supabase (يُشغّل مرة واحدة)."""

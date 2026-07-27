@@ -41,6 +41,15 @@ def create_recommendation(stock, category, supabase=None):
         except Exception as e: rec["_save_error"] = str(e)[:150]
     return rec
 
+def _extract(price_data):
+    """يستخرج (current, high) — يقبل رقم أو dict فيه high."""
+    if isinstance(price_data, dict):
+        cur = price_data.get("price")
+        hi = price_data.get("high") or cur
+        return cur, hi
+    return price_data, price_data
+
+
 def update_active(prices, supabase=None):
     if not supabase: return {"error":"Supabase غير متاح"}
     today = date.today()
@@ -48,10 +57,11 @@ def update_active(prices, supabase=None):
     try: active = supabase.table("idx_recommendations").select("*").eq("status","active").execute().data or []
     except Exception as e: return {"error":str(e)[:150]}
     for rec in active:
-        cur = prices.get(rec["symbol"])
+        cur, day_high = _extract(prices.get(rec["symbol"]))
         if cur is None: stats["still_active"]+=1; continue
         entry = rec["entry_price"]
-        highest = max(rec.get("highest_price",entry), cur)
+        # أعلى سعر = الأعلى بين (المحفوظ، السعر الحالي، أعلى سعر اليوم)
+        highest = max(rec.get("highest_price",entry), cur, day_high)
         lowest = min(rec.get("lowest_price",entry), cur)
         peak = round((highest-entry)/entry*100,2)
         cur_pct = round((cur-entry)/entry*100,2)
@@ -76,14 +86,14 @@ def update_post_watch(prices, supabase=None):
     except: return {}
     late_hits = 0
     for rec in watched:
-        cur = prices.get(rec["symbol"])
+        cur, day_high = _extract(prices.get(rec["symbol"]))
         if cur is None: continue
         entry = rec["entry_price"]
         cd = rec.get("closed_date")
         if not cd: continue
         try: watch_end = add_trading_days(datetime.combine(date.fromisoformat(cd),datetime.min.time()),POST_WATCH_DAYS).date()
         except: continue
-        peak = max(rec.get("post_watch_peak",0), round((cur-entry)/entry*100,2))
+        peak = max(rec.get("post_watch_peak",0), round((max(cur,day_high)-entry)/entry*100,2))
         hit = peak >= TARGET_PCT
         upd = {"post_watch_peak":peak,"post_watch_hit":hit}
         if date.today() > watch_end: upd["post_watch"]=False
