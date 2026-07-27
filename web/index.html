@@ -1,5 +1,5 @@
 <!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>متابعة المؤشرات</title>
+<title>راصد بلس · Rasid Plus</title>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#0a1628;--bg2:#0f1f38;--p:#132744;--p2:#183050;--ln:rgba(0,212,255,.18);--ln2:rgba(255,255,255,.07);--ac:#00d4ff;--ac2:#4dd0e1;--ink:#e8ecf0;--mt:#7a8fa3;--g:#00e676;--r:#ff5252;--o:#ff9800}
@@ -27,7 +27,7 @@ async function api(p,o){const r=await fetch(p,o);if(!r.ok){let m="";try{const e=
 function toast(m){const e=document.createElement("div");e.className="toast";e.textContent=m;document.body.appendChild(e);setTimeout(()=>e.remove(),2500)}
 
 function shell(){document.getElementById("root").innerHTML=`
-<div class="bar"><div class="br"><div class="lg">📡</div><div class="nm">متابعة المؤشرات<small>INDEX TRACKER</small></div></div><div id="hp" style="font-size:.72rem;color:var(--mt)">…</div></div>
+<div class="bar"><div class="br"><div class="lg">📡</div><div class="nm">راصد بلس<small>RASID PLUS</small></div></div><div id="hp" style="font-size:.72rem;color:var(--mt)">…</div></div>
 <div class="w"><div class="tabs">
 <button class="tb ${S.tab==='analyze'?'on':''}" onclick="go('analyze')">🎯 التحليل</button>
 <button class="tb ${S.tab==='settings'?'on':''}" onclick="go('settings')">⚙️ الإعدادات</button>
@@ -132,7 +132,8 @@ ${d.market_note?`<div style="font-size:.85rem;color:var(--ink);margin-top:8px">�
 ${d.consensus_note?`<div style="font-size:.8rem;color:var(--ac2);margin-top:4px">🤝 ${d.consensus_note}</div>`:''}
 ${d.learn_note?`<div style="font-size:.8rem;color:var(--g);margin-top:4px;padding-top:4px;border-top:1px solid var(--ln2)">📚 تعلّم: ${d.learn_note}</div>`:''}
 ${d.movers_note?`<div style="font-size:.78rem;color:var(--ac2);margin-top:4px">🔍 ${d.movers_note}</div>`:''}
-${d.missed_pattern&&d.missed_pattern!=='فراغ'?`<div style="font-size:.78rem;color:var(--o);margin-top:4px;background:rgba(255,152,0,.08);padding:6px 10px;border-radius:8px">💡 نمط الفرص الفائتة: ${d.missed_pattern}</div>`:''}</div>`;
+${d.missed_pattern&&d.missed_pattern!=='فراغ'?`<div style="font-size:.78rem;color:var(--o);margin-top:4px;background:rgba(255,152,0,.08);padding:6px 10px;border-radius:8px">💡 نمط الفرص الفائتة: ${d.missed_pattern}</div>`:''}
+${(d.rejection_review&&d.rejection_review.length)?`<div style="margin-top:6px;font-size:.75rem"><div style="color:var(--mt);font-weight:700;margin-bottom:3px">🔍 مراجعة قرارات الرفض السابقة:</div>${d.rejection_review.map(r=>`<div style="color:${r.verdict.includes('خاطئ')?'var(--r)':r.verdict.includes('سليم')?'var(--g)':'var(--mt)'}">${r.symbol}: ${r.verdict} (${r.change_now>0?'+':''}${r.change_now}% الآن)</div>`).join('')}</div>`:''}</div>`;
 
 h+=`<div class="sh"><div class="d" style="background:var(--o);box-shadow:0 0 14px var(--o)"></div><h2>🏆 التوصيات النهائية</h2><span class="tg">${picks.length} سهم · ${(d.models||[]).join(' + ')}</span></div>`;
 picks.sort((a,b)=>(b.confidence||0)-(a.confidence||0));

@@ -170,21 +170,19 @@ _last_analysis = {}  # كاش آخر تحليل للتقييم
 def _analyze_movers(analysis: dict, sb) -> dict:
     """
     يشرّح حركة السوق: أي الأسهم ارتفعت، وهل رشّحناها أم فاتتنا؟
-    يعطي النماذج دروساً فعلية بدل الإحصائيات المجرّدة.
+    ويقيّم قرارات الرفض السابقة: هل كان الرفض سليماً؟
     """
-    lesson = {"caught": [], "missed": [], "note": ""}
+    lesson = {"caught": [], "missed": [], "note": "", "rejection_review": []}
     try:
         stocks = analysis.get("stocks", [])
         if not stocks:
             return lesson
+        stock_map = {s["symbol"]: s for s in stocks}
 
-        # أعلى المرتفعين اليوم (تغير يومي إيجابي قوي)
+        # أعلى المرتفعين اليوم
         risers = sorted([s for s in stocks if s.get("change_pct", 0) >= 2.5],
                         key=lambda x: x.get("change_pct", 0), reverse=True)[:10]
-        if not risers:
-            return lesson
 
-        # التوصيات السابقة (لمعرفة ماذا رشّحنا)
         recommended_syms = set()
         if sb:
             try:
@@ -198,22 +196,39 @@ def _analyze_movers(analysis: dict, sb) -> dict:
             sym = s["symbol"]
             info = {
                 "symbol": sym, "name": s.get("name", ""),
-                "change_pct": s.get("change_pct", 0),
-                "weekly": s.get("weekly_change", 0),
+                "change_pct": s.get("change_pct", 0), "weekly": s.get("weekly_change", 0),
                 "rsi": s.get("rsi", 0), "rsi_state": s.get("rsi_state", ""),
-                "bet_score": s.get("bet_score", 0),
-                "total_active": s.get("total_active", 0),
-                "signals": s.get("top3_signals", []),
-                "trend": s.get("trend", ""),
+                "bet_score": s.get("bet_score", 0), "total_active": s.get("total_active", 0),
+                "signals": s.get("top3_signals", []), "trend": s.get("trend", ""),
             }
             if sym in recommended_syms:
                 lesson["caught"].append(info)
             else:
                 lesson["missed"].append(info)
 
-        n_caught = len(lesson["caught"])
-        n_missed = len(lesson["missed"])
-        lesson["note"] = f"من {len(risers)} مرتفع اليوم: رصدنا {n_caught}، فاتنا {n_missed}"
+        n_caught, n_missed = len(lesson["caught"]), len(lesson["missed"])
+        if risers:
+            lesson["note"] = f"من {len(risers)} مرتفع اليوم: رصدنا {n_caught}، فاتنا {n_missed}"
+
+        # تقييم قرارات الرفض السابقة (المخزّنة)
+        if sb:
+            try:
+                evals = sb.table("idx_evaluations").select("rejected,eval_time") \
+                    .order("eval_time", desc=True).limit(3).execute().data or []
+                for ev in evals:
+                    for rej in (ev.get("rejected") or []):
+                        rsym = rej.get("symbol")
+                        cur = stock_map.get(rsym)
+                        if cur:
+                            chg = cur.get("change_pct", 0)
+                            # قرار الرفض: سليم لو السهم ما ارتفع، خاطئ لو ارتفع قوي
+                            verdict = "خاطئ ✗" if chg >= 2.5 else "سليم ✓" if chg <= 0.5 else "محايد"
+                            lesson["rejection_review"].append({
+                                "symbol": rsym, "reason": rej.get("reason", ""),
+                                "change_now": chg, "verdict": verdict,
+                            })
+            except Exception:
+                pass
     except Exception:
         pass
     return lesson
@@ -287,6 +302,20 @@ def analyze_full(url: str = None):
                 create_recommendation(merged, cat, sb)
                 saved += 1
 
+        # حفظ التقييم (مع المرفوضين) لمراجعة القرارات لاحقاً
+        if sb:
+            try:
+                sb.table("idx_evaluations").insert({
+                    "candidates_count": eval_result.get("candidates_count", 0),
+                    "picks_count": len(eval_result.get("picks", [])),
+                    "picks": eval_result.get("picks", []),
+                    "rejected": eval_result.get("rejected", []),
+                    "market_note": eval_result.get("market_note", ""),
+                    "model": ",".join(eval_result.get("models", [])),
+                }).execute()
+            except Exception:
+                pass
+
         # ── التعلّم التلقائي: كل 10 نتائج محسومة، يعيد تقييم الاستراتيجية ──
         learn_note = None
         if sb and performance and performance.get("closed", 0) >= 10:
@@ -319,6 +348,7 @@ def analyze_full(url: str = None):
             "learn_note": learn_note,
             "missed_pattern": eval_result.get("missed_pattern", ""),
             "movers_note": eval_result.get("movers_note", ""),
+            "rejection_review": movers_lesson.get("rejection_review", []),
         }
 
     except Exception as e:

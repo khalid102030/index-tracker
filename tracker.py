@@ -19,6 +19,29 @@ def create_recommendation(stock, category, supabase=None):
     target = round(entry * (1 + TARGET_PCT/100), 3)
     expiry = add_trading_days(datetime.combine(today, datetime.min.time()), VALIDITY_DAYS).date()
     max_exp = add_trading_days(datetime.combine(today, datetime.min.time()), MAX_DAYS).date()
+
+    # ── منع التكرار: لو فيه توصية جارية لنفس السهم، حدّث قوتها فقط ──
+    if supabase:
+        try:
+            existing = supabase.table("idx_recommendations").select("*") \
+                .eq("symbol", stock["symbol"]).eq("status", "active") \
+                .limit(1).execute().data
+            if existing:
+                ex = existing[0]
+                # حدّث الثقة والنقاط والسبب (مستجدات) دون تغيير تاريخ الدخول
+                supabase.table("idx_recommendations").update({
+                    "confidence": stock.get("confidence", 0),
+                    "score": stock.get("bet_score", 0),
+                    "reason": stock.get("reason", ""),
+                    "trend": stock.get("trend", ""),
+                    "top3_signals": stock.get("top3_signals", []),
+                    "updated_at": datetime.now().isoformat(),
+                }).eq("id", ex["id"]).execute()
+                ex["_updated"] = True
+                return ex
+        except Exception:
+            pass
+
     rec = {
         "symbol":stock["symbol"],"name":stock["name"],"category":category,
         "entry_price":entry,"target_price":target,"target_pct":TARGET_PCT,
