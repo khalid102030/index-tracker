@@ -110,8 +110,8 @@ h+=`<div style="font-size:.68rem;color:var(--mt);margin-top:10px;text-align:cent
 box.innerHTML=h}catch(e){}}
 async function loadTracking(){const b=document.getElementById("trackBox");b.innerHTML='<div style="color:var(--mt);font-size:.82rem"><span class="spin"></span> جاري التحميل...</div>';try{const d=await api("/api/recommendations/tracking");const c=d.counts||{};
 // آخر تحديث
-let lastUpd='';try{const sh=await api("/api/sync/history");const ls=sh.last_sync||{};if(ls.time)lastUpd=`آخر تحديث: ${ls.time.slice(0,16).replace('T',' ')} · ${ls.tab||''}`}catch(e){}
-let h=`${lastUpd?`<div style="font-size:.75rem;color:var(--ac2);margin-bottom:8px">🕐 ${lastUpd}</div>`:''}
+let lastUpd='';try{const sh=await api("/api/sync/history");const ls=sh.last_sync||{};if(ls.time){const t=ls.time.slice(0,16).replace('T',' ');lastUpd=`🕐 آخر تحديث للبيانات: <b>${t}</b> · ${ls.tab||''}`}}catch(e){}
+let h=`${lastUpd?`<div style="font-size:.78rem;color:var(--ac2);margin-bottom:8px;background:rgba(0,212,255,.06);padding:6px 12px;border-radius:8px">${lastUpd}</div>`:''}
 <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
 <span style="background:rgba(90,175,255,.12);color:#5aafff;padding:4px 12px;border-radius:8px;font-size:.82rem;font-weight:700">🔵 ${c.active||0} جارية</span>
 <span style="background:rgba(0,230,118,.12);color:var(--g);padding:4px 12px;border-radius:8px;font-size:.82rem;font-weight:700">✅ ${c.success||0} ناجحة</span>
@@ -139,7 +139,7 @@ return h+`</tbody></table></div>`}
 async function updateTracking(){const b=document.getElementById("trackBox");b.innerHTML='<div style="color:var(--mt);font-size:.82rem"><span class="spin"></span> جاري تحديث الأسعار...</div>';try{const d=await api("/api/recommendations/update",{method:"POST"});const a=d.active||{};toast(`✅ نجاح:${a.success||0} فشل:${a.failed||0} جارية:${a.still_active||0} · المصدر: ${d.price_source||''}`);loadTracking()}catch(e){b.innerHTML=`<div style="color:var(--r);font-size:.82rem">❌ ${e.message}</div>`}}
 
 async function runFull(){if(S.busy)return;S.busy=true;const btn=document.getElementById("mainBtn");btn.disabled=true;btn.innerHTML=`<span class="spin"></span> جاري التحليل والتقييم... (~20 ثانية)`;const box=document.getElementById("resultBox");box.innerHTML="";
-try{const d=await api("/api/analyze-full",{method:"POST"});S.result=d;shell()}catch(e){box.innerHTML=`<div class="pn" style="color:var(--r)">❌ ${e.message}</div>`;btn.disabled=false;btn.innerHTML="🚀 حلّل الآن — Claude + Gemini"}S.busy=false}
+try{const d=await api("/api/analyze-full",{method:"POST"});S.result=d;shell()}catch(e){let msg=e.message;if(msg.includes('529')||msg.includes('مزحوم')||msg.includes('Overloaded')||msg.includes('overloaded'))msg='⏳ خوادم Claude مزحومة حالياً. النظام حاول تلقائياً — انتظر دقيقة وجرّب مرة ثانية.';box.innerHTML=`<div class="pn" style="color:var(--r)">${msg}</div>`;btn.disabled=false;btn.innerHTML="🚀 حلّل الآن — Claude + Gemini"}S.busy=false}
 
 function summaryTable(picks){let h=`<div class="pn" style="padding:0;overflow:hidden;margin-bottom:14px"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.82rem">
 <thead><tr style="background:var(--bg);color:var(--ac2);font-size:.72rem"><th style="padding:9px 6px">#</th><th style="padding:9px 6px;text-align:right">السهم</th><th style="padding:9px 6px">الثقة</th><th style="padding:9px 6px">الدخول</th><th style="padding:9px 6px">الحالي</th><th style="padding:9px 6px">الهدف</th><th style="padding:9px 6px">الأفق</th></tr></thead><tbody>`;

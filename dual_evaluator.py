@@ -22,30 +22,55 @@ MIN_CONFIDENCE = 8
 def _call_claude(system: str, prompt: str) -> str:
     key = os.getenv("ANTHROPIC_API_KEY", "")
     if not key: raise RuntimeError("ANTHROPIC_API_KEY غير موجود")
-    r = requests.post("https://api.anthropic.com/v1/messages",
-        headers={"x-api-key": key, "anthropic-version": "2023-06-01",
-                 "content-type": "application/json"},
-        json={"model": "claude-sonnet-4-6", "max_tokens": 2500,
-              "system": system, "messages": [{"role": "user", "content": prompt}]},
-        timeout=60)
-    if r.status_code not in (200, 201):
-        raise RuntimeError(f"Claude HTTP {r.status_code}: {r.text[:200]}")
-    return "".join(b.get("text", "") for b in r.json().get("content", []) if b.get("type") == "text")
+    import time as _t
+    last_err = ""
+    for attempt in range(4):  # 4 محاولات عند الزحمة
+        try:
+            r = requests.post("https://api.anthropic.com/v1/messages",
+                headers={"x-api-key": key, "anthropic-version": "2023-06-01",
+                         "content-type": "application/json"},
+                json={"model": "claude-sonnet-4-6", "max_tokens": 2500,
+                      "system": system, "messages": [{"role": "user", "content": prompt}]},
+                timeout=60)
+            if r.status_code in (200, 201):
+                return "".join(b.get("text", "") for b in r.json().get("content", []) if b.get("type") == "text")
+            # 529 = مزحوم، 429 = تجاوز الحد، 503 = مؤقت → أعد المحاولة
+            if r.status_code in (429, 529, 503, 500, 502):
+                last_err = f"HTTP {r.status_code}"
+                _t.sleep(2 * (attempt + 1))  # انتظار متزايد: 2,4,6,8 ثانية
+                continue
+            raise RuntimeError(f"Claude HTTP {r.status_code}: {r.text[:150]}")
+        except requests.exceptions.RequestException as e:
+            last_err = str(e)[:100]
+            _t.sleep(2 * (attempt + 1))
+    raise RuntimeError(f"Claude مزحوم — فشلت 4 محاولات ({last_err}). حاول بعد دقيقة.")
 
 
 def _call_gemini(prompt: str) -> str:
     key = os.getenv("GEMINI_API_KEY", "")
     if not key: raise RuntimeError("GEMINI_API_KEY غير موجود")
-    r = requests.post(
-        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key}",
-        headers={"Content-Type": "application/json"},
-        json={"contents": [{"parts": [{"text": prompt}]}]},
-        timeout=60)
-    if r.status_code not in (200, 201):
-        raise RuntimeError(f"Gemini HTTP {r.status_code}: {r.text[:200]}")
-    data = r.json()
-    parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
-    return "".join(p.get("text", "") for p in parts)
+    import time as _t
+    last_err = ""
+    for attempt in range(3):
+        try:
+            r = requests.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key}",
+                headers={"Content-Type": "application/json"},
+                json={"contents": [{"parts": [{"text": prompt}]}]},
+                timeout=60)
+            if r.status_code in (200, 201):
+                data = r.json()
+                parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+                return "".join(p.get("text", "") for p in parts)
+            if r.status_code in (429, 503, 500, 502):
+                last_err = f"HTTP {r.status_code}"
+                _t.sleep(2 * (attempt + 1))
+                continue
+            raise RuntimeError(f"Gemini HTTP {r.status_code}: {r.text[:150]}")
+        except requests.exceptions.RequestException as e:
+            last_err = str(e)[:100]
+            _t.sleep(2 * (attempt + 1))
+    raise RuntimeError(f"Gemini مزحوم — فشلت المحاولات ({last_err}).")
 
 
 def _parse_json(text: str) -> dict:
