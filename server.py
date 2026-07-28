@@ -601,6 +601,8 @@ def recommendations_tracking():
                 "category": r.get("category", ""), "reason": r.get("reason", ""),
                 "post_watch": r.get("post_watch"), "post_watch_hit": r.get("post_watch_hit"),
                 "post_watch_peak": r.get("post_watch_peak", 0),
+                "post_target_high": r.get("post_target_high"),
+                "post_target_pct": r.get("post_target_pct", 0),
             }
 
         all_recs = [_slim_rec(r) for r in rows]
@@ -710,26 +712,83 @@ def test_keys():
     return results
 
 
+@app.get("/api/recommendations/longterm")
+def recommendations_longterm(url: str = None):
+    """
+    أسهم المدى البعيد النوعية — أسبوعي/شهري.
+    معايير صارمة: إشارات طويلة قوية، لم ترتفع كثيراً، جودة عالية.
+    قليلة ونادرة التغيّر (صعبة التشكّل).
+    """
+    from sheets_reader import fetch_latest_snapshot
+    from indicator_analyzer import analyze_dataframe
+    sheet_url = url or _config.get("sheet_url")
+    if not sheet_url:
+        raise HTTPException(status_code=400, detail="حدد رابط الشيت")
+    try:
+        # استخدم آخر تحليل مخزّن إن وُجد
+        analysis = _last_analysis.get("data")
+        if not analysis:
+            snap = fetch_latest_snapshot(sheet_url)
+            analysis = analyze_dataframe(snap["df"])
+
+        stocks = analysis.get("stocks", [])
+        picks = []
+        for s in stocks:
+            fs = s.get("frame_scores", {})
+            long_pct = fs.get("long", {}).get("pct", 0)
+            wkly = s.get("weekly_change", 0)
+            mnth = s.get("monthly_change", 0)
+            rsi_state = s.get("rsi_state", "")
+
+            # معايير المدى البعيد النوعي:
+            # ① إشارات أسبوعية/شهرية قوية (long_pct عالي)
+            # ② لم يرتفع كثيراً مؤخراً (أسبوعي معتدل، شهري ليس مرتفعاً)
+            # ③ ليس فخاً وليس خمولاً ميّتاً
+            # ④ جودة: تجميع أو زخم مبكر
+            if (long_pct >= 40                        # إشارات طويلة قوية جداً
+                    and -3 <= wkly <= 3               # لم يرتفع كثيراً أسبوعياً
+                    and mnth <= 12                     # لم يرتفع كثيراً شهرياً
+                    and not s.get("is_trap")
+                    and rsi_state not in ("خمول ميّت", "مرتفع بلا دعم")
+                    and s.get("bet_score", 0) >= 35):
+                picks.append({
+                    "symbol": s["symbol"], "name": s.get("name", ""),
+                    "price": s.get("price"), "weekly_change": wkly,
+                    "monthly_change": mnth, "long_pct": long_pct,
+                    "bet_score": s.get("bet_score", 0),
+                    "rsi": s.get("rsi", 0), "rsi_state": rsi_state,
+                    "trend": s.get("trend", ""),
+                    "signals": s.get("top3_signals", []),
+                })
+
+        # ترتيب حسب قوة الإشارات الطويلة، والأقل ارتفاعاً أولاً
+        picks.sort(key=lambda x: (x["long_pct"], -abs(x["weekly_change"])), reverse=True)
+        # قليلة: أعلى 5 فقط
+        picks = picks[:5]
+        return {"picks": picks, "count": len(picks)}
+    except Exception as e:
+        traceback.print_exc()
+        return {"picks": [], "error": str(e)[:150]}
+
+
 @app.get("/api/recommendations/latest")
 def recommendations_latest():
-    """آخر التوصيات الصادرة (أحدث دفعة) لعرضها تلقائياً."""
+    """التوصيات الجارية (كلها) مرتّبة بالقوة — الأقوى دائماً ظاهر."""
     sb = _get_supabase()
     if not sb:
         return {"picks": [], "note": "Supabase غير متصل"}
     try:
+        # الجارية فقط — تبقى ظاهرة حتى تُحسم
         rows = sb.table("idx_recommendations").select("*") \
-            .order("appeared_date", desc=True).order("created_at", desc=True) \
-            .limit(50).execute().data or []
+            .eq("status", "active") \
+            .order("created_at", desc=True).limit(30).execute().data or []
         if not rows:
             return {"picks": [], "date": None}
 
-        # أحدث تاريخ إصدار
-        latest_date = rows[0].get("appeared_date")
-        latest = [r for r in rows if r.get("appeared_date") == latest_date]
+        latest_date = max((r.get("appeared_date") or "") for r in rows)
 
         picks = []
-        for r in latest:
-            # الثقة الحقيقية من Claude/Gemini (1-10)
+        for r in rows:
             conf = r.get("confidence", 0)
             if not conf or conf == 0:
                 raw = r.get("score", 0)
@@ -746,6 +805,8 @@ def recommendations_latest():
                 "category": r.get("category", ""),
                 "status": r.get("status"), "outcome": r.get("outcome"),
                 "peak_pct": r.get("peak_pct", 0),
+                "appeared_date": r.get("appeared_date"),
+                "created_at": r.get("created_at", ""),
             })
         picks.sort(key=lambda x: x["confidence"], reverse=True)
         return {"picks": picks, "date": latest_date, "count": len(picks)}

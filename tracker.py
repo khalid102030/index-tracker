@@ -83,7 +83,6 @@ def update_active(prices, supabase=None):
         cur, day_high = _extract(prices.get(rec["symbol"]))
         if cur is None: stats["still_active"]+=1; continue
         entry = rec["entry_price"]
-        # أعلى سعر = الأعلى بين (المحفوظ، السعر الحالي، أعلى سعر اليوم)
         highest = max(rec.get("highest_price",entry), cur, day_high)
         lowest = min(rec.get("lowest_price",entry), cur)
         peak = round((highest-entry)/entry*100,2)
@@ -92,6 +91,9 @@ def update_active(prices, supabase=None):
                "current_price":cur,"current_pct":cur_pct}
         if peak >= TARGET_PCT:
             upd.update(status="closed",outcome="success",closed_date=today.isoformat())
+            # أعلى سعر عند تحقيق الهدف = يبدأ التتبع بعده
+            upd["post_target_high"] = highest
+            upd["post_target_pct"] = peak
             stats["success"]+=1
         elif str(today) > rec.get("max_expiry_date","9999"):
             chg = round((cur-entry)/entry*100,2)
@@ -101,6 +103,25 @@ def update_active(prices, supabase=None):
         else: stats["still_active"]+=1
         try: supabase.table("idx_recommendations").update(upd).eq("id",rec["id"]).execute()
         except: pass
+
+    # ── تتبع أعلى سعر بعد تحقيق الهدف (للناجحة) ──
+    try:
+        succeeded = supabase.table("idx_recommendations").select("*") \
+            .eq("outcome","success").execute().data or []
+        for rec in succeeded:
+            cur, day_high = _extract(prices.get(rec["symbol"]))
+            if cur is None: continue
+            entry = rec["entry_price"]
+            prev_pth = rec.get("post_target_high") or rec.get("highest_price") or entry
+            new_high = max(prev_pth, cur, day_high)
+            if new_high > prev_pth:
+                pth_pct = round((new_high-entry)/entry*100,2)
+                supabase.table("idx_recommendations").update({
+                    "post_target_high": new_high, "post_target_pct": pth_pct,
+                }).eq("id", rec["id"]).execute()
+    except Exception:
+        pass
+
     return stats
 
 def update_post_watch(prices, supabase=None):

@@ -31,7 +31,7 @@ function shell(){document.getElementById("root").innerHTML=`
 <div class="w"><div class="tabs">
 <button class="tb ${S.tab==='analyze'?'on':''}" onclick="go('analyze')">🎯 التحليل</button>
 <button class="tb ${S.tab==='settings'?'on':''}" onclick="go('settings')">⚙️ الإعدادات</button>
-</div><div id="ct" class="fade">${S.tab==='settings'?pgSettings():pgAnalyze()}</div></div>`;loadH();if(S.tab==='analyze'){loadSync();loadAccuracy();if(!S.result)loadLatest()}if(S.tab==='settings')loadCfg()}
+</div><div id="ct" class="fade">${S.tab==='settings'?pgSettings():pgAnalyze()}</div></div>`;loadH();if(S.tab==='analyze'){loadSync();loadAccuracy();if(!S.result)loadLatest();loadLongterm()}if(S.tab==='settings')loadCfg()}
 function go(t){S.tab=t;shell()}
 async function loadH(){try{const h=await api("/api/health");const p=document.getElementById("hp");if(!p)return;const ms=h.market_status;const mc=ms==='live'?'var(--g)':ms==='weekend'?'var(--r)':'var(--ac2)';p.innerHTML=`<span style="color:${mc}">${ms==='live'?'🟢 مفتوح':ms==='post_close'?'🔴 مغلق':ms==='pre_open'?'🟡 قبل الافتتاح':'⚪ عطلة'}</span> ${h.time_riyadh||''}`}catch(e){}}
 
@@ -53,7 +53,8 @@ function pgAnalyze(){return `
 <span style="font-weight:700;color:var(--g)">📈 تتبع التوصيات</span>
 <div style="display:flex;gap:6px"><button class="bs" onclick="loadTracking()">🔄 عرض التتبع</button><button class="bs" onclick="updateTracking()">💹 تحديث الأسعار</button></div>
 </div><div id="trackBox" style="margin-top:8px"></div></div>
-<div id="resultBox">${S.result?renderResult():''}</div>`}
+<div id="resultBox">${S.result?renderResult():''}</div>
+<div id="ltBox"></div>`}
 
 async function loadAccuracy(){const c=document.getElementById("accuracyCard");if(!c)return;try{const d=await api("/api/recommendations/performance");if(d.error||d.total===0||d.total===undefined){c.innerHTML='';return}const rate=d.success_rate||0;const rc=rate>=70?"var(--g)":rate>=50?"var(--ac2)":"var(--r)";const cats=d.by_category||{};const cl={short_term:"قريبة",long_term:"طويلة",speculative:"مضاربة"};
 let h=`<div class="pn" style="background:linear-gradient(165deg,var(--p),var(--bg2));border:1px solid ${rate>=50?'rgba(0,230,118,.25)':'rgba(255,82,82,.2)'}">
@@ -74,6 +75,23 @@ if(catRows.length){h+=`<div style="display:flex;gap:16px;flex-wrap:wrap;margin-t
 for(const[k,v]of catRows){const vc=v.rate>=50?"var(--g)":"var(--r)";h+=`<div style="font-size:.78rem"><span style="color:var(--mt)">${cl[k]||k}:</span> <b style="color:${vc}">${v.rate}%</b> <span style="color:var(--mt);font-size:.7rem">(${v.success}/${v.total})</span></div>`}h+=`</div>`}
 if(!d.mature)h+=`<div style="font-size:.68rem;color:var(--mt);margin-top:8px">⚠️ العينة ${d.closed}/20 — الدقة تتحسّن مع تراكم النتائج</div>`;
 h+=`</div>`;c.innerHTML=h}catch(e){c.innerHTML=''}}
+async function loadLongterm(){const box=document.getElementById("ltBox");if(!box)return;try{const d=await api("/api/recommendations/longterm");const picks=d.picks||[];if(!picks.length){box.innerHTML='';return}
+let h=`<div class="sh"><div class="d" style="background:#9c6ade;box-shadow:0 0 14px #9c6ade"></div><h2>🌱 أسهم المدى البعيد النوعية</h2><span class="tg">${picks.length} · أسبوعي/شهري · لم ترتفع كثيراً</span></div>`;
+h+=`<div style="font-size:.75rem;color:var(--mt);margin-bottom:8px">أسهم قوية على المدى الطويل، لم ترتفع كثيراً مؤخراً — فرص تجميع بعيدة المدى. قليلة ونادرة التغيّر.</div>`;
+for(const p of picks){const cc=p.bet_score>=50?"var(--g)":"var(--ac2)";const wc=p.weekly_change>0?"var(--g)":p.weekly_change<0?"var(--r)":"var(--mt)";
+h+=`<div class="rc" style="border-color:rgba(156,106,222,.3)">
+<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:center">
+<div><b style="font-size:1.05rem">${p.name||''}</b> <span style="font-family:'IBM Plex Mono';color:var(--mt);font-size:.8rem">${p.symbol}</span></div>
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+<span style="font-family:'IBM Plex Mono';font-weight:700">${p.price||''}</span>
+<span style="font-size:.75rem;color:var(--mt)">إشارات طويلة ${p.long_pct}%</span>
+<span style="background:${cc}22;color:${cc};padding:2px 8px;border-radius:6px;font-weight:700;font-size:.78rem">${(p.bet_score||0).toFixed(0)}</span></div></div>
+<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;font-size:.75rem">
+<span style="color:${wc}">أسبوعي ${p.weekly_change>0?'+':''}${p.weekly_change}%</span>
+<span style="color:var(--mt)">شهري ${p.monthly_change>0?'+':''}${p.monthly_change}%</span>
+<span style="color:var(--ac2)">RSI ${(p.rsi||0).toFixed(0)} · ${p.rsi_state||''}</span>
+${p.signals?.length?`<span style="color:var(--g)">🔑 ${p.signals.join(' · ')}</span>`:''}</div></div>`}
+box.innerHTML=h}catch(e){box.innerHTML=''}}
 async function loadLatest(){const box=document.getElementById("resultBox");if(!box)return;try{const d=await api("/api/recommendations/latest");const picks=d.picks||[];if(!picks.length)return;
 let h=`<div class="sh"><div class="d" style="background:var(--o);box-shadow:0 0 14px var(--o)"></div><h2>🏆 آخر التوصيات الصادرة</h2><span class="tg">دفعة ${d.date||''} · ${picks.length} سهم</span></div>`;
 h+=summaryTable(picks);
@@ -91,20 +109,33 @@ ${p.reasoning?`<div style="margin-top:8px;font-size:.85rem;line-height:1.6">${p.
 h+=`<div style="font-size:.68rem;color:var(--mt);margin-top:10px;text-align:center">⚠️ تحليل فني مساعد وليس توصية مالية · اضغط "حلّل الآن" لتوصيات محدّثة</div>`;
 box.innerHTML=h}catch(e){}}
 async function loadTracking(){const b=document.getElementById("trackBox");b.innerHTML='<div style="color:var(--mt);font-size:.82rem"><span class="spin"></span> جاري التحميل...</div>';try{const d=await api("/api/recommendations/tracking");const c=d.counts||{};
-let h=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+// آخر تحديث
+let lastUpd='';try{const sh=await api("/api/sync/history");const ls=sh.last_sync||{};if(ls.time)lastUpd=`آخر تحديث: ${ls.time.slice(0,16).replace('T',' ')} · ${ls.tab||''}`}catch(e){}
+let h=`${lastUpd?`<div style="font-size:.75rem;color:var(--ac2);margin-bottom:8px">🕐 ${lastUpd}</div>`:''}
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
 <span style="background:rgba(90,175,255,.12);color:#5aafff;padding:4px 12px;border-radius:8px;font-size:.82rem;font-weight:700">🔵 ${c.active||0} جارية</span>
 <span style="background:rgba(0,230,118,.12);color:var(--g);padding:4px 12px;border-radius:8px;font-size:.82rem;font-weight:700">✅ ${c.success||0} ناجحة</span>
 <span style="background:rgba(255,82,82,.12);color:var(--r);padding:4px 12px;border-radius:8px;font-size:.82rem;font-weight:700">❌ ${c.failed||0} فاشلة</span>
 <span style="background:rgba(144,164,174,.12);color:var(--mt);padding:4px 12px;border-radius:8px;font-size:.82rem;font-weight:700">⚪ ${c.flat||0} بلا حركة</span>
 ${c.late>0?`<span style="background:rgba(0,212,255,.12);color:var(--ac2);padding:4px 12px;border-radius:8px;font-size:.82rem;font-weight:700">🔄 ${c.late} حققت لاحقاً</span>`:''}</div>`;
-const rows=d.all||[];
-if(!rows.length){h+='<div style="color:var(--mt);font-size:.82rem;text-align:center;padding:15px">لا توجد توصيات محفوظة بعد — اضغط "حلّل الآن"</div>';b.innerHTML=h;return}
-h+=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem">
-<thead><tr style="background:var(--bg);color:var(--ac2);font-size:.7rem;position:sticky;top:0"><th style="padding:7px 5px;text-align:right">السهم</th><th style="padding:7px 5px">تاريخ ووقت التوصية</th><th style="padding:7px 5px">الثقة</th><th style="padding:7px 5px">الحالة</th><th style="padding:7px 5px">الدخول</th><th style="padding:7px 5px">الحالي</th><th style="padding:7px 5px">الهدف</th><th style="padding:7px 5px">أعلى</th><th style="padding:7px 5px">الذروة</th><th style="padding:7px 5px">ينتهي</th></tr></thead><tbody>`;
+const active=(d.all||[]).filter(r=>r.status==='active');
+const succ=(d.success||[]);
+const others=(d.all||[]).filter(r=>r.status!=='active'&&r.outcome!=='success');
+if(!active.length&&!succ.length&&!others.length){h+='<div style="color:var(--mt);font-size:.82rem;text-align:center;padding:15px">لا توجد توصيات محفوظة بعد — اضغط "حلّل الآن"</div>';b.innerHTML=h;return}
+// جدول الجارية + غير الناجحة
+const mainRows=active.concat(others);
+if(mainRows.length){h+=trackTable(mainRows,false)}
+// جدول الناجحة المستقل
+if(succ.length){h+=`<div style="margin-top:16px;font-weight:700;color:var(--g);margin-bottom:6px">✅ حققت الهدف (${succ.length})</div>`;h+=trackTable(succ,true)}
+b.innerHTML=h}catch(e){b.innerHTML=`<div style="color:var(--r);font-size:.82rem">❌ ${e.message}</div>`}}
+
+function trackTable(rows,isSuccess){let h=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem">
+<thead><tr style="background:var(--bg);color:var(--ac2);font-size:.7rem"><th style="padding:7px 5px;text-align:right">السهم</th><th style="padding:7px 5px">تاريخ ووقت التوصية</th><th style="padding:7px 5px">الثقة</th><th style="padding:7px 5px">الحالة</th><th style="padding:7px 5px">الدخول</th><th style="padding:7px 5px">الحالي</th><th style="padding:7px 5px">الهدف</th><th style="padding:7px 5px">${isSuccess?'أعلى بعد الهدف':'أعلى'}</th><th style="padding:7px 5px">الذروة</th><th style="padding:7px 5px">ينتهي</th></tr></thead><tbody>`;
 for(const r of rows){const pk=r.peak_pct||0;const pc=pk>=1.5?"var(--g)":pk<=-2?"var(--r)":"var(--mt)";const cp=r.current_pct||0;const cpc=cp>0?"var(--g)":cp<0?"var(--r)":"var(--mt)";const bg=r.status==='active'?'<span style="color:#5aafff">🔵</span>':r.outcome==='success'?'<span style="color:var(--g)">✅</span>':r.outcome==='flat'?'<span style="color:var(--mt)">⚪</span>':'<span style="color:var(--r)">❌</span>';const lt=r.post_watch_hit?' 🔄':'';
 const dt=r.created_at?r.created_at.slice(0,16).replace('T',' '):(r.appeared_date||'');const cf=r.confidence||0;const cfc=cf>=9?"var(--g)":cf>=8?"var(--ac2)":"var(--mt)";
-h+=`<tr style="border-bottom:1px solid var(--ln2)${r.status==='active'?';background:rgba(90,175,255,.04)':''}"><td style="padding:6px 5px"><b>${r.symbol}</b> <span style="color:var(--mt);font-size:.7rem">${r.name||''}</span>${lt}</td><td style="padding:6px 5px;text-align:center;font-size:.72rem;color:var(--mt);white-space:nowrap">${dt}</td><td style="padding:6px 5px;text-align:center"><span style="color:${cfc};font-weight:700">${cf}</span></td><td style="padding:6px 5px;text-align:center">${bg}</td><td style="padding:6px 5px;text-align:center">${r.entry_price||'-'}</td><td style="padding:6px 5px;text-align:center">${r.current_price?`<b>${r.current_price}</b> <span style="font-size:.65rem;color:${cpc}">${cp>0?'+':''}${cp}%</span>`:'<span style="color:var(--mt)">-</span>'}</td><td style="padding:6px 5px;text-align:center">${r.target_price||'-'}</td><td style="padding:6px 5px;text-align:center">${r.highest_price||'-'}</td><td style="padding:6px 5px;text-align:center;color:${pc};font-weight:700">${pk.toFixed(1)}%</td><td style="padding:6px 5px;text-align:center;font-size:.7rem;color:var(--mt);white-space:nowrap">${r.expiry_date||''}</td></tr>`}
-h+=`</tbody></table></div>`;b.innerHTML=h}catch(e){b.innerHTML=`<div style="color:var(--r);font-size:.82rem">❌ ${e.message}</div>`}}
+const highCol=isSuccess?(r.post_target_high?`${r.post_target_high} <span style="font-size:.65rem;color:var(--g)">+${(r.post_target_pct||0).toFixed(1)}%</span>`:(r.highest_price||'-')):(r.highest_price||'-');
+h+=`<tr style="border-bottom:1px solid var(--ln2)${r.status==='active'?';background:rgba(90,175,255,.04)':isSuccess?';background:rgba(0,230,118,.04)':''}"><td style="padding:6px 5px"><b>${r.symbol}</b> <span style="color:var(--mt);font-size:.7rem">${r.name||''}</span>${lt}</td><td style="padding:6px 5px;text-align:center;font-size:.72rem;color:var(--mt);white-space:nowrap">${dt}</td><td style="padding:6px 5px;text-align:center"><span style="color:${cfc};font-weight:700">${cf}</span></td><td style="padding:6px 5px;text-align:center">${bg}</td><td style="padding:6px 5px;text-align:center">${r.entry_price||'-'}</td><td style="padding:6px 5px;text-align:center">${r.current_price?`<b>${r.current_price}</b> <span style="font-size:.65rem;color:${cpc}">${cp>0?'+':''}${cp}%</span>`:'<span style="color:var(--mt)">-</span>'}</td><td style="padding:6px 5px;text-align:center">${r.target_price||'-'}</td><td style="padding:6px 5px;text-align:center;${isSuccess?'color:var(--g);font-weight:700':''}">${highCol}</td><td style="padding:6px 5px;text-align:center;color:${pc};font-weight:700">${pk.toFixed(1)}%</td><td style="padding:6px 5px;text-align:center;font-size:.7rem;color:var(--mt);white-space:nowrap">${r.expiry_date||''}</td></tr>`}
+return h+`</tbody></table></div>`}
 async function updateTracking(){const b=document.getElementById("trackBox");b.innerHTML='<div style="color:var(--mt);font-size:.82rem"><span class="spin"></span> جاري تحديث الأسعار...</div>';try{const d=await api("/api/recommendations/update",{method:"POST"});const a=d.active||{};toast(`✅ نجاح:${a.success||0} فشل:${a.failed||0} جارية:${a.still_active||0} · المصدر: ${d.price_source||''}`);loadTracking()}catch(e){b.innerHTML=`<div style="color:var(--r);font-size:.82rem">❌ ${e.message}</div>`}}
 
 async function runFull(){if(S.busy)return;S.busy=true;const btn=document.getElementById("mainBtn");btn.disabled=true;btn.innerHTML=`<span class="spin"></span> جاري التحليل والتقييم... (~20 ثانية)`;const box=document.getElementById("resultBox");box.innerHTML="";
