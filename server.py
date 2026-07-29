@@ -910,8 +910,8 @@ def recommendations_latest():
                 "created_at": r.get("created_at", ""),
             })
         picks.sort(key=lambda x: x["confidence"], reverse=True)
-        # المميّزة: أعلى 3 فقط (الباقي يظهر في جدول التتبع)
-        return {"picks": picks[:3], "total_active": len(picks), "date": latest_date, "count": len(picks)}
+        # كل الجارية (الجدول يستوعبها) — مرتّبة بالقوة
+        return {"picks": picks, "total_active": len(picks), "date": latest_date, "count": len(picks)}
     except Exception as e:
         return {"picks": [], "error": str(e)[:150]}
 
