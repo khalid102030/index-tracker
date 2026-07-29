@@ -31,7 +31,7 @@ function shell(){document.getElementById("root").innerHTML=`
 <div class="w"><div class="tabs">
 <button class="tb ${S.tab==='analyze'?'on':''}" onclick="go('analyze')">🎯 التحليل</button>
 <button class="tb ${S.tab==='settings'?'on':''}" onclick="go('settings')">⚙️ الإعدادات</button>
-</div><div id="ct" class="fade">${S.tab==='settings'?pgSettings():pgAnalyze()}</div></div>`;loadH();if(S.tab==='analyze'){loadSync();loadAccuracy();if(!S.result)loadLatest();loadLongterm()}if(S.tab==='settings')loadCfg()}
+</div><div id="ct" class="fade">${S.tab==='settings'?pgSettings():pgAnalyze()}</div></div>`;loadH();if(S.tab==='analyze'){loadSync();loadAccuracy();loadLatest();loadLongterm()}if(S.tab==='settings')loadCfg()}
 function go(t){S.tab=t;shell()}
 async function loadH(){try{const h=await api("/api/health");const p=document.getElementById("hp");if(!p)return;const ms=h.market_status;const mc=ms==='live'?'var(--g)':ms==='weekend'?'var(--r)':'var(--ac2)';p.innerHTML=`<span style="color:${mc}">${ms==='live'?'🟢 مفتوح':ms==='post_close'?'🔴 مغلق':ms==='pre_open'?'🟡 قبل الافتتاح':'⚪ عطلة'}</span> ${h.time_riyadh||''}`}catch(e){}}
 
@@ -51,7 +51,8 @@ function pgAnalyze(){return `
 <div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:8px">
 <button class="bs" onclick="updateTracking()">💹 تحديث الأسعار</button>
 <button class="bs" onclick="toggleHistory()" id="histBtn">📜 السجل الكامل</button></div>
-<div id="resultBox">${S.result?renderResult():''}</div>
+<div id="analyzeNotes"></div>
+<div id="resultBox"></div>
 <div id="ltBox"></div>
 <div id="trackBox" style="margin-top:8px;display:none"></div>`}
 function toggleHistory(){const b=document.getElementById("trackBox");const btn=document.getElementById("histBtn");if(b.style.display==='none'){b.style.display='block';btn.textContent='✖ إخفاء السجل';loadTracking()}else{b.style.display='none';btn.textContent='📜 السجل الكامل'}}
@@ -93,21 +94,27 @@ h+=`<div class="rc" style="border-color:rgba(156,106,222,.3)">
 <span style="color:var(--ac2)">RSI ${(p.rsi||0).toFixed(0)} · ${p.rsi_state||''}</span>
 ${p.signals?.length?`<span style="color:var(--g)">🔑 ${p.signals.join(' · ')}</span>`:''}</div></div>`}
 box.innerHTML=h}catch(e){box.innerHTML=''}}
-async function loadLatest(){const box=document.getElementById("resultBox");if(!box)return;try{const d=await api("/api/recommendations/latest");const picks=d.picks||[];if(!picks.length)return;
+async function loadLatest(){const box=document.getElementById("resultBox");if(!box)return;try{const d=await api("/api/recommendations/latest");const picks=d.picks||[];if(!picks.length){box.innerHTML='';return}
 let h=`<div class="sh"><div class="d" style="background:var(--o);box-shadow:0 0 14px var(--o)"></div><h2>🎯 التوصيات النشطة</h2><span class="tg">${picks.length} سهم تحت المتابعة · مرتّبة بالقوة</span></div>`;
-let rank=0;for(const p of picks){rank++;const cc=p.confidence>=9?"var(--g)":p.confidence>=7?"var(--ac2)":"var(--mt)";const cp=p.current_pct||0;const cpc=cp>0?"var(--g)":cp<0?"var(--r)":"var(--mt)";const bg=p.status==='active'?'':p.outcome==='success'?' <span style="color:var(--g)">✅ ناجحة</span>':p.outcome==='failed'?' <span style="color:var(--r)">❌ فاشلة</span>':p.outcome==='flat'?' <span style="color:var(--mt)">⚪</span>':'';const posW=Math.round((p.confidence||0)*10);const posLbl=p.confidence>=9?"إيجابية عالية جداً":p.confidence>=8?"إيجابية عالية":p.confidence>=7?"إيجابية جيدة":"إيجابية معتدلة";const medal=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`#${rank}`;
-h+=`<div class="rc" id="card_${p.symbol}" style="border-color:rgba(255,152,0,.3)">
-<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:center">
-<div><span style="font-size:1rem;margin-left:4px">${medal}</span><b style="font-size:1.12rem">${p.name||''}</b> <span style="font-family:'IBM Plex Mono';color:var(--mt);font-size:.82rem">${p.symbol}</span>${bg}</div>
-<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-<span style="font-size:.78rem;color:var(--mt)">دخول ${p.entry_price}</span>
-${p.current_price?`<span style="font-size:.82rem">حالي <b>${p.current_price}</b> <span style="color:${cpc}">${cp>0?'+':''}${cp}%</span></span>`:''}
-<span style="font-size:.78rem;color:var(--mt)">هدف ${p.target_price}</span>
-<span style="background:${cc}22;color:${cc};padding:3px 10px;border-radius:8px;font-weight:800;font-size:.85rem">ثقة ${p.confidence}/10</span></div></div>
-<div style="margin-top:8px"><div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--mt);margin-bottom:3px"><span>درجة الإيجابية</span><span style="color:${cc};font-weight:700">${posLbl}</span></div><div class="sb"><div class="sf" style="width:${posW}%;background:linear-gradient(90deg,${cc},var(--g))"></div></div></div>
-${p.reasoning?`<div style="margin-top:8px;font-size:.85rem;line-height:1.6">${p.reasoning}</div>`:''}</div>`}
-h+=`<div style="font-size:.68rem;color:var(--mt);margin-top:10px;text-align:center">⚠️ تحليل فني مساعد وليس توصية مالية · اضغط "حلّل الآن" لتوصيات محدّثة</div>`;
+h+=`<div class="pn" style="padding:0;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.82rem">
+<thead><tr style="background:var(--bg);color:var(--ac2);font-size:.72rem"><th style="padding:9px 6px">#</th><th style="padding:9px 6px;text-align:right">السهم</th><th style="padding:9px 6px">الثقة</th><th style="padding:9px 6px">الدخول</th><th style="padding:9px 6px">الحالي</th><th style="padding:9px 6px">الهدف</th><th style="padding:9px 6px">الأفق</th></tr></thead><tbody>`;
+let rank=0;for(const p of picks){rank++;const cc=p.confidence>=9?"var(--g)":p.confidence>=8?"var(--ac2)":"var(--mt)";const cp=p.current_pct||0;const cpc=cp>0?"var(--g)":cp<0?"var(--r)":"var(--mt)";const medal=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`${rank}`;const hz=p.category==='long_term'?'مدى بعيد':'1-5 أيام';
+h+=`<tr onclick="toggleDetail('${p.symbol}')" style="border-bottom:1px solid var(--ln2);cursor:pointer">
+<td style="padding:9px 6px;text-align:center">${medal}</td>
+<td style="padding:9px 6px"><b>${p.name||''}</b> <span style="font-family:'IBM Plex Mono';color:var(--mt);font-size:.72rem">${p.symbol}</span></td>
+<td style="padding:9px 6px;text-align:center"><span style="background:${cc}22;color:${cc};padding:2px 9px;border-radius:6px;font-weight:800">${p.confidence}</span></td>
+<td style="padding:9px 6px;text-align:center">${p.entry_price||'-'}</td>
+<td style="padding:9px 6px;text-align:center">${p.current_price?`<b>${p.current_price}</b> <span style="font-size:.68rem;color:${cpc}">${cp>0?'+':''}${cp}%</span>`:'<span style="color:var(--mt)">-</span>'}</td>
+<td style="padding:9px 6px;text-align:center">${p.target_price||'-'}</td>
+<td style="padding:9px 6px;text-align:center;font-size:.72rem;color:var(--mt)">${hz}</td></tr>
+<tr id="detail_${p.symbol}" style="display:none;background:var(--bg2)"><td colspan="7" style="padding:12px 14px">
+<div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--mt);margin-bottom:4px"><span>درجة الإيجابية</span><span style="color:${cc};font-weight:700">${p.confidence>=9?'عالية جداً':p.confidence>=8?'عالية':'جيدة'}</span></div>
+<div class="sb" style="margin-bottom:8px"><div class="sf" style="width:${Math.round((p.confidence||0)*10)}%;background:linear-gradient(90deg,${cc},var(--g))"></div></div>
+<div style="font-size:.85rem;line-height:1.6">${p.reasoning||'لا تفاصيل'}</div></td></tr>`}
+h+=`</tbody></table></div></div>`;
+h+=`<div style="font-size:.68rem;color:var(--mt);margin-top:8px;text-align:center">اضغط أي سهم للتفاصيل · ⚠️ تحليل فني مساعد وليس توصية مالية</div>`;
 box.innerHTML=h}catch(e){}}
+function toggleDetail(sym){const r=document.getElementById('detail_'+sym);if(r)r.style.display=r.style.display==='none'?'table-row':'none'}
 async function loadTracking(){const b=document.getElementById("trackBox");b.innerHTML='<div style="color:var(--mt);font-size:.82rem"><span class="spin"></span> جاري التحميل...</div>';try{const d=await api("/api/recommendations/tracking");const c=d.counts||{};
 // آخر تحديث
 let lastUpd='';try{const sh=await api("/api/sync/history");const ls=sh.last_sync||{};if(ls.time){const t=ls.time.slice(0,16).replace('T',' ');lastUpd=`🕐 آخر تحديث للبيانات: <b>${t}</b> · ${ls.tab||''}`}}catch(e){}
@@ -139,7 +146,9 @@ return h+`</tbody></table></div>`}
 async function updateTracking(){const b=document.getElementById("trackBox");b.innerHTML='<div style="color:var(--mt);font-size:.82rem"><span class="spin"></span> جاري تحديث الأسعار...</div>';try{const d=await api("/api/recommendations/update",{method:"POST"});const a=d.active||{};toast(`✅ نجاح:${a.success||0} فشل:${a.failed||0} جارية:${a.still_active||0} · المصدر: ${d.price_source||''}`);loadTracking()}catch(e){b.innerHTML=`<div style="color:var(--r);font-size:.82rem">❌ ${e.message}</div>`}}
 
 async function runFull(){if(S.busy)return;S.busy=true;const btn=document.getElementById("mainBtn");btn.disabled=true;btn.innerHTML=`<span class="spin"></span> جاري التحليل والتقييم... (~20 ثانية)`;const box=document.getElementById("resultBox");box.innerHTML="";
-try{const d=await api("/api/analyze-full",{method:"POST"});S.result=d;shell()}catch(e){let msg=e.message;if(msg.includes('529')||msg.includes('مزحوم')||msg.includes('Overloaded')||msg.includes('overloaded'))msg='⏳ خوادم Claude مزحومة حالياً. النظام حاول تلقائياً — انتظر دقيقة وجرّب مرة ثانية.';box.innerHTML=`<div class="pn" style="color:var(--r)">${msg}</div>`;btn.disabled=false;btn.innerHTML="🚀 حلّل الآن — Claude + Gemini"}S.busy=false}
+try{const d=await api("/api/analyze-full",{method:"POST"});S.result=d;shell();
+// عرض ملاحظات التحليل فوق الجدول
+setTimeout(()=>{const nb=document.getElementById("analyzeNotes");if(nb){let n='';if(d.market_note)n+=`<div style="font-size:.85rem;margin-top:6px">📊 ${d.market_note}</div>`;if(d.consensus_note)n+=`<div style="font-size:.8rem;color:var(--ac2);margin-top:4px">🤝 ${d.consensus_note}</div>`;if(d.learn_note)n+=`<div style="font-size:.8rem;color:var(--g);margin-top:4px">📚 ${d.learn_note}</div>`;if(d.movers_note)n+=`<div style="font-size:.78rem;color:var(--ac2);margin-top:4px">🔍 ${d.movers_note}</div>`;if(d.missed_pattern&&d.missed_pattern!=='فراغ')n+=`<div style="font-size:.78rem;color:var(--o);margin-top:4px;background:rgba(255,152,0,.08);padding:6px 10px;border-radius:8px">💡 نمط الفرص الفائتة: ${d.missed_pattern}</div>`;if(!d.saved&&!d.picks?.length)n+=`<div style="font-size:.82rem;color:var(--mt);margin-top:6px">👍 لا توصية جديدة — التوصيات النشطة تستمر تحت المتابعة</div>`;if(n)nb.innerHTML=`<div class="pn">${n}</div>`}},200)}catch(e){let msg=e.message;if(msg.includes('529')||msg.includes('مزحوم')||msg.includes('Overloaded')||msg.includes('overloaded'))msg='⏳ خوادم Claude مزحومة حالياً. النظام حاول تلقائياً — انتظر دقيقة وجرّب مرة ثانية.';box.innerHTML=`<div class="pn" style="color:var(--r)">${msg}</div>`;btn.disabled=false;btn.innerHTML="🚀 حلّل الآن — Claude + Gemini"}S.busy=false}
 
 function summaryTable(picks){let h=`<div class="pn" style="padding:0;overflow:hidden;margin-bottom:14px"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.82rem">
 <thead><tr style="background:var(--bg);color:var(--ac2);font-size:.72rem"><th style="padding:9px 6px">#</th><th style="padding:9px 6px;text-align:right">السهم</th><th style="padding:9px 6px">الثقة</th><th style="padding:9px 6px">الدخول</th><th style="padding:9px 6px">الحالي</th><th style="padding:9px 6px">الهدف</th><th style="padding:9px 6px">الأفق</th></tr></thead><tbody>`;
