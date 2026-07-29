@@ -261,6 +261,14 @@ def analyze_full(url: str = None):
         analysis["source"] = {"tab": snap["tab_name"],
                               "market_status": classify_snapshot_time()}
         _last_analysis["data"] = analysis
+        # سجّل وقت آخر تحليل (يدوي) في حالة المجدوِل
+        try:
+            import scheduler as _sch
+            from market_clock import now_riyadh
+            _sch._last_sync.update(time=now_riyadh().isoformat(), tab=snap["tab_name"],
+                                   status="success", stocks=analysis["summary"]["total_stocks"], error=None)
+        except Exception:
+            pass
 
         # ② تحديث النتائج السابقة (قبل التقييم الجديد)
         prev_picks = []
