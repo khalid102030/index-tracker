@@ -298,7 +298,9 @@ def analyze_full(url: str = None):
             for pick in eval_result["picks"]:
                 orig = next((s for s in analysis["stocks"] if s["symbol"] == pick["symbol"]), {})
                 merged = {**orig, **pick, "reason": pick.get("reasoning", "")}
-                cat = "short_term" if "يوم" in pick.get("horizon", "") or "ساع" in pick.get("horizon", "") else "long_term"
+                # الاستراتيجية الأساسية دائماً قصيرة المدى (هدف 1.5% بأيام)
+                # المدى البعيد قسم منفصل تماماً لا يُحفظ هنا
+                cat = "short_term"
                 create_recommendation(merged, cat, sb)
                 saved += 1
 
@@ -761,10 +763,11 @@ def recommendations_longterm(url: str = None):
                     "signals": s.get("top3_signals", []),
                 })
 
-        # ترتيب حسب قوة الإشارات الطويلة، والأقل ارتفاعاً أولاً
-        picks.sort(key=lambda x: (x["long_pct"], -abs(x["weekly_change"])), reverse=True)
-        # قليلة: أعلى 5 فقط
-        picks = picks[:5]
+        # ترتيب حسب الأفضلية: أقوى إشارات طويلة + جودة عالية
+        # مرتّبة حسب الأفضلية (bet_score ثم long_pct)، الأقل ارتفاعاً أفضل
+        picks.sort(key=lambda x: (x["bet_score"], x["long_pct"], -abs(x["weekly_change"])), reverse=True)
+        # محدودة جداً: أعلى 3 فقط (تشكّلها صعب وبطيء)
+        picks = picks[:3]
         return {"picks": picks, "count": len(picks)}
     except Exception as e:
         traceback.print_exc()

@@ -75,9 +75,10 @@ if(catRows.length){h+=`<div style="display:flex;gap:16px;flex-wrap:wrap;margin-t
 for(const[k,v]of catRows){const vc=v.rate>=50?"var(--g)":"var(--r)";h+=`<div style="font-size:.78rem"><span style="color:var(--mt)">${cl[k]||k}:</span> <b style="color:${vc}">${v.rate}%</b> <span style="color:var(--mt);font-size:.7rem">(${v.success}/${v.total})</span></div>`}h+=`</div>`}
 if(!d.mature)h+=`<div style="font-size:.68rem;color:var(--mt);margin-top:8px">⚠️ العينة ${d.closed}/20 — الدقة تتحسّن مع تراكم النتائج</div>`;
 h+=`</div>`;c.innerHTML=h}catch(e){c.innerHTML=''}}
-async function loadLongterm(){const box=document.getElementById("ltBox");if(!box)return;try{const d=await api("/api/recommendations/longterm");const picks=d.picks||[];if(!picks.length){box.innerHTML='';return}
-let h=`<div class="sh"><div class="d" style="background:#9c6ade;box-shadow:0 0 14px #9c6ade"></div><h2>🌱 أسهم المدى البعيد النوعية</h2><span class="tg">${picks.length} · أسبوعي/شهري · لم ترتفع كثيراً</span></div>`;
-h+=`<div style="font-size:.75rem;color:var(--mt);margin-bottom:8px">أسهم قوية على المدى الطويل، لم ترتفع كثيراً مؤخراً — فرص تجميع بعيدة المدى. قليلة ونادرة التغيّر.</div>`;
+async function loadLongterm(){const box=document.getElementById("ltBox");if(!box)return;try{const d=await api("/api/recommendations/longterm");const picks=d.picks||[];
+let h=`<div class="sh"><div class="d" style="background:#9c6ade;box-shadow:0 0 14px #9c6ade"></div><h2>🌱 أسهم المدى البعيد النوعية</h2><span class="tg">${picks.length} · أسبوعي/شهري · منتقاة</span></div>`;
+h+=`<div style="font-size:.75rem;color:var(--mt);margin-bottom:8px">أسهم قوية على المدى الطويل، لم ترتفع كثيراً مؤخراً — فرص تجميع بعيدة المدى. محدودة ونادرة (تشكّلها بطيء).</div>`;
+if(!picks.length){h+=`<div class="pn" style="text-align:center;color:var(--mt);padding:20px;border:1px dashed rgba(156,106,222,.3)">لا توجد أسهم مدى بعيد نوعية حالياً — المعايير صارمة (إشارات طويلة قوية + لم ترتفع كثيراً + ليست فخاً). قد تظهر عند تشكّل الفرص.</div>`;box.innerHTML=h;return}
 for(const p of picks){const cc=p.bet_score>=50?"var(--g)":"var(--ac2)";const wc=p.weekly_change>0?"var(--g)":p.weekly_change<0?"var(--r)":"var(--mt)";
 h+=`<div class="rc" style="border-color:rgba(156,106,222,.3)">
 <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:center">
@@ -151,7 +152,7 @@ h+=`<tr style="border-bottom:1px solid var(--ln2);cursor:pointer" onclick="docum
 <td style="padding:8px 6px;text-align:center">${p.entry_price||p.price||'-'}</td>
 <td style="padding:8px 6px;text-align:center">${p.current_price?`${p.current_price} <span style="color:${cpc};font-size:.72rem">${cp>0?'+':''}${cp}%</span>`:'<span style="color:var(--mt)">-</span>'}</td>
 <td style="padding:8px 6px;text-align:center">${p.target_price||'-'}</td>
-<td style="padding:8px 6px;text-align:center;font-size:.75rem;color:var(--mt)">${p.horizon||p.category||'-'}</td></tr>`}
+<td style="padding:8px 6px;text-align:center;font-size:.75rem;color:var(--mt)">${p.horizon||(p.category==='long_term'?'مدى بعيد':'1-5 أيام')}</td></tr>`}
 return h+`</tbody></table></div></div>`}
 
 function renderResult(){const d=S.result;if(!d)return'';const md=d.market_mood||{};const mc=md.state==="صاعد"?"var(--g)":md.state==="هابط"?"var(--r)":"var(--ac2)";const picks=d.picks||[];

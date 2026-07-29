@@ -156,18 +156,26 @@ def dual_evaluate(analysis_result: dict, performance: dict = None,
     stocks = analysis_result.get("stocks", [])
     recs = analysis_result.get("recommendations", {})
 
-    # جمع المرشحين
+    # جمع المرشحين — الاستراتيجية القصيرة فقط (المدى البعيد قسم منفصل)
     seen, candidates = set(), []
     for s in recs.get("short_term", []):
         if s["symbol"] not in seen and not s.get("is_trap"):
             seen.add(s["symbol"]); candidates.append(_slim(s))
-    for s in stocks:
-        if len(candidates) >= MAX_CANDIDATES: break
-        if s["symbol"] not in seen and not s.get("is_trap") and s["bet_score"] >= 30:
-            seen.add(s["symbol"]); candidates.append(_slim(s))
-    for s in recs.get("long_term", []):
+    for s in recs.get("speculative", []):
         if len(candidates) >= MAX_CANDIDATES: break
         if s["symbol"] not in seen and not s.get("is_trap"):
+            seen.add(s["symbol"]); candidates.append(_slim(s))
+    # أسهم عامة قوية (لكن ليست طويلة المدى صرفة)
+    for s in stocks:
+        if len(candidates) >= MAX_CANDIDATES: break
+        fs = s.get("frame_scores", {})
+        long_pct = fs.get("long", {}).get("pct", 0)
+        short_pct = fs.get("short", {}).get("pct", 0)
+        mid_pct = fs.get("mid", {}).get("pct", 0)
+        # نتجاوز الأسهم التي إشاراتها طويلة فقط (تخص قسم المدى البعيد)
+        is_pure_long = long_pct >= 40 and short_pct < 20 and mid_pct < 25
+        if (s["symbol"] not in seen and not s.get("is_trap")
+                and s["bet_score"] >= 30 and not is_pure_long):
             seen.add(s["symbol"]); candidates.append(_slim(s))
 
     if not candidates:
