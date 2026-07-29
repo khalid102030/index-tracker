@@ -714,6 +714,26 @@ def test_keys():
     return results
 
 
+@app.post("/api/recommendations/fix-categories")
+def fix_categories():
+    """يصحّح تصنيف التوصيات القديمة — كلها short_term (الاستراتيجية الأساسية)."""
+    sb = _get_supabase()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase غير متصل")
+    try:
+        # كل التوصيات المحفوظة في idx_recommendations تخص الاستراتيجية القصيرة
+        rows = sb.table("idx_recommendations").select("id,category") \
+            .neq("category", "short_term").execute().data or []
+        fixed = 0
+        for r in rows:
+            sb.table("idx_recommendations").update({"category": "short_term"}).eq("id", r["id"]).execute()
+            fixed += 1
+        return {"ok": True, "fixed": fixed, "message": f"تم تصحيح {fixed} توصية إلى قصيرة المدى"}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/recommendations/longterm")
 def recommendations_longterm(url: str = None):
     """
