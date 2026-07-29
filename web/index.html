@@ -46,15 +46,15 @@ function pgAnalyze(){return `
 <div id="accuracyCard"></div>
 <div class="pn" style="text-align:center">
 <button class="bt btbig" onclick="runFull()" id="mainBtn">🚀 حلّل الآن — Claude + Gemini</button>
-<div style="font-size:.75rem;color:var(--mt);margin-top:8px">يسحب البيانات · يحدّث النتائج السابقة · يقيّم · يطلع 3–5 توصيات</div>
+<div style="font-size:.75rem;color:var(--mt);margin-top:8px">يسحب البيانات · يحدّث النتائج السابقة · يقيّم · يطلع أفضل التوصيات</div>
 </div>
-<div class="pn" style="border:1px solid rgba(0,230,118,.15)">
-<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-<span style="font-weight:700;color:var(--g)">📈 تتبع التوصيات</span>
-<div style="display:flex;gap:6px"><button class="bs" onclick="loadTracking()">🔄 عرض التتبع</button><button class="bs" onclick="updateTracking()">💹 تحديث الأسعار</button></div>
-</div><div id="trackBox" style="margin-top:8px"></div></div>
+<div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:8px">
+<button class="bs" onclick="updateTracking()">💹 تحديث الأسعار</button>
+<button class="bs" onclick="toggleHistory()" id="histBtn">📜 السجل الكامل</button></div>
 <div id="resultBox">${S.result?renderResult():''}</div>
-<div id="ltBox"></div>`}
+<div id="ltBox"></div>
+<div id="trackBox" style="margin-top:8px;display:none"></div>`}
+function toggleHistory(){const b=document.getElementById("trackBox");const btn=document.getElementById("histBtn");if(b.style.display==='none'){b.style.display='block';btn.textContent='✖ إخفاء السجل';loadTracking()}else{b.style.display='none';btn.textContent='📜 السجل الكامل'}}
 
 async function loadAccuracy(){const c=document.getElementById("accuracyCard");if(!c)return;try{const d=await api("/api/recommendations/performance");if(d.error||d.total===0||d.total===undefined){c.innerHTML='';return}const rate=d.success_rate||0;const rc=rate>=70?"var(--g)":rate>=50?"var(--ac2)":"var(--r)";const cats=d.by_category||{};const cl={short_term:"قريبة",long_term:"طويلة",speculative:"مضاربة"};
 let h=`<div class="pn" style="background:linear-gradient(165deg,var(--p),var(--bg2));border:1px solid ${rate>=50?'rgba(0,230,118,.25)':'rgba(255,82,82,.2)'}">
@@ -94,8 +94,7 @@ h+=`<div class="rc" style="border-color:rgba(156,106,222,.3)">
 ${p.signals?.length?`<span style="color:var(--g)">🔑 ${p.signals.join(' · ')}</span>`:''}</div></div>`}
 box.innerHTML=h}catch(e){box.innerHTML=''}}
 async function loadLatest(){const box=document.getElementById("resultBox");if(!box)return;try{const d=await api("/api/recommendations/latest");const picks=d.picks||[];if(!picks.length)return;
-let h=`<div class="sh"><div class="d" style="background:var(--o);box-shadow:0 0 14px var(--o)"></div><h2>🏆 آخر التوصيات الصادرة</h2><span class="tg">دفعة ${d.date||''} · ${picks.length} سهم</span></div>`;
-h+=summaryTable(picks);
+let h=`<div class="sh"><div class="d" style="background:var(--o);box-shadow:0 0 14px var(--o)"></div><h2>🎯 التوصيات النشطة</h2><span class="tg">${picks.length} سهم تحت المتابعة · مرتّبة بالقوة</span></div>`;
 let rank=0;for(const p of picks){rank++;const cc=p.confidence>=9?"var(--g)":p.confidence>=7?"var(--ac2)":"var(--mt)";const cp=p.current_pct||0;const cpc=cp>0?"var(--g)":cp<0?"var(--r)":"var(--mt)";const bg=p.status==='active'?'':p.outcome==='success'?' <span style="color:var(--g)">✅ ناجحة</span>':p.outcome==='failed'?' <span style="color:var(--r)">❌ فاشلة</span>':p.outcome==='flat'?' <span style="color:var(--mt)">⚪</span>':'';const posW=Math.round((p.confidence||0)*10);const posLbl=p.confidence>=9?"إيجابية عالية جداً":p.confidence>=8?"إيجابية عالية":p.confidence>=7?"إيجابية جيدة":"إيجابية معتدلة";const medal=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`#${rank}`;
 h+=`<div class="rc" id="card_${p.symbol}" style="border-color:rgba(255,152,0,.3)">
 <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:center">
@@ -218,7 +217,7 @@ function pgSettings(){return `
 <label style="font-weight:700;font-size:.88rem;display:block;margin-bottom:5px;margin-top:6px">🗄️ Supabase URL</label><input type="url" id="su" placeholder="https://xxx.supabase.co">
 <label style="font-weight:700;font-size:.88rem;display:block;margin-bottom:5px">🔐 Supabase Key</label><input type="password" id="sk" placeholder="sb_secret_...">
 <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px">
-<button class="bt" onclick="saveCfg()">💾 حفظ</button><button class="bs" onclick="setupTb()">🗄️ إنشاء الجداول</button><button class="bs" onclick="testKeys()">🔌 اختبار المفاتيح</button><button class="bs" onclick="fixCats()">🔧 تصحيح التصنيف</button>
+<button class="bt" onclick="saveCfg()">💾 حفظ</button><button class="bs" onclick="setupTb()">🗄️ إنشاء الجداول</button><button class="bs" onclick="testKeys()">🔌 اختبار المفاتيح</button><button class="bs" onclick="fixCats()">🔧 تصحيح التصنيف</button><button class="bs" onclick="cleanDups()">🧹 تنظيف المكررات</button>
 <span id="cm" style="font-size:.82rem;color:var(--mt)"></span></div>
 <div id="keyTest" style="margin-top:10px"></div></div>
 
@@ -246,6 +245,7 @@ function v(i){return document.getElementById(i)?.value||""}
 async function setupTb(){const m=document.getElementById("cm");m.textContent="⏳";try{const r=await api("/api/setup/tables",{method:"POST"});m.innerHTML=r.sql?'<span style="color:var(--o)">⚠️ أنشئ يدوياً من SQL Editor</span>':`<span style="color:var(--g)">✅ ${r.message}</span>`}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
 async function testKeys(){const b=document.getElementById("keyTest");b.innerHTML='<div style="color:var(--mt);font-size:.85rem"><span class="spin"></span> جاري اختبار المفاتيح...</div>';try{const d=await api("/api/test/keys");const names={sahmk:"📊 سهمك",claude:"🔑 Claude",gemini:"✨ Gemini",supabase:"🗄️ Supabase",sheet:"📋 Google Sheets"};let h='';for(const[k,v]of Object.entries(d)){const c=v.ok?"var(--g)":"var(--r)";const ic=v.ok?"✅":"❌";h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg2);border:1px solid ${v.ok?'rgba(0,230,118,.2)':'rgba(255,82,82,.2)'};border-radius:8px;margin-bottom:6px"><span style="font-weight:700">${names[k]||k}</span><span style="color:${c};font-size:.82rem">${ic} ${v.msg}</span></div>`}b.innerHTML=h}catch(e){b.innerHTML=`<div style="color:var(--r);font-size:.85rem">❌ ${e.message}</div>`}}
 async function fixCats(){const m=document.getElementById("cm");m.textContent="⏳ جاري التصحيح...";try{const r=await api("/api/recommendations/fix-categories",{method:"POST"});m.innerHTML=`<span style="color:var(--g)">✅ ${r.message}</span>`}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
+async function cleanDups(){const m=document.getElementById("cm");m.textContent="⏳ جاري تنظيف المكررات...";try{const r=await api("/api/recommendations/dedup",{method:"POST"});m.innerHTML=`<span style="color:var(--g)">✅ ${r.message}</span>`}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
 
 shell();
 </script></body></html>

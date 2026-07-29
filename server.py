@@ -714,6 +714,84 @@ def test_keys():
     return results
 
 
+@app.post("/api/recommendations/dedupe")
+def dedupe_recommendations():
+    """ينظّف التوصيات المكررة — يبقي الأقدم لكل سهم (جارية) ويحذف التكرار."""
+    sb = _get_supabase()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase غير متصل")
+    try:
+        active = sb.table("idx_recommendations").select("*").eq("status", "active") \
+            .order("appeared_date", desc=False).order("created_at", desc=False).execute().data or []
+        seen = {}
+        to_delete = []
+        for r in active:
+            sym = r["symbol"]
+            if sym in seen:
+                # نبقي الأقدم، نحذف الأحدث المكرر
+                to_delete.append(r["id"])
+            else:
+                seen[sym] = r["id"]
+        for rid in to_delete:
+            sb.table("idx_recommendations").delete().eq("id", rid).execute()
+
+        # كذلك نظّف المكررات في المحسومة (نفس السهم بنفس النتيجة)
+        closed = sb.table("idx_recommendations").select("*").neq("status", "active") \
+            .order("appeared_date", desc=False).execute().data or []
+        seen_closed = {}
+        closed_del = []
+        for r in closed:
+            key = f"{r['symbol']}_{r.get('outcome','')}_{r.get('closed_date','')}"
+            if key in seen_closed:
+                closed_del.append(r["id"])
+            else:
+                seen_closed[key] = r["id"]
+        for rid in closed_del:
+            sb.table("idx_recommendations").delete().eq("id", rid).execute()
+
+        total = len(to_delete) + len(closed_del)
+        return {"ok": True, "removed": total,
+                "message": f"حُذف {total} تكرار ({len(to_delete)} جارية، {len(closed_del)} محسومة)"}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/recommendations/dedup")
+def dedup_recommendations():
+    """ينظّف التوصيات المكررة — يبقي أقدم توصية جارية لكل سهم ويحدّثها."""
+    sb = _get_supabase()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase غير متصل")
+    try:
+        active = sb.table("idx_recommendations").select("*") \
+            .eq("status", "active").order("appeared_date").execute().data or []
+        seen = {}
+        removed = 0
+        for r in active:
+            sym = r["symbol"]
+            if sym not in seen:
+                seen[sym] = r  # أول ظهور (الأقدم) نبقيه
+            else:
+                # مكرر — احتفظ بأعلى ذروة ثم احذف
+                keep = seen[sym]
+                # لو المكرر ذروته أعلى، انقل القيم المهمة للأصل
+                if (r.get("peak_pct", 0) or 0) > (keep.get("peak_pct", 0) or 0):
+                    sb.table("idx_recommendations").update({
+                        "highest_price": r.get("highest_price"),
+                        "peak_pct": r.get("peak_pct"),
+                        "current_price": r.get("current_price"),
+                        "current_pct": r.get("current_pct"),
+                    }).eq("id", keep["id"]).execute()
+                sb.table("idx_recommendations").delete().eq("id", r["id"]).execute()
+                removed += 1
+        return {"ok": True, "removed": removed, "kept": len(seen),
+                "message": f"حُذف {removed} مكرر · بقي {len(seen)} سهم فريد"}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/recommendations/fix-categories")
 def fix_categories():
     """يصحّح تصنيف التوصيات القديمة — كلها short_term (الاستراتيجية الأساسية)."""
@@ -832,7 +910,8 @@ def recommendations_latest():
                 "created_at": r.get("created_at", ""),
             })
         picks.sort(key=lambda x: x["confidence"], reverse=True)
-        return {"picks": picks, "date": latest_date, "count": len(picks)}
+        # المميّزة: أعلى 3 فقط (الباقي يظهر في جدول التتبع)
+        return {"picks": picks[:3], "total_active": len(picks), "date": latest_date, "count": len(picks)}
     except Exception as e:
         return {"picks": [], "error": str(e)[:150]}
 
