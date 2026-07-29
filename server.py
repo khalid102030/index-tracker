@@ -907,6 +907,8 @@ def recommendations_latest():
                 "status": r.get("status"), "outcome": r.get("outcome"),
                 "peak_pct": r.get("peak_pct", 0),
                 "appeared_date": r.get("appeared_date"),
+                "expiry_date": r.get("expiry_date"),
+                "max_expiry_date": r.get("max_expiry_date"),
                 "created_at": r.get("created_at", ""),
             })
         picks.sort(key=lambda x: x["confidence"], reverse=True)

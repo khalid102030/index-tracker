@@ -97,8 +97,10 @@ box.innerHTML=h}catch(e){box.innerHTML=''}}
 async function loadLatest(){const box=document.getElementById("resultBox");if(!box)return;try{const d=await api("/api/recommendations/latest");const picks=d.picks||[];if(!picks.length){box.innerHTML='';return}
 let h=`<div class="sh"><div class="d" style="background:var(--o);box-shadow:0 0 14px var(--o)"></div><h2>🎯 التوصيات النشطة</h2><span class="tg">${picks.length} سهم تحت المتابعة · مرتّبة بالقوة</span></div>`;
 h+=`<div class="pn" style="padding:0;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.82rem">
-<thead><tr style="background:var(--bg);color:var(--ac2);font-size:.72rem"><th style="padding:9px 6px">#</th><th style="padding:9px 6px;text-align:right">السهم</th><th style="padding:9px 6px">الثقة</th><th style="padding:9px 6px">الدخول</th><th style="padding:9px 6px">الحالي</th><th style="padding:9px 6px">الهدف</th><th style="padding:9px 6px">الأفق</th></tr></thead><tbody>`;
-let rank=0;for(const p of picks){rank++;const cc=p.confidence>=9?"var(--g)":p.confidence>=8?"var(--ac2)":"var(--mt)";const cp=p.current_pct||0;const cpc=cp>0?"var(--g)":cp<0?"var(--r)":"var(--mt)";const medal=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`${rank}`;const hz=p.category==='long_term'?'مدى بعيد':'1-5 أيام';
+<thead><tr style="background:var(--bg);color:var(--ac2);font-size:.72rem"><th style="padding:9px 6px">#</th><th style="padding:9px 6px;text-align:right">السهم</th><th style="padding:9px 6px">الثقة</th><th style="padding:9px 6px">الدخول</th><th style="padding:9px 6px">الحالي</th><th style="padding:9px 6px">الهدف</th><th style="padding:9px 6px">متبقّي</th></tr></thead><tbody>`;
+let rank=0;for(const p of picks){rank++;const cc=p.confidence>=9?"var(--g)":p.confidence>=8?"var(--ac2)":"var(--mt)";const cp=p.current_pct||0;const cpc=cp>0?"var(--g)":cp<0?"var(--r)":"var(--mt)";const medal=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`${rank}`;
+// حساب المتبقّي
+let remTxt='-',remColor='var(--mt)';const exp=p.max_expiry_date||p.expiry_date;if(exp){const today=new Date();today.setHours(0,0,0,0);const ed=new Date(exp);const diff=Math.ceil((ed-today)/(1000*60*60*24));if(diff>1){remTxt=`${diff} أيام`;remColor='var(--g)'}else if(diff===1){remTxt='يوم واحد';remColor='var(--o)'}else if(diff===0){remTxt='ينتهي اليوم';remColor='var(--o)'}else{remTxt='منتهية';remColor='var(--r)'}}
 h+=`<tr onclick="toggleDetail('${p.symbol}')" style="border-bottom:1px solid var(--ln2);cursor:pointer">
 <td style="padding:9px 6px;text-align:center">${medal}</td>
 <td style="padding:9px 6px"><b>${p.name||''}</b> <span style="font-family:'IBM Plex Mono';color:var(--mt);font-size:.72rem">${p.symbol}</span></td>
@@ -106,8 +108,9 @@ h+=`<tr onclick="toggleDetail('${p.symbol}')" style="border-bottom:1px solid var
 <td style="padding:9px 6px;text-align:center">${p.entry_price||'-'}</td>
 <td style="padding:9px 6px;text-align:center">${p.current_price?`<b>${p.current_price}</b> <span style="font-size:.68rem;color:${cpc}">${cp>0?'+':''}${cp}%</span>`:'<span style="color:var(--mt)">-</span>'}</td>
 <td style="padding:9px 6px;text-align:center">${p.target_price||'-'}</td>
-<td style="padding:9px 6px;text-align:center;font-size:.72rem;color:var(--mt)">${hz}</td></tr>
+<td style="padding:9px 6px;text-align:center;font-size:.72rem;color:${remColor};font-weight:700">${remTxt}</td></tr>
 <tr id="detail_${p.symbol}" style="display:none;background:var(--bg2)"><td colspan="7" style="padding:12px 14px">
+<div style="font-size:.72rem;color:var(--mt);margin-bottom:6px">📅 توصية ${p.appeared_date||''} · تنتهي ${p.max_expiry_date||p.expiry_date||''} · الأفق ${p.category==='long_term'?'مدى بعيد':'1-5 أيام'}</div>
 <div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--mt);margin-bottom:4px"><span>درجة الإيجابية</span><span style="color:${cc};font-weight:700">${p.confidence>=9?'عالية جداً':p.confidence>=8?'عالية':'جيدة'}</span></div>
 <div class="sb" style="margin-bottom:8px"><div class="sf" style="width:${Math.round((p.confidence||0)*10)}%;background:linear-gradient(90deg,${cc},var(--g))"></div></div>
 <div style="font-size:.85rem;line-height:1.6">${p.reasoning||'لا تفاصيل'}</div></td></tr>`}
