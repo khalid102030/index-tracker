@@ -169,7 +169,7 @@ ${(d.rejection_review&&d.rejection_review.length)?`<div style="margin-top:6px;fo
 
 h+=`<div class="sh"><div class="d" style="background:var(--o);box-shadow:0 0 14px var(--o)"></div><h2>🏆 التوصيات النهائية</h2><span class="tg">${picks.length} سهم · ${(d.models||[]).join(' + ')}</span></div>`;
 picks.sort((a,b)=>(b.confidence||0)-(a.confidence||0));
-if(!picks.length){h+=`<div class="pn" style="text-align:center;color:var(--mt);padding:25px">لم يتفق النموذجان على مرشح يستحق المراهنة في هذه اللقطة</div>`}
+if(!picks.length){h+=`<div class="pn" style="text-align:center;padding:22px;border:1px dashed rgba(0,212,255,.2)"><div style="font-size:1.3rem;margin-bottom:6px">👍</div><div style="color:var(--ink);font-weight:700">لا توصية جديدة هذه المرة</div><div style="color:var(--mt);font-size:.82rem;margin-top:5px">لم يظهر سهم يستحق ثقة عالية — والتوصيات الجارية تستمر تحت المتابعة.<br>عدم إصدار توصية ضعيفة قرار صحّي. الجودة أهم من الكثرة.</div></div>`}
 else{h+=summaryTable(picks)}
 let rrank=0;for(const p of picks){rrank++;const cc=p.confidence>=9?"var(--g)":p.confidence>=7?"var(--ac2)":"var(--mt)";const chg=p.change_pct>0?"var(--g)":p.change_pct<0?"var(--r)":"var(--mt)";const posW=Math.round((p.confidence||0)*10);const posLbl=p.confidence>=9?"إيجابية عالية جداً":p.confidence>=8?"إيجابية عالية":p.confidence>=7?"إيجابية جيدة":"إيجابية معتدلة";const rmedal=rrank===1?'🥇':rrank===2?'🥈':rrank===3?'🥉':`#${rrank}`;
 h+=`<div class="rc" id="card_${p.symbol}" style="border-color:rgba(255,152,0,.3)">
