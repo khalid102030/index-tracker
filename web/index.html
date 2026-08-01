@@ -19,7 +19,32 @@ input{width:100%;padding:9px 12px;border-radius:9px;border:1px solid var(--ln2);
 .fade{animation:fd .3s ease}@keyframes fd{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--p2);border:1px solid var(--ac);color:var(--ac2);padding:10px 22px;border-radius:11px;font-weight:700;z-index:100}
 .spin{display:inline-block;width:16px;height:16px;border:2px solid var(--ln2);border-top-color:var(--ac);border-radius:50%;animation:sp 0.7s linear infinite;vertical-align:middle}@keyframes sp{to{transform:rotate(360deg)}}
-@media(max-width:768px){.w{padding:14px}}
+table{-webkit-overflow-scrolling:touch}
+.tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;position:relative}
+.tblwrap::-webkit-scrollbar{height:5px}.tblwrap::-webkit-scrollbar-thumb{background:var(--ln);border-radius:99px}
+button{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+@media(max-width:768px){
+  .bar{padding:11px 14px}
+  .br .lg{width:34px;height:34px;font-size:17px}.br .nm{font-size:1rem}.br .nm small{font-size:.5rem;letter-spacing:2px}
+  .w{padding:12px}
+  .tabs{margin-bottom:14px;position:sticky;top:58px;z-index:40}
+  .tb{padding:12px 6px;font-size:.9rem}
+  .pn{padding:14px;border-radius:12px}
+  .sh h2{font-size:1rem}.sh .tg{font-size:.62rem;padding:3px 7px}
+  .bt{padding:11px 16px;font-size:.9rem}
+  .btbig{padding:16px;font-size:1rem}
+  .bs{padding:8px 12px;font-size:.82rem}
+  input{padding:11px 12px;font-size:16px}
+  table{font-size:.75rem!important}
+  table th,table td{padding:7px 4px!important}
+  .rc{padding:12px 13px}
+  .toast{bottom:16px;font-size:.85rem;padding:9px 18px;max-width:90%;text-align:center}
+}
+@media(max-width:420px){
+  table{font-size:.68rem!important}
+  table th,table td{padding:6px 3px!important}
+  .sh{flex-wrap:wrap;gap:6px}.sh .tg{margin-right:0;width:100%}
+}
 </style></head><body><div id="root"></div>
 <script>
 const S={tab:"analyze",result:null,busy:false,sortMode:"strength"};
@@ -104,7 +129,7 @@ h+=`<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-item
 h+=`<div style="font-size:.72rem;color:var(--mt);margin-bottom:8px;display:flex;gap:14px;flex-wrap:wrap"><span>🥇 الأقوى</span><span>🥈 الثاني</span><span>🥉 الثالث</span><span>الأرقام = الترتيب حسب ${S.sortMode==='newest'?'الأحدث':'القوة'}</span></div>`;
 h+=`<div style="font-size:.72rem;color:var(--mt);margin-bottom:8px;background:var(--bg2);padding:7px 12px;border-radius:8px">🥇🥈🥉 = أقوى 3 توصيات حسب الثقة · باقي الأرقام (4، 5...) ترتيبها التنازلي · اضغط أي سهم لعرض سبب الترشيح</div>`;
 h+=`<div style="font-size:.72rem;color:var(--mt);margin-bottom:8px">🥇 الأعلى ثقة · 🥈 الثاني · 🥉 الثالث · الأرقام (4، 5...) بحسب الترتيب${S.sortMode==='newest'?' الزمني':' حسب القوة'}</div>`;
-h+=`<div class="pn" style="padding:0;overflow:hidden"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.82rem">
+h+=`<div class="pn" style="padding:0;overflow:hidden"><div class="tblwrap"><table style="width:100%;border-collapse:collapse;font-size:.82rem">
 <thead><tr style="background:var(--bg);color:var(--ac2);font-size:.72rem"><th style="padding:9px 6px">#</th><th style="padding:9px 6px;text-align:right">السهم</th><th style="padding:9px 6px">الثقة</th><th style="padding:9px 6px">الظهور</th><th style="padding:9px 6px">الدخول</th><th style="padding:9px 6px">الحالي</th><th style="padding:9px 6px">الهدف</th><th style="padding:9px 6px">متبقّي</th></tr></thead><tbody>`;
 let rank=0;for(const p of picks){rank++;const cc=p.confidence>=9?"var(--g)":p.confidence>=8?"var(--ac2)":"var(--mt)";const cp=p.current_pct||0;const cpc=cp>0?"var(--g)":cp<0?"var(--r)":"var(--mt)";const medal=S.sortMode==='newest'?`${rank}`:(rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`${rank}`);
 // تاريخ الظهور
@@ -150,7 +175,7 @@ if(mainRows.length){h+=trackTable(mainRows,false)}
 if(succ.length){h+=`<div style="margin-top:16px;font-weight:700;color:var(--g);margin-bottom:6px">✅ حققت الهدف (${succ.length})</div>`;h+=trackTable(succ,true)}
 b.innerHTML=h}catch(e){b.innerHTML=`<div style="color:var(--r);font-size:.82rem">❌ ${e.message}</div>`}}
 
-function trackTable(rows,isSuccess){let h=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem">
+function trackTable(rows,isSuccess){let h=`<div class="tblwrap"><table style="width:100%;border-collapse:collapse;font-size:.8rem">
 <thead><tr style="background:var(--bg);color:var(--ac2);font-size:.7rem"><th style="padding:7px 5px;text-align:right">السهم</th><th style="padding:7px 5px">تاريخ ووقت التوصية</th><th style="padding:7px 5px">الثقة</th><th style="padding:7px 5px">الحالة</th><th style="padding:7px 5px">الدخول</th><th style="padding:7px 5px">الحالي</th><th style="padding:7px 5px">الهدف</th><th style="padding:7px 5px">${isSuccess?'أعلى بعد الهدف':'أعلى'}</th><th style="padding:7px 5px">الذروة</th><th style="padding:7px 5px">ينتهي</th></tr></thead><tbody>`;
 for(const r of rows){const pk=r.peak_pct||0;const pc=pk>=1.5?"var(--g)":pk<=-2?"var(--r)":"var(--mt)";const cp=r.current_pct||0;const cpc=cp>0?"var(--g)":cp<0?"var(--r)":"var(--mt)";const bg=r.status==='active'?'<span style="color:#5aafff">🔵</span>':r.outcome==='success'?'<span style="color:var(--g)">✅</span>':r.outcome==='flat'?'<span style="color:var(--mt)">⚪</span>':'<span style="color:var(--r)">❌</span>';const lt=r.post_watch_hit?' 🔄':'';
 const dt=r.created_at?r.created_at.slice(0,16).replace('T',' '):(r.appeared_date||'');const cf=r.confidence||0;const cfc=cf>=9?"var(--g)":cf>=8?"var(--ac2)":"var(--mt)";
@@ -164,7 +189,7 @@ try{const d=await api("/api/analyze-full",{method:"POST"});S.result=d;shell();
 // عرض ملاحظات التحليل فوق الجدول
 setTimeout(()=>{const nb=document.getElementById("analyzeNotes");if(nb){let n='';if(d.market_note)n+=`<div style="font-size:.85rem;margin-top:6px">📊 ${d.market_note}</div>`;if(d.consensus_note)n+=`<div style="font-size:.8rem;color:var(--ac2);margin-top:4px">🤝 ${d.consensus_note}</div>`;if(d.learn_note)n+=`<div style="font-size:.8rem;color:var(--g);margin-top:4px">📚 ${d.learn_note}</div>`;if(d.movers_note)n+=`<div style="font-size:.78rem;color:var(--ac2);margin-top:4px">🔍 ${d.movers_note}</div>`;if(d.missed_pattern&&d.missed_pattern!=='فراغ')n+=`<div style="font-size:.78rem;color:var(--o);margin-top:4px;background:rgba(255,152,0,.08);padding:6px 10px;border-radius:8px">💡 نمط الفرص الفائتة: ${d.missed_pattern}</div>`;if(!d.saved&&!d.picks?.length)n+=`<div style="font-size:.82rem;color:var(--mt);margin-top:6px">👍 لا توصية جديدة — التوصيات النشطة تستمر تحت المتابعة</div>`;if(n)nb.innerHTML=`<div class="pn">${n}</div>`}},200)}catch(e){let msg=e.message;if(msg.includes('529')||msg.includes('مزحوم')||msg.includes('Overloaded')||msg.includes('overloaded'))msg='⏳ خوادم Claude مزحومة حالياً. النظام حاول تلقائياً — انتظر دقيقة وجرّب مرة ثانية.';box.innerHTML=`<div class="pn" style="color:var(--r)">${msg}</div>`;btn.disabled=false;btn.innerHTML="🚀 حلّل الآن — Claude + Gemini"}S.busy=false}
 
-function summaryTable(picks){let h=`<div class="pn" style="padding:0;overflow:hidden;margin-bottom:14px"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.82rem">
+function summaryTable(picks){let h=`<div class="pn" style="padding:0;overflow:hidden;margin-bottom:14px"><div class="tblwrap"><table style="width:100%;border-collapse:collapse;font-size:.82rem">
 <thead><tr style="background:var(--bg);color:var(--ac2);font-size:.72rem"><th style="padding:9px 6px">#</th><th style="padding:9px 6px;text-align:right">السهم</th><th style="padding:9px 6px">الثقة</th><th style="padding:9px 6px">الدخول</th><th style="padding:9px 6px">الحالي</th><th style="padding:9px 6px">الهدف</th><th style="padding:9px 6px">الأفق</th></tr></thead><tbody>`;
 let rank=0;for(const p of picks){rank++;const cc=p.confidence>=9?"var(--g)":p.confidence>=7?"var(--ac2)":"var(--mt)";const medal=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`${rank}`;const cp=p.current_pct||0;const cpc=cp>0?"var(--g)":cp<0?"var(--r)":"var(--mt)";
 h+=`<tr style="border-bottom:1px solid var(--ln2);cursor:pointer" onclick="document.getElementById('card_${p.symbol}')?.scrollIntoView({behavior:'smooth',block:'center'})">
