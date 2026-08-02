@@ -123,29 +123,30 @@ box.innerHTML=h}catch(e){box.innerHTML=''}}
 async function loadLatest(){const box=document.getElementById("resultBox");if(!box)return;try{const d=await api("/api/recommendations/latest");let picks=d.picks||[];if(!picks.length){box.innerHTML='';return}
 // الترتيب حسب اختيار المستخدم
 if(S.sortMode==='newest'){picks=picks.slice().sort((a,b)=>(b.created_at||b.appeared_date||'').localeCompare(a.created_at||a.appeared_date||''))}
+else if(S.sortMode==='oldest'){picks=picks.slice().sort((a,b)=>(a.created_at||a.appeared_date||'').localeCompare(b.created_at||b.appeared_date||''))}
+else if(S.sortMode==='gain'){picks=picks.slice().sort((a,b)=>(b.current_pct||0)-(a.current_pct||0))}
 else{picks=picks.slice().sort((a,b)=>(b.confidence||0)-(a.confidence||0))}
+const byStrength=(!S.sortMode||S.sortMode==='strength');
 let h=`<div class="sh"><div class="d" style="background:var(--o);box-shadow:0 0 14px var(--o)"></div><h2>🎯 التوصيات النشطة</h2><span class="tg">${picks.length} سهم تحت المتابعة</span></div>`;
-h+=`<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center"><button class="bs${S.sortMode!=='newest'?' on':''}" onclick="setSort('strength')">💪 الأقوى</button><button class="bs${S.sortMode==='newest'?' on':''}" onclick="setSort('newest')">🕐 الأحدث</button>${S.sortMode!=='newest'?`<span style="font-size:.7rem;color:var(--mt);margin-right:auto">🥇 الأقوى · 🥈 الثاني · 🥉 الثالث · الأرقام حسب الترتيب</span>`:''}</div>`;
-h+=`<div style="font-size:.72rem;color:var(--mt);margin-bottom:8px;display:flex;gap:14px;flex-wrap:wrap"><span>🥇 الأقوى</span><span>🥈 الثاني</span><span>🥉 الثالث</span><span>الأرقام = الترتيب حسب ${S.sortMode==='newest'?'الأحدث':'القوة'}</span></div>`;
-h+=`<div style="font-size:.72rem;color:var(--mt);margin-bottom:8px;background:var(--bg2);padding:7px 12px;border-radius:8px">🥇🥈🥉 = أقوى 3 توصيات حسب الثقة · باقي الأرقام (4، 5...) ترتيبها التنازلي · اضغط أي سهم لعرض سبب الترشيح</div>`;
-h+=`<div style="font-size:.72rem;color:var(--mt);margin-bottom:8px">🥇 الأعلى ثقة · 🥈 الثاني · 🥉 الثالث · الأرقام (4، 5...) بحسب الترتيب${S.sortMode==='newest'?' الزمني':' حسب القوة'}</div>`;
+h+=`<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center"><button class="bs${byStrength?' on':''}" onclick="setSort('strength')">💪 الأقوى</button><button class="bs${S.sortMode==='newest'?' on':''}" onclick="setSort('newest')">🕐 الأحدث</button><button class="bs${S.sortMode==='oldest'?' on':''}" onclick="setSort('oldest')">📅 الأقدم</button><button class="bs${S.sortMode==='gain'?' on':''}" onclick="setSort('gain')">📈 الأداء</button></div>`;
+h+=`<div style="font-size:.68rem;color:var(--mt);margin-bottom:8px;background:var(--bg2);padding:7px 12px;border-radius:8px">${byStrength?'🥇🥈🥉 = أقوى 3 حسب الثقة · ':''}اضغط أي سهم لعرض سبب الترشيح · النسبة = الفرق عن الدخول</div>`;
 h+=`<div class="pn" style="padding:0;overflow:hidden"><div class="tblwrap"><table style="width:100%;border-collapse:collapse;font-size:.82rem">
-<thead><tr style="background:var(--bg);color:var(--ac2);font-size:.72rem"><th style="padding:9px 6px">#</th><th style="padding:9px 6px;text-align:right">السهم</th><th style="padding:9px 6px">الثقة</th><th style="padding:9px 6px">الظهور</th><th style="padding:9px 6px">الدخول</th><th style="padding:9px 6px">الحالي</th><th style="padding:9px 6px">الهدف</th><th style="padding:9px 6px">متبقّي</th></tr></thead><tbody>`;
-let rank=0;for(const p of picks){rank++;const cc=p.confidence>=9?"var(--g)":p.confidence>=8?"var(--ac2)":"var(--mt)";const cp=p.current_pct||0;const cpc=cp>0?"var(--g)":cp<0?"var(--r)":"var(--mt)";const medal=S.sortMode==='newest'?`${rank}`:(rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`${rank}`);
-// تاريخ الظهور
+<thead><tr style="background:var(--bg);color:var(--ac2);font-size:.72rem"><th style="padding:9px 6px">#</th><th style="padding:9px 6px;text-align:right">السهم</th><th style="padding:9px 6px">الثقة</th><th style="padding:9px 6px">الظهور</th><th style="padding:9px 6px">الدخول</th><th style="padding:9px 6px">الحالي</th><th style="padding:9px 6px">النسبة</th><th style="padding:9px 6px">الهدف</th><th style="padding:9px 6px">متبقّي</th></tr></thead><tbody>`;
+let rank=0;for(const p of picks){rank++;const cc=p.confidence>=9?"var(--g)":p.confidence>=8?"var(--ac2)":"var(--mt)";const cp=p.current_pct||0;const cpc=cp>0?"var(--g)":cp<0?"var(--r)":"var(--mt)";const medal=byStrength?(rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`${rank}`):`${rank}`;
 const appDate=p.created_at?p.created_at.slice(0,16).replace('T',' '):(p.appeared_date||'-');const appShort=p.appeared_date||(p.created_at?p.created_at.slice(0,10):'-');
-// حساب المتبقّي
 let remTxt='-',remColor='var(--mt)';const exp=p.max_expiry_date||p.expiry_date;if(exp){const today=new Date();today.setHours(0,0,0,0);const ed=new Date(exp);const diff=Math.ceil((ed-today)/(1000*60*60*24));if(diff>1){remTxt=`${diff} أيام`;remColor='var(--g)'}else if(diff===1){remTxt='يوم واحد';remColor='var(--o)'}else if(diff===0){remTxt='ينتهي اليوم';remColor='var(--o)'}else{remTxt='منتهية';remColor='var(--r)'}}
+const pctBadge=p.current_price?`<span style="background:${cpc}18;color:${cpc};padding:2px 7px;border-radius:6px;font-weight:800;font-size:.74rem;white-space:nowrap">${cp>0?'▲+':cp<0?'▼':''}${cp}%</span>`:'<span style="color:var(--mt)">-</span>';
 h+=`<tr onclick="toggleDetail('${p.symbol}')" style="border-bottom:1px solid var(--ln2);cursor:pointer">
 <td style="padding:9px 6px;text-align:center">${medal}</td>
 <td style="padding:9px 6px"><b>${p.name||''}</b> <span style="font-family:'IBM Plex Mono';color:var(--mt);font-size:.72rem">${p.symbol}</span></td>
 <td style="padding:9px 6px;text-align:center"><span style="background:${cc}22;color:${cc};padding:2px 9px;border-radius:6px;font-weight:800">${p.confidence}</span></td>
 <td style="padding:9px 6px;text-align:center;font-size:.7rem;color:var(--mt);white-space:nowrap">${appShort}</td>
 <td style="padding:9px 6px;text-align:center">${p.entry_price||'-'}</td>
-<td style="padding:9px 6px;text-align:center">${p.current_price?`<b>${p.current_price}</b> <span style="font-size:.68rem;color:${cpc}">${cp>0?'+':''}${cp}%</span>`:'<span style="color:var(--mt)">-</span>'}</td>
+<td style="padding:9px 6px;text-align:center"><b>${p.current_price||'-'}</b></td>
+<td style="padding:9px 6px;text-align:center">${pctBadge}</td>
 <td style="padding:9px 6px;text-align:center">${p.target_price||'-'}</td>
 <td style="padding:9px 6px;text-align:center;font-size:.72rem;color:${remColor};font-weight:700">${remTxt}</td></tr>
-<tr id="detail_${p.symbol}" style="display:none;background:var(--bg2)"><td colspan="8" style="padding:12px 14px">
+<tr id="detail_${p.symbol}" style="display:none;background:var(--bg2)"><td colspan="9" style="padding:12px 14px">
 <div style="font-size:.72rem;color:var(--mt);margin-bottom:6px">📅 ظهرت ${appDate} · تنتهي ${p.max_expiry_date||p.expiry_date||''} · الأفق ${p.category==='long_term'?'مدى بعيد':'1-5 أيام'}</div>
 <div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--mt);margin-bottom:4px"><span>درجة الإيجابية</span><span style="color:${cc};font-weight:700">${p.confidence>=9?'عالية جداً':p.confidence>=8?'عالية':'جيدة'}</span></div>
 <div class="sb" style="margin-bottom:8px"><div class="sf" style="width:${Math.round((p.confidence||0)*10)}%;background:linear-gradient(90deg,${cc},var(--g))"></div></div>
