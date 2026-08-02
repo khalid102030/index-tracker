@@ -1217,6 +1217,23 @@ def telegram_set_webhook(request: Request):
             "last_error": info.get("result", {}).get("last_error_message", "")}
 
 
+@app.get("/api/telegram/enable")
+def telegram_enable_get():
+    """تفعيل الخدمة مباشرة من المتصفح (حل بديل للزر)."""
+    from telegram_bot import save_settings, is_enabled
+    save_settings(enabled=True)
+    return {"enabled": True, "is_enabled_now": is_enabled(),
+            "message": "✅ تم تفعيل خدمة تيليجرام — جرّب /active الآن"}
+
+
+@app.get("/api/telegram/disable")
+def telegram_disable_get():
+    """إيقاف الخدمة مباشرة من المتصفح."""
+    from telegram_bot import save_settings
+    save_settings(enabled=False)
+    return {"enabled": False, "message": "🔴 تم إيقاف خدمة تيليجرام"}
+
+
 @app.get("/api/telegram/webhook-info")
 def telegram_webhook_info():
     """يفحص حالة webhook للتشخيص."""
