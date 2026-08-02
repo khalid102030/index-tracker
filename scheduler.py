@@ -21,8 +21,31 @@ _sync_log = []  # آخر 20 محاولة
 _STATE_FILE = os.path.join(os.path.dirname(__file__), "scheduler_state.json")
 
 
+def _get_sb():
+    try:
+        import server
+        return server._get_supabase()
+    except Exception:
+        return None
+
+
 def _load_state():
     global SYNC_TIMES, _scheduler_paused
+    # ① من Supabase (يبقى بعد إعادة التشغيل)
+    sb = _get_sb()
+    if sb:
+        try:
+            rows = sb.table("idx_settings").select("*").eq("key", "scheduler").limit(1).execute().data
+            if rows:
+                st = rows[0].get("value") or {}
+                if isinstance(st, str):
+                    st = json.loads(st)
+                SYNC_TIMES = st.get("sync_times", SYNC_TIMES)
+                _scheduler_paused = st.get("paused", False)
+                return
+        except Exception:
+            pass
+    # ② احتياطي: ملف محلي
     try:
         if os.path.exists(_STATE_FILE):
             with open(_STATE_FILE) as f:
@@ -34,9 +57,20 @@ def _load_state():
 
 
 def _save_state():
+    payload = {"sync_times": SYNC_TIMES, "paused": _scheduler_paused}
+    # ① Supabase (دائم)
+    sb = _get_sb()
+    if sb:
+        try:
+            sb.table("idx_settings").upsert(
+                {"key": "scheduler", "value": payload},
+                on_conflict="key").execute()
+        except Exception:
+            pass
+    # ② ملف محلي احتياطي
     try:
         with open(_STATE_FILE, "w") as f:
-            json.dump({"sync_times": SYNC_TIMES, "paused": _scheduler_paused}, f)
+            json.dump(payload, f)
     except Exception:
         pass
 
@@ -44,9 +78,11 @@ def _save_state():
 def set_sync_times(times: list):
     """يضبط أوقات المزامنة من الموقع."""
     global SYNC_TIMES
-    SYNC_TIMES = sorted(times)
+    # تنظيف وترتيب
+    clean = sorted(set(t.strip() for t in times if t and ":" in t))
+    SYNC_TIMES = clean
     _save_state()
-    return {"sync_times": SYNC_TIMES}
+    return {"sync_times": SYNC_TIMES, "saved": True}
 
 
 def pause_scheduler():
@@ -64,10 +100,20 @@ def resume_scheduler():
     return {"paused": False}
 
 
+_state_loaded = [False]
+
+def _ensure_state():
+    """يعيد تحميل الإعدادات من Supabase عند أول وصول (بعد تهيئة السيرفر)."""
+    if not _state_loaded[0]:
+        _load_state()
+        _state_loaded[0] = True
+
+
 _load_state()
 
 
 def get_sync_status() -> dict:
+    _ensure_state()
     return {
         "scheduler_active": _scheduler_running,
         "paused": _scheduler_paused,

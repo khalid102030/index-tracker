@@ -1136,9 +1136,12 @@ def cron_sync():
 # تشغيل المجدوِل تلقائياً عند بدء السيرفر
 @app.on_event("startup")
 def _auto_start_scheduler():
-    from scheduler import start_scheduler
-    start_scheduler()
-    print("📡 المجدوِل التلقائي يعمل: " + ", ".join(["10:30","12:00","14:00","16:30"]))
+    import scheduler as _sch
+    # حمّل الإعدادات المحفوظة من Supabase (تبقى بعد إعادة التشغيل)
+    _sch._state_loaded[0] = False
+    _sch._ensure_state()
+    _sch.start_scheduler()
+    print("📡 المجدوِل التلقائي يعمل: " + ", ".join(_sch.SYNC_TIMES))
 
 
 # ══════════════════════════════════════════════════════════════
