@@ -163,10 +163,11 @@ def _main_menu() -> dict:
     """قائمة الأزرار الرئيسية."""
     return {"inline_keyboard": [
         [{"text": "📋 التقرير الشامل", "callback_data": "report"}],
-        [{"text": "📈 التوصيات الجارية", "callback_data": "active"},
-         {"text": "✅ حققت الهدف", "callback_data": "success"}],
-        [{"text": "📊 الأداء", "callback_data": "stats"},
-         {"text": "💹 تحديث الأسعار", "callback_data": "refresh"}],
+        [{"text": "🆕 توصيات اليوم", "callback_data": "today"},
+         {"text": "📈 كل الجارية", "callback_data": "active"}],
+        [{"text": "✅ حققت الهدف", "callback_data": "success"},
+         {"text": "📊 الأداء", "callback_data": "stats"}],
+        [{"text": "💹 تحديث الأسعار", "callback_data": "refresh"}],
     ]}
 
 
@@ -191,6 +192,8 @@ def handle_update(update: dict) -> dict:
         if text in ("/active", "التوصيات", "توصيات", "الجارية", "جاري"):
             rows = get_active_recommendations()
             return send_message(_format_active(rows), reply_markup=_main_menu(), chat_id=chat_id)
+        if text in ("/today", "اليوم", "الاحدث", "الأحدث", "احدث", "أحدث"):
+            return send_message(_format_today(), reply_markup=_main_menu(), chat_id=chat_id)
         if text in ("/success", "الناجحة", "ناجحة", "حققت"):
             return send_message(_format_success(), reply_markup=_main_menu(), chat_id=chat_id)
         if text in ("/stats", "الأداء", "احصائيات", "إحصائيات", "الدقة"):
@@ -224,6 +227,8 @@ def handle_update(update: dict) -> dict:
         if data == "active":
             rows = get_active_recommendations()
             return send_message(_format_active(rows), reply_markup=_main_menu(), chat_id=chat_id)
+        if data == "today":
+            return send_message(_format_today(), reply_markup=_main_menu(), chat_id=chat_id)
         if data == "success":
             return send_message(_format_success(), reply_markup=_main_menu(), chat_id=chat_id)
         if data == "stats":
@@ -296,6 +301,33 @@ def _format_report() -> str:
     return "\n".join(parts)
 
 
+def _format_today() -> str:
+    """توصيات اليوم فقط (حسب تاريخ الظهور)."""
+    from datetime import date
+    sb = _get_sb()
+    if not sb:
+        return "تعذّر الوصول للبيانات."
+    today = date.today().isoformat()
+    try:
+        rows = sb.table("idx_recommendations").select("*") \
+            .eq("appeared_date", today).order("score", desc=True).execute().data or []
+    except Exception:
+        return "تعذّر جلب البيانات."
+    if not rows:
+        return f"📭 لا توجد توصيات جديدة اليوم ({today}).\nالتوصيات الجارية تستمر تحت المتابعة."
+    lines = [f"🆕 <b>توصيات اليوم</b> ({today})\n"]
+    for i, r in enumerate(rows, 1):
+        cur = r.get("current_price"); pct = r.get("current_pct", 0)
+        arrow = "🟢" if pct > 0 else "🔴" if pct < 0 else "⚪"
+        conf = r.get("confidence", 0)
+        cur_txt = f" · حالي {cur} ({'+' if pct>0 else ''}{pct}%)" if cur else ""
+        lines.append(
+            f"{i}. <b>{r.get('name','')}</b> ({r.get('symbol','')}) {arrow} ثقة {conf}/10\n"
+            f"   دخول {r.get('entry_price','')} · هدف {r.get('target_price','')}{cur_txt}"
+        )
+    return "\n".join(lines)
+
+
 def _format_success() -> str:
     sb = _get_sb()
     if not sb:
@@ -352,11 +384,11 @@ def set_webhook(base_url: str) -> dict:
     try:
         _send("setMyCommands", {"commands": [
             {"command": "report", "description": "📋 التقرير الشامل"},
-            {"command": "active", "description": "📈 التوصيات الجارية"},
+            {"command": "today", "description": "🆕 توصيات اليوم"},
+            {"command": "active", "description": "📈 كل التوصيات الجارية"},
             {"command": "success", "description": "✅ التي حققت الهدف"},
             {"command": "stats", "description": "📊 نسبة الأداء"},
             {"command": "refresh", "description": "💹 تحديث الأسعار"},
-            {"command": "menu", "description": "📋 القائمة الرئيسية"},
         ]})
         # زر القائمة بجانب حقل الكتابة
         _send("setChatMenuButton", {"menu_button": {"type": "commands"}})
