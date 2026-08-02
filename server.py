@@ -1210,14 +1210,16 @@ def telegram_set_webhook(request: Request):
 
 
 @app.post("/api/telegram/webhook")
-async def telegram_webhook(request: Request):
-    """نقطة استقبال تحديثات تيليجرام."""
+async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
+    """نقطة استقبال تحديثات تيليجرام — ترد فوراً وتعالج بالخلفية."""
     from telegram_bot import handle_update
     try:
         update = await request.json()
-        return handle_update(update)
-    except Exception as e:
-        return {"ok": False, "error": str(e)[:150]}
+        # معالجة بالخلفية عشان الرد يكون فوري (تيليجرام يتوقّع رد سريع)
+        background_tasks.add_task(handle_update, update)
+        return {"ok": True}
+    except Exception:
+        return {"ok": True}
 
 
 # ══════════════════════════════════════════════════════════════
