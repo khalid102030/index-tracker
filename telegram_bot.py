@@ -13,6 +13,13 @@ import os, json, requests
 
 TG_API = "https://api.telegram.org/bot{token}/{method}"
 _SETTINGS_KEY = "telegram"
+_AUTH_KEY = "telegram_auth"
+
+# ═══════════════════════════════════════════════════════════
+#  🔑 الرقم السري للدخول — غيّره هنا
+# ═══════════════════════════════════════════════════════════
+ACCESS_CODE = "1234"
+# ═══════════════════════════════════════════════════════════
 
 # إعدادات افتراضية
 _defaults = {"enabled": False, "bot_token": "", "chat_id": ""}
@@ -67,6 +74,50 @@ def save_settings(enabled=None, bot_token=None, chat_id=None) -> dict:
 def is_enabled() -> bool:
     s = get_settings()
     return bool(s.get("enabled") and s.get("bot_token") and s.get("chat_id"))
+
+
+# ═══════ صلاحيات الوصول ═══════
+
+def _get_authorized() -> list:
+    """قائمة chat_ids المصرّح لهم."""
+    sb = _get_sb()
+    if sb:
+        try:
+            rows = sb.table("idx_settings").select("*").eq("key", _AUTH_KEY).limit(1).execute().data
+            if rows:
+                val = rows[0].get("value") or {}
+                if isinstance(val, str):
+                    val = json.loads(val)
+                return val.get("users", [])
+        except Exception:
+            pass
+    return []
+
+
+def _add_authorized(chat_id: str):
+    """يضيف chat_id لقائمة المصرّح لهم."""
+    users = _get_authorized()
+    cid = str(chat_id)
+    if cid not in users:
+        users.append(cid)
+        sb = _get_sb()
+        if sb:
+            try:
+                sb.table("idx_settings").upsert(
+                    {"key": _AUTH_KEY, "value": {"users": users}}, on_conflict="key").execute()
+            except Exception:
+                pass
+    return users
+
+
+def _is_authorized(chat_id: str) -> bool:
+    """يتحقق: المالك (chat_id بالإعدادات) أو ضمن المصرّح لهم."""
+    s = get_settings()
+    owner = str(s.get("chat_id", ""))
+    cid = str(chat_id)
+    if cid == owner:
+        return True
+    return cid in _get_authorized()
 
 
 # ═══════ الإرسال ═══════
@@ -182,8 +233,24 @@ def handle_update(update: dict) -> dict:
     # رسالة نصية (أمر)
     msg = update.get("message")
     if msg:
-        text = (msg.get("text") or "").strip().lower()
+        text = (msg.get("text") or "").strip()
+        text_l = text.lower()
         chat_id = str(msg.get("chat", {}).get("id", ""))
+
+        # ── التحقق من الصلاحية ──
+        if not _is_authorized(chat_id):
+            # هل أرسل الرقم السري؟
+            if text.strip() == ACCESS_CODE:
+                _add_authorized(chat_id)
+                return send_message(
+                    "✅ <b>تم منحك الصلاحية</b>\nأهلاً بك في راصد بلس 👇",
+                    reply_markup=_main_menu(), chat_id=chat_id)
+            # يطلب الرقم السري
+            return send_message(
+                "🔒 <b>هذا البوت خاص</b>\nأرسل الرقم السري للدخول:",
+                chat_id=chat_id)
+
+        text = text_l  # بعد التصريح، نكمل بالنص الصغير
         if text in ("/start", "start", "بدء", "ابدأ", "القائمة", "menu", "/menu"):
             welcome = ("👋 أهلاً بك في <b>راصد بلس</b>\n"
                        "نظام توصيات الأسهم السعودية\n\n"
@@ -224,6 +291,9 @@ def handle_update(update: dict) -> dict:
         chat_id = str(cb.get("message", {}).get("chat", {}).get("id", ""))
         cb_id = cb.get("id")
         _send("answerCallbackQuery", {"callback_query_id": cb_id})
+        # التحقق من الصلاحية
+        if not _is_authorized(chat_id):
+            return send_message("🔒 هذا البوت خاص\nأرسل الرقم السري للدخول:", chat_id=chat_id)
         if data == "active":
             rows = get_active_recommendations()
             return send_message(_format_active(rows), reply_markup=_main_menu(), chat_id=chat_id)
