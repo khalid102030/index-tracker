@@ -162,10 +162,11 @@ def get_active_recommendations() -> list:
 def _main_menu() -> dict:
     """قائمة الأزرار الرئيسية."""
     return {"inline_keyboard": [
-        [{"text": "📈 التوصيات الجارية", "callback_data": "active"}],
-        [{"text": "✅ حققت الهدف", "callback_data": "success"},
-         {"text": "📊 الأداء", "callback_data": "stats"}],
-        [{"text": "🔄 تحديث", "callback_data": "active"}],
+        [{"text": "📋 التقرير الشامل", "callback_data": "report"}],
+        [{"text": "📈 التوصيات الجارية", "callback_data": "active"},
+         {"text": "✅ حققت الهدف", "callback_data": "success"}],
+        [{"text": "📊 الأداء", "callback_data": "stats"},
+         {"text": "💹 تحديث الأسعار", "callback_data": "refresh"}],
     ]}
 
 
@@ -194,11 +195,19 @@ def handle_update(update: dict) -> dict:
             return send_message(_format_success(), reply_markup=_main_menu(), chat_id=chat_id)
         if text in ("/stats", "الأداء", "احصائيات", "إحصائيات", "الدقة"):
             return send_message(_format_stats(), reply_markup=_main_menu(), chat_id=chat_id)
+        if text in ("/report", "تقرير", "التقرير", "report"):
+            return send_message(_format_report(), reply_markup=_main_menu(), chat_id=chat_id)
+        if text in ("/refresh", "تحديث", "حدث", "الاسعار", "الأسعار"):
+            send_message("⏳ جاري تحديث الأسعار...", chat_id=chat_id)
+            _refresh_prices()
+            return send_message(_format_report(), reply_markup=_main_menu(), chat_id=chat_id)
         if text in ("/help", "مساعدة", "help"):
             help_txt = ("📖 <b>الأوامر المتاحة</b>\n\n"
+                        "📋 /report — التقرير الشامل\n"
                         "📈 /active — التوصيات الجارية\n"
                         "✅ /success — التي حققت الهدف\n"
                         "📊 /stats — نسبة الأداء\n"
+                        "💹 /refresh — تحديث الأسعار\n"
                         "📋 /menu — القائمة الرئيسية\n\n"
                         "أو استخدم الأزرار 👇")
             return send_message(help_txt, reply_markup=_main_menu(), chat_id=chat_id)
@@ -219,8 +228,72 @@ def handle_update(update: dict) -> dict:
             return send_message(_format_success(), reply_markup=_main_menu(), chat_id=chat_id)
         if data == "stats":
             return send_message(_format_stats(), reply_markup=_main_menu(), chat_id=chat_id)
+        if data == "report":
+            return send_message(_format_report(), reply_markup=_main_menu(), chat_id=chat_id)
+        if data == "refresh":
+            send_message("⏳ جاري تحديث الأسعار من سهمك...", chat_id=chat_id)
+            _refresh_prices()
+            return send_message(_format_report(), reply_markup=_main_menu(), chat_id=chat_id)
 
     return {"ok": True, "no_action": True}
+
+
+def _refresh_prices() -> dict:
+    """يحدّث أسعار التوصيات (يستدعي نفس منطق الموقع)."""
+    try:
+        import server
+        return server.recommendations_update()
+    except Exception as e:
+        return {"error": str(e)[:100]}
+
+
+def _format_report() -> str:
+    """تقرير شامل: الأداء + الجارية + الناجحة."""
+    from datetime import datetime
+    sb = _get_sb()
+    parts = [f"📋 <b>تقرير راصد بلس</b>\n<i>{datetime.now().strftime('%Y-%m-%d %H:%M')}</i>\n"]
+
+    # الأداء
+    if sb:
+        try:
+            from tracker import performance_report
+            p = performance_report(sb)
+            if p and p.get("closed", 0) > 0:
+                parts.append(
+                    f"📊 <b>الأداء</b>: نجاح {p.get('success_rate',0)}% "
+                    f"(✅{p.get('success',0)} ❌{p.get('failed',0)} 🔵{p.get('active',0)})")
+            else:
+                parts.append(f"📊 <b>الأداء</b>: 🔵 {p.get('active',0) if p else 0} جارية · لا نتائج محسومة بعد")
+        except Exception:
+            pass
+
+    # الجارية
+    active = get_active_recommendations()
+    if active:
+        parts.append(f"\n📈 <b>التوصيات الجارية ({len(active)})</b>")
+        for i, r in enumerate(active[:10], 1):
+            cur = r.get("current_price"); pct = r.get("current_pct", 0)
+            arrow = "🟢" if pct > 0 else "🔴" if pct < 0 else "⚪"
+            cur_txt = f" · {cur} ({'+' if pct>0 else ''}{pct}%)" if cur else ""
+            parts.append(f"{i}. <b>{r.get('name','')}</b> {arrow} دخول {r.get('entry_price','')} → هدف {r.get('target_price','')}{cur_txt}")
+    else:
+        parts.append("\n📈 لا توصيات جارية حالياً")
+
+    # الناجحة (آخر 5)
+    if sb:
+        try:
+            succ = sb.table("idx_recommendations").select("*") \
+                .eq("outcome", "success").order("closed_date", desc=True).limit(5).execute().data or []
+            if succ:
+                parts.append(f"\n✅ <b>آخر ما حقق الهدف</b>")
+                for r in succ:
+                    pk = r.get("peak_pct", 0); pth = r.get("post_target_pct", 0)
+                    extra = f" (بعده +{pth}%)" if pth and pth > pk else ""
+                    parts.append(f"• {r.get('name','')} — ذروة +{pk}%{extra}")
+        except Exception:
+            pass
+
+    return "\n".join(parts)
 
 
 def _format_success() -> str:
@@ -273,11 +346,12 @@ def set_webhook(base_url: str) -> dict:
     # تسجيل قائمة الأوامر (تظهر بزر / في تيليجرام)
     try:
         _send("setMyCommands", {"commands": [
+            {"command": "report", "description": "📋 التقرير الشامل"},
             {"command": "active", "description": "📈 التوصيات الجارية"},
             {"command": "success", "description": "✅ التي حققت الهدف"},
             {"command": "stats", "description": "📊 نسبة الأداء"},
+            {"command": "refresh", "description": "💹 تحديث الأسعار"},
             {"command": "menu", "description": "📋 القائمة الرئيسية"},
-            {"command": "help", "description": "📖 المساعدة"},
         ]})
         # زر القائمة بجانب حقل الكتابة
         _send("setChatMenuButton", {"menu_button": {"type": "commands"}})
