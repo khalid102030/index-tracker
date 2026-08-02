@@ -338,6 +338,11 @@ def _format_stats() -> str:
     )
 
 
+def get_webhook_info() -> dict:
+    """يفحص حالة webhook للتشخيص."""
+    return _send("getWebhookInfo", {})
+
+
 def set_webhook(base_url: str) -> dict:
     """يسجّل webhook مع تيليجرام + قائمة الأوامر."""
     s = get_settings()

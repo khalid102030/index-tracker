@@ -1204,9 +1204,25 @@ def telegram_test():
 @app.post("/api/telegram/set-webhook")
 def telegram_set_webhook(request: Request):
     """يسجّل webhook (يُستدعى مرة بعد النشر)."""
-    from telegram_bot import set_webhook
+    from telegram_bot import set_webhook, get_webhook_info
     base = str(request.base_url).rstrip("/")
-    return set_webhook(base)
+    # تأكد من https
+    if base.startswith("http://"):
+        base = base.replace("http://", "https://", 1)
+    result = set_webhook(base)
+    info = get_webhook_info()
+    return {"set_result": result, "webhook_url": f"{base}/api/telegram/webhook",
+            "current_webhook": info.get("result", {}).get("url", ""),
+            "pending": info.get("result", {}).get("pending_update_count", 0),
+            "last_error": info.get("result", {}).get("last_error_message", "")}
+
+
+@app.get("/api/telegram/webhook-info")
+def telegram_webhook_info():
+    """يفحص حالة webhook للتشخيص."""
+    from telegram_bot import get_webhook_info
+    info = get_webhook_info()
+    return info.get("result", info)
 
 
 @app.post("/api/telegram/webhook")
