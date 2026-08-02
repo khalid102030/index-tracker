@@ -13,18 +13,18 @@
      خطوط شبكية حادة · صفر انحناء · وميض لحظي · توهج المؤشرات
      ============================================================ */
   :root{
-    /* Deep charcoal / pitch — طبقات الخلفية */
-    --void:#050506; --bg:#0a0a0c; --bg2:#0d0e11; --panel:#101115; --panel2:#15171c;
+    /* رمادي داكن هادئ — مريح للعين (بدل الأسود القاتم) */
+    --void:#15171c; --bg:#1a1d23; --bg2:#1e2128; --panel:#22262e; --panel2:#282d36;
     /* خطوط شبكية شعرية */
-    --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.055); --hair:rgba(255,255,255,.14);
+    --line:rgba(255,255,255,.09); --line2:rgba(255,255,255,.05); --hair:rgba(255,255,255,.12);
     /* حبر النص */
-    --ink:#e8eaed; --ink2:#c4c8cf; --muted:#6d7480; --dim:#4a4f58;
-    /* الإشارات المالية — نيون حاد عالي التباين */
-    --buy:#00ff85; --buy-bg:rgba(0,255,133,.08); --buy-glow:rgba(0,255,133,.55);
-    --sell:#ff2d55; --sell-bg:rgba(255,45,85,.09); --sell-glow:rgba(255,45,85,.55);
-    --hold:#8a929e; --hold-bg:rgba(138,146,158,.08);
-    /* اللون الكهرومغناطيسي — خطوط المؤشرات الفنية */
-    --cyan:#00e5ff; --cyan-glow:rgba(0,229,255,.5); --cyan-bg:rgba(0,229,255,.07);
+    --ink:#e4e6ea; --ink2:#b8bdc7; --muted:#7a828f; --dim:#565d68;
+    /* الإشارات المالية — مكتومة هادئة لا نيون */
+    --buy:#4ec9a3; --buy-bg:rgba(78,201,163,.10); --buy-glow:rgba(78,201,163,.28);
+    --sell:#e07385; --sell-bg:rgba(224,115,133,.10); --sell-glow:rgba(224,115,133,.28);
+    --hold:#8b93a0; --hold-bg:rgba(139,147,160,.10);
+    /* اللون المميّز — أزرق هادئ للمؤشرات والعناصر التفاعلية */
+    --cyan:#5aa9d8; --cyan-glow:rgba(90,169,216,.28); --cyan-bg:rgba(90,169,216,.10);
     /* توافقاً مع المتغيرات القديمة المستخدمة في الأكواد المضمّنة */
     --gold:var(--cyan); --gold2:var(--cyan); --panel-old:var(--panel);
   }
@@ -42,15 +42,15 @@
     background-image:
       linear-gradient(var(--line2) .5px, transparent .5px),
       linear-gradient(90deg, var(--line2) .5px, transparent .5px),
-      radial-gradient(120% 90% at 82% -8%, rgba(0,229,255,.05) 0%, transparent 46%);
-    background-size:52px 52px, 52px 52px, 100% 100%;
+      radial-gradient(120% 90% at 82% -8%, rgba(90,169,216,.04) 0%, transparent 46%);
+    background-size:56px 56px, 56px 56px, 100% 100%;
     position:relative;
     -webkit-font-smoothing:antialiased;
     letter-spacing:.01em;
   }
   /* طبقة التشويش الرقمي — subtle digital noise */
   body::before{
-    content:""; position:fixed; inset:0; pointer-events:none; z-index:1; opacity:.035;
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:1; opacity:.02;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     mix-blend-mode:overlay;
   }
@@ -71,7 +71,7 @@
     width:38px; height:38px; background:var(--panel2);
     border:.5px solid var(--cyan); color:var(--cyan);
     display:flex; align-items:center; justify-content:center; font-size:17px;
-    box-shadow:0 0 14px var(--cyan-glow), inset 0 0 10px rgba(0,229,255,.12);
+    box-shadow:0 0 8px var(--cyan-glow);
   }
   .brand .name{font-weight:700; font-size:1.05rem; letter-spacing:.02em; line-height:1.1;}
   .brand .name small{
@@ -135,17 +135,16 @@
     font-family:'JetBrains Mono',monospace; font-size:1rem; padding:15px 18px; letter-spacing:.02em;
   }
   .hero-search input::placeholder{color:var(--dim); font-family:'IBM Plex Sans Arabic',sans-serif;}
-  .hero-search:focus-within{border-color:var(--cyan); box-shadow:0 0 0 .5px var(--cyan), 0 0 18px rgba(0,229,255,.12);}
+  .hero-search:focus-within{border-color:var(--cyan);}
 
   /* ============ الأزرار ============ */
   .btn-gold{
-    background:var(--cyan); color:#04121a; border:none;
-    padding:13px 26px; font-weight:700; font-family:'IBM Plex Sans Arabic',sans-serif;
-    font-size:.92rem; cursor:pointer; transition:none; letter-spacing:.02em;
-    box-shadow:0 0 0 rgba(0,229,255,0);
+    background:var(--panel2); color:var(--cyan); border:.5px solid var(--cyan);
+    padding:13px 26px; font-weight:600; font-family:'IBM Plex Sans Arabic',sans-serif;
+    font-size:.92rem; cursor:pointer; transition:background .12s, border-color .12s; letter-spacing:.02em;
   }
-  .btn-gold:hover:not(:disabled){background:#5cf0ff; box-shadow:0 0 20px var(--cyan-glow);}
-  .btn-gold:active:not(:disabled){background:#00c8e0;}
+  .btn-gold:hover:not(:disabled){background:var(--cyan-bg); border-color:var(--cyan);}
+  .btn-gold:active:not(:disabled){background:rgba(90,169,216,.16);}
   .btn-gold:disabled{opacity:.35; cursor:not-allowed;}
 
   /* ============ بطاقات المجموعات ============ */
@@ -406,7 +405,7 @@ function renderSingle(){
       <p style="color:var(--muted);line-height:1.7;margin:14px 0 10px;font-size:.88rem">
         أو التحليل العميق الكامل بالوكلاء الأربعة على كل السوق —
         <b style="color:var(--sell)">مكلف للتوكن</b>، استخدمه بحذر.</p>
-      <button class="btn-gold" style="width:100%;padding:13px;background:linear-gradient(135deg,#7a5c28,#5a4420)" id="marketBtn" onclick="runMarket()">🧠 السوق كامل بالوكلاء (مكلف)</button>
+      <button class="btn-gold" style="width:100%;padding:13px;background:var(--sell-bg);color:var(--sell);border-color:var(--sell)" id="marketBtn" onclick="runMarket()">🧠 السوق كامل بالوكلاء (مكلف)</button>
     </div>
     <div id="results"></div>`;
 }
