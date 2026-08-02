@@ -245,13 +245,25 @@ def run_sync(force: bool = False, full: bool = True) -> dict:
 
                 # حفظ التوصيات
                 saved = 0
+                new_picks = []
                 if sb and eval_result.get("picks"):
                     for pick in eval_result["picks"]:
                         orig = next((s for s in analysis["stocks"] if s["symbol"] == pick["symbol"]), {})
                         merged = {**orig, **pick, "reason": pick.get("reasoning", "")}
-                        cat = "short_term" if ("يوم" in pick.get("horizon","") or "ساع" in pick.get("horizon","")) else "long_term"
-                        create_recommendation(merged, cat, sb)
+                        cat = "short_term"
+                        rec = create_recommendation(merged, cat, sb)
                         saved += 1
+                        if not (rec or {}).get("_updated"):
+                            new_picks.append({**merged, "target_price": (rec or {}).get("target_price"),
+                                              "horizon": pick.get("horizon", ""), "category": cat})
+
+                # إشعار تيليجرام للجديدة (السحب التلقائي)
+                if new_picks:
+                    try:
+                        from telegram_bot import notify_batch
+                        notify_batch(new_picks)
+                    except Exception:
+                        pass
 
                 result["picks_count"] = len(eval_result.get("picks", []))
                 result["saved"] = saved

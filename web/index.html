@@ -57,7 +57,7 @@ function shell(){document.getElementById("root").innerHTML=`
 <div class="w"><div class="tabs">
 <button class="tb ${S.tab==='analyze'?'on':''}" onclick="go('analyze')">🎯 التحليل</button>
 <button class="tb ${S.tab==='settings'?'on':''}" onclick="go('settings')">⚙️ الإعدادات</button>
-</div><div id="ct" class="fade">${S.tab==='settings'?pgSettings():pgAnalyze()}</div></div>`;loadH();if(S.tab==='analyze'){loadSync();loadAccuracy();loadLatest();loadLongterm()}if(S.tab==='settings')loadCfg()}
+</div><div id="ct" class="fade">${S.tab==='settings'?pgSettings():pgAnalyze()}</div></div>`;loadH();if(S.tab==='analyze'){loadSync();loadAccuracy();loadLatest();loadLongterm()}if(S.tab==='settings'){loadCfg();loadTg()}}
 function go(t){S.tab=t;shell()}
 async function loadH(){try{const h=await api("/api/health");const p=document.getElementById("hp");if(!p)return;const ms=h.market_status;const mc=ms==='live'?'var(--g)':ms==='weekend'?'var(--r)':'var(--ac2)';p.innerHTML=`<span style="color:${mc}">${ms==='live'?'🟢 مفتوح':ms==='post_close'?'🔴 مغلق':ms==='pre_open'?'🟡 قبل الافتتاح':'⚪ عطلة'}</span> ${h.time_riyadh||''}`}catch(e){}}
 
@@ -284,7 +284,33 @@ function pgSettings(){return `
 <div style="font-size:.72rem;color:var(--mt);margin-top:8px">أيام التداول فقط (أحد–خميس) · بتوقيت الرياض</div></div>
 
 <div class="pn"><div style="font-weight:700;color:var(--ac2);margin-bottom:8px">ℹ️ ساعات السوق</div>
-<div style="font-size:.82rem;color:var(--mt);line-height:1.8">أحد–خميس · 9:30ص–3:20م · الجمعة والسبت عطلة</div></div>`}
+<div style="font-size:.82rem;color:var(--mt);line-height:1.8">أحد–خميس · 9:30ص–3:20م · الجمعة والسبت عطلة</div></div>
+
+<div class="pn" style="border:1px solid rgba(0,212,255,.15)">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+<span style="font-weight:700;color:#29b6f6">✈️ تنبيهات Telegram</span>
+<button class="bs" onclick="toggleTg()" id="tgToggle">⏳</button></div>
+<div id="tgStatus" style="font-size:.78rem;color:var(--mt);margin-bottom:10px">…</div>
+<label style="font-weight:700;font-size:.85rem;display:block;margin-bottom:5px">🤖 Bot Token</label>
+<input type="password" id="tgToken" placeholder="123456:ABC-DEF...">
+<label style="font-weight:700;font-size:.85rem;display:block;margin-bottom:5px;margin-top:6px">💬 Chat ID</label>
+<input type="text" id="tgChat" placeholder="123456789">
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+<button class="bt" onclick="saveTg()">💾 حفظ</button>
+<button class="bs" onclick="testTg()">🔌 اختبار الاتصال</button>
+<button class="bs" onclick="setupWebhook()">🔗 تفعيل البوت</button>
+<span id="tgMsg" style="font-size:.8rem;color:var(--mt)"></span></div>
+<div style="font-size:.7rem;color:var(--mt);margin-top:10px;line-height:1.7">
+① أنشئ بوت عبر <b>@BotFather</b> واحصل على التوكن<br>
+② أرسل رسالة لبوتك ثم احصل على Chat ID من <b>@userinfobot</b><br>
+③ احفظ ثم اضغط "اختبار الاتصال" ثم "تفعيل البوت"<br>
+④ الأوامر: <code>/active</code> لعرض التوصيات الجارية</div></div>`}
+
+async function loadTg(){try{const s=await api("/api/telegram/settings");const st=document.getElementById("tgStatus");const btn=document.getElementById("tgToggle");if(!st)return;const tk=document.getElementById("tgToken");const ch=document.getElementById("tgChat");if(tk&&s.bot_token)tk.placeholder=s.bot_token;if(ch)ch.value=s.chat_id||"";btn.innerHTML=s.enabled?"🟢 مفعّل":"🔴 متوقف";btn.className=`bs${s.enabled?' on':''}`;st.innerHTML=s.enabled?'🟢 الخدمة مفعّلة — تصلك التوصيات الجديدة فوراً':'🔴 الخدمة متوقفة';}catch(e){}}
+async function toggleTg(){try{await api("/api/telegram/toggle",{method:"POST"});loadTg()}catch(e){toast("❌ "+e.message)}}
+async function saveTg(){const m=document.getElementById("tgMsg");m.textContent="⏳";try{await api("/api/telegram/settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({bot_token:v("tgToken"),chat_id:v("tgChat")})});m.innerHTML='<span style="color:var(--g)">✅ حُفظ</span>';loadTg()}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
+async function testTg(){const m=document.getElementById("tgMsg");m.textContent="⏳ جاري الاختبار...";try{const r=await api("/api/telegram/test",{method:"POST"});m.innerHTML=r.ok?`<span style="color:var(--g)">✅ متصل بـ @${r.bot} — تحقق من رسالة تيليجرام</span>`:`<span style="color:var(--r)">❌ ${r.error}</span>`}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
+async function setupWebhook(){const m=document.getElementById("tgMsg");m.textContent="⏳ جاري التفعيل...";try{const r=await api("/api/telegram/set-webhook",{method:"POST"});m.innerHTML=r.ok?'<span style="color:var(--g)">✅ البوت مفعّل — جرّب /active</span>':`<span style="color:var(--r)">❌ ${r.description||r.error||'فشل'}</span>`}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
 
 let CFG_TIMES=[];
 async function loadCfg(){try{const c=await api("/api/config");const f=(i,v)=>{const e=document.getElementById(i);if(e)e.value=v||""};f("cs",c.sheet_url);f("ck",c.claude_key);f("cg",c.gemini_key);f("csh",c.sahmk_api_key);f("su",c.supabase_url);f("sk",c.supabase_key)}catch(e){}try{const d=await api("/api/sync/status");CFG_TIMES=d.schedule||[];renderTimes()}catch(e){}}

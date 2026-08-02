@@ -12,7 +12,7 @@ _ROOT = Path(__file__).resolve().parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from fastapi import FastAPI, HTTPException, Response, BackgroundTasks, UploadFile, File
+from fastapi import FastAPI, HTTPException, Response, BackgroundTasks, UploadFile, File, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -302,15 +302,27 @@ def analyze_full(url: str = None):
 
         # ④ حفظ التوصيات الجديدة
         saved = 0
+        new_picks = []
         if sb and eval_result.get("picks"):
             for pick in eval_result["picks"]:
                 orig = next((s for s in analysis["stocks"] if s["symbol"] == pick["symbol"]), {})
                 merged = {**orig, **pick, "reason": pick.get("reasoning", "")}
                 # الاستراتيجية الأساسية دائماً قصيرة المدى (هدف 1.5% بأيام)
-                # المدى البعيد قسم منفصل تماماً لا يُحفظ هنا
                 cat = "short_term"
-                create_recommendation(merged, cat, sb)
+                rec = create_recommendation(merged, cat, sb)
                 saved += 1
+                # توصية جديدة فقط (ليست تحديثاً لموجودة)
+                if not (rec or {}).get("_updated"):
+                    new_picks.append({**merged, "target_price": (rec or {}).get("target_price"),
+                                      "horizon": pick.get("horizon", ""), "category": cat})
+
+        # إشعار تيليجرام للتوصيات الجديدة فقط (إذا كانت الخدمة مفعّلة)
+        if new_picks:
+            try:
+                from telegram_bot import notify_batch
+                notify_batch(new_picks)
+            except Exception:
+                pass
 
         # حفظ التقييم (مع المرفوضين) لمراجعة القرارات لاحقاً
         if sb:
@@ -1142,6 +1154,70 @@ def _auto_start_scheduler():
     _sch._ensure_state()
     _sch.start_scheduler()
     print("📡 المجدوِل التلقائي يعمل: " + ", ".join(_sch.SYNC_TIMES))
+
+
+# ══════════════════════════════════════════════════════════════
+#  Telegram — تكامل مستقل
+# ══════════════════════════════════════════════════════════════
+class TelegramConfig(BaseModel):
+    enabled: bool = None
+    bot_token: str = None
+    chat_id: str = None
+
+
+@app.get("/api/telegram/settings")
+def telegram_get_settings():
+    """يرجّع إعدادات تيليجرام (التوكن مخفي)."""
+    from telegram_bot import get_settings
+    s = get_settings()
+    return {
+        "enabled": s.get("enabled", False),
+        "bot_token": "•••" + s.get("bot_token", "")[-6:] if s.get("bot_token") else "",
+        "chat_id": s.get("chat_id", ""),
+    }
+
+
+@app.post("/api/telegram/settings")
+def telegram_save_settings(cfg: TelegramConfig):
+    """يحفظ إعدادات تيليجرام."""
+    from telegram_bot import save_settings
+    return save_settings(enabled=cfg.enabled, bot_token=cfg.bot_token, chat_id=cfg.chat_id)
+
+
+@app.post("/api/telegram/toggle")
+def telegram_toggle():
+    """تشغيل/إيقاف خدمة تيليجرام (مستقلة)."""
+    from telegram_bot import get_settings, save_settings
+    s = get_settings()
+    new_state = not s.get("enabled", False)
+    save_settings(enabled=new_state)
+    return {"enabled": new_state}
+
+
+@app.post("/api/telegram/test")
+def telegram_test():
+    """يختبر الاتصال ويرسل رسالة تجريبية."""
+    from telegram_bot import test_connection
+    return test_connection()
+
+
+@app.post("/api/telegram/set-webhook")
+def telegram_set_webhook(request: Request):
+    """يسجّل webhook (يُستدعى مرة بعد النشر)."""
+    from telegram_bot import set_webhook
+    base = str(request.base_url).rstrip("/")
+    return set_webhook(base)
+
+
+@app.post("/api/telegram/webhook")
+async def telegram_webhook(request: Request):
+    """نقطة استقبال تحديثات تيليجرام."""
+    from telegram_bot import handle_update
+    try:
+        update = await request.json()
+        return handle_update(update)
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:150]}
 
 
 # ══════════════════════════════════════════════════════════════
