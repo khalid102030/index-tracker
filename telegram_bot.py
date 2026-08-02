@@ -16,10 +16,16 @@ _SETTINGS_KEY = "telegram"
 _AUTH_KEY = "telegram_auth"
 
 # ═══════════════════════════════════════════════════════════
-#  🔑 الرقم السري للدخول — غيّره هنا
+#  🔑 الرقم السري للدخول — يمكن تغييره من الموقع
 # ═══════════════════════════════════════════════════════════
-ACCESS_CODE = "1234"
+ACCESS_CODE = "2234"   # الافتراضي (يُستخدم إذا لم يُحدّد من الموقع)
 # ═══════════════════════════════════════════════════════════
+
+
+def get_access_code() -> str:
+    """يجلب الرقم السري من الإعدادات، أو الافتراضي."""
+    s = get_settings()
+    return s.get("access_code") or ACCESS_CODE
 
 # إعدادات افتراضية
 _defaults = {"enabled": False, "bot_token": "", "chat_id": ""}
@@ -54,12 +60,13 @@ def get_settings() -> dict:
     }
 
 
-def save_settings(enabled=None, bot_token=None, chat_id=None) -> dict:
+def save_settings(enabled=None, bot_token=None, chat_id=None, access_code=None) -> dict:
     """يحفظ إعدادات تيليجرام في Supabase."""
     cur = get_settings()
     if enabled is not None: cur["enabled"] = bool(enabled)
     if bot_token is not None and not str(bot_token).startswith("•"): cur["bot_token"] = bot_token
     if chat_id is not None: cur["chat_id"] = chat_id
+    if access_code is not None and str(access_code).strip(): cur["access_code"] = str(access_code).strip()
     sb = _get_sb()
     if sb:
         try:
@@ -240,7 +247,7 @@ def handle_update(update: dict) -> dict:
         # ── التحقق من الصلاحية ──
         if not _is_authorized(chat_id):
             # هل أرسل الرقم السري؟
-            if text.strip() == ACCESS_CODE:
+            if text.strip() == get_access_code():
                 _add_authorized(chat_id)
                 return send_message(
                     "✅ <b>تم منحك الصلاحية</b>\nأهلاً بك في راصد بلس 👇",

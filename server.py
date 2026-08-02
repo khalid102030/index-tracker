@@ -1163,17 +1163,19 @@ class TelegramConfig(BaseModel):
     enabled: bool = None
     bot_token: str = None
     chat_id: str = None
+    access_code: str = None
 
 
 @app.get("/api/telegram/settings")
 def telegram_get_settings():
     """يرجّع إعدادات تيليجرام (التوكن مخفي)."""
-    from telegram_bot import get_settings
+    from telegram_bot import get_settings, get_access_code
     s = get_settings()
     return {
         "enabled": s.get("enabled", False),
         "bot_token": "•••" + s.get("bot_token", "")[-6:] if s.get("bot_token") else "",
         "chat_id": s.get("chat_id", ""),
+        "access_code": get_access_code(),
     }
 
 
@@ -1181,7 +1183,8 @@ def telegram_get_settings():
 def telegram_save_settings(cfg: TelegramConfig):
     """يحفظ إعدادات تيليجرام."""
     from telegram_bot import save_settings
-    return save_settings(enabled=cfg.enabled, bot_token=cfg.bot_token, chat_id=cfg.chat_id)
+    return save_settings(enabled=cfg.enabled, bot_token=cfg.bot_token,
+                         chat_id=cfg.chat_id, access_code=cfg.access_code)
 
 
 @app.post("/api/telegram/toggle")
