@@ -1220,9 +1220,28 @@ def telegram_set_webhook(request: Request):
 @app.get("/api/telegram/webhook-info")
 def telegram_webhook_info():
     """يفحص حالة webhook للتشخيص."""
-    from telegram_bot import get_webhook_info
+    from telegram_bot import get_webhook_info, is_enabled, get_settings
     info = get_webhook_info()
-    return info.get("result", info)
+    s = get_settings()
+    return {
+        "webhook": info.get("result", info),
+        "is_enabled": is_enabled(),
+        "enabled_flag": s.get("enabled"),
+        "has_token": bool(s.get("bot_token")),
+        "has_chat_id": bool(s.get("chat_id")),
+        "chat_id": s.get("chat_id"),
+    }
+
+
+@app.get("/api/telegram/test-command")
+def telegram_test_command():
+    """يحاكي أمر /active للتشخيص (يرسل لك النتيجة)."""
+    from telegram_bot import handle_update, get_settings
+    s = get_settings()
+    fake_update = {"message": {"text": "/active",
+                   "chat": {"id": s.get("chat_id")}}}
+    result = handle_update(fake_update)
+    return {"handled": result}
 
 
 @app.post("/api/telegram/webhook")
