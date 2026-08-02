@@ -1,2346 +1,383 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>وكلاء سهمك · التحليل المالي</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>راصد بلس · Rasid Plus</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
-  /* ============================================================
-     RASID · DARK TERMINAL EDITORIAL
-     خطوط شبكية حادة · صفر انحناء · وميض لحظي · توهج المؤشرات
-     ============================================================ */
-  :root{
-    /* رمادي داكن هادئ — مريح للعين (بدل الأسود القاتم) */
-    --void:#15171c; --bg:#1a1d23; --bg2:#1e2128; --panel:#22262e; --panel2:#282d36;
-    /* خطوط شبكية شعرية */
-    --line:rgba(255,255,255,.09); --line2:rgba(255,255,255,.05); --hair:rgba(255,255,255,.12);
-    /* حبر النص */
-    --ink:#e4e6ea; --ink2:#b8bdc7; --muted:#7a828f; --dim:#565d68;
-    /* الإشارات المالية — مكتومة هادئة لا نيون */
-    --buy:#4ec9a3; --buy-bg:rgba(78,201,163,.10); --buy-glow:rgba(78,201,163,.28);
-    --sell:#e07385; --sell-bg:rgba(224,115,133,.10); --sell-glow:rgba(224,115,133,.28);
-    --hold:#8b93a0; --hold-bg:rgba(139,147,160,.10);
-    /* اللون المميّز — أزرق هادئ للمؤشرات والعناصر التفاعلية */
-    --cyan:#5aa9d8; --cyan-glow:rgba(90,169,216,.28); --cyan-bg:rgba(90,169,216,.10);
-    /* توافقاً مع المتغيرات القديمة المستخدمة في الأكواد المضمّنة */
-    --gold:var(--cyan); --gold2:var(--cyan); --panel-old:var(--panel);
-  }
-  *{margin:0;padding:0;box-sizing:border-box;}
+/* ============================================================
+   راصد بلس — Dark Terminal (هوية هادئة مريحة للعين)
+   نفس أسماء الأصناف والمتغيرات — تغيير بصري بحت
+   ============================================================ */
+:root{
+  /* رمادي داكن هادئ */
+  --bg:#1a1d23; --bg2:#1e2128; --p:#22262e; --p2:#282d36;
+  /* حدود رفيعة */
+  --ln:rgba(90,169,216,.20); --ln2:rgba(255,255,255,.07);
+  /* أزرق مميّز هادئ (بدل السماوي الصارخ) */
+  --ac:#5aa9d8; --ac2:#7cc0e6;
+  /* حبر */
+  --ink:#e4e6ea; --mt:#7a828f;
+  /* إشارات مكتومة */
+  --g:#4ec9a3; --r:#e07385; --o:#d9a25a;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+*,*::before,*::after{border-radius:0!important}
+body{font-family:'IBM Plex Sans Arabic','JetBrains Mono',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased;letter-spacing:.01em}
+.mono,.num{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
 
-  /* صفر انحناء في كل مكان — الطابع الحاد */
-  *,*::before,*::after{ border-radius:0 !important; }
+.bar{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;border-bottom:.5px solid var(--ln);background:rgba(26,29,35,.9);backdrop-filter:blur(12px);position:sticky;top:0;z-index:50}
+.br{display:flex;align-items:center;gap:11px}
+.br .lg{width:38px;height:38px;background:var(--p2);border:.5px solid var(--ac);color:var(--ac);display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 0 8px rgba(90,169,216,.28)}
+.br .nm{font-weight:700;font-size:1.05rem;letter-spacing:.02em;line-height:1.1}
+.br .nm small{display:block;font-family:'JetBrains Mono',monospace;font-size:.56rem;color:var(--ac);font-weight:600;letter-spacing:.38em;margin-top:3px;opacity:.85}
+.w{max-width:1000px;margin:0 auto;padding:22px 24px}
 
-  /* خلفية داكنة + ملمس رقمي ناعم جداً لتقليل الانعكاس */
-  html{background:var(--void);}
-  body{
-    font-family:'IBM Plex Sans Arabic','JetBrains Mono',system-ui,sans-serif;
-    color:var(--ink); min-height:100vh; padding-bottom:60px;
-    background-color:var(--bg);
-    background-image:
-      linear-gradient(var(--line2) .5px, transparent .5px),
-      linear-gradient(90deg, var(--line2) .5px, transparent .5px),
-      radial-gradient(120% 90% at 82% -8%, rgba(90,169,216,.04) 0%, transparent 46%);
-    background-size:56px 56px, 56px 56px, 100% 100%;
-    position:relative;
-    -webkit-font-smoothing:antialiased;
-    letter-spacing:.01em;
-  }
-  /* طبقة التشويش الرقمي — subtle digital noise */
-  body::before{
-    content:""; position:fixed; inset:0; pointer-events:none; z-index:1; opacity:.02;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    mix-blend-mode:overlay;
-  }
-  #root{position:relative; z-index:2;}
+.tabs{display:flex;gap:0;background:var(--p);border:.5px solid var(--ln);padding:0;margin-bottom:20px;overflow:hidden}
+.tb{flex:1;text-align:center;padding:13px;cursor:pointer;font-weight:600;font-size:.92rem;color:var(--mt);border:none;border-inline-start:.5px solid var(--ln2);background:none;font-family:'IBM Plex Sans Arabic',sans-serif;transition:none}
+.tb:first-child{border-inline-start:none}
+.tb.on{background:var(--p2);color:var(--ac);box-shadow:inset 0 -2px 0 var(--ac)}
+.tb:hover:not(.on){color:var(--ink);background:rgba(255,255,255,.02)}
 
-  /* أرقام بمسافات ثابتة — JetBrains Mono */
-  .mono, .num{font-family:'JetBrains Mono',monospace; font-variant-numeric:tabular-nums; letter-spacing:0;}
+.pn{background:var(--p);border:.5px solid var(--ln2);padding:20px;margin-bottom:14px}
+.sh{display:flex;align-items:center;gap:10px;margin:22px 0 12px}
+.sh .d{width:6px;height:6px;background:var(--ac);box-shadow:0 0 9px rgba(90,169,216,.5)}
+.sh h2{font-size:1.05rem;font-weight:700;letter-spacing:.01em}
+.sh .tg{margin-inline-start:auto;font-size:.62rem;color:var(--mt);background:var(--p);padding:5px 11px;border:.5px solid var(--ln2);font-family:'JetBrains Mono',monospace;letter-spacing:.1em;text-transform:uppercase}
 
-  /* ============ الشريط العلوي ============ */
-  .topbar{
-    display:flex; justify-content:space-between; align-items:center; padding:14px 26px;
-    border-bottom:.5px solid var(--hair);
-    background:rgba(10,10,12,.82); backdrop-filter:blur(14px) saturate(1.1);
-    position:sticky; top:0; z-index:50;
-  }
-  .brand{display:flex; align-items:center; gap:13px;}
-  .brand .logo{
-    width:38px; height:38px; background:var(--panel2);
-    border:.5px solid var(--cyan); color:var(--cyan);
-    display:flex; align-items:center; justify-content:center; font-size:17px;
-    box-shadow:0 0 8px var(--cyan-glow);
-  }
-  .brand .name{font-weight:700; font-size:1.05rem; letter-spacing:.02em; line-height:1.1;}
-  .brand .name small{
-    display:block; font-family:'JetBrains Mono',monospace; font-size:.58rem;
-    color:var(--cyan); font-weight:600; letter-spacing:.42em; margin-top:3px; opacity:.85;
-  }
-  .quota-pill{display:flex; flex-direction:column; align-items:flex-end; font-size:.62rem;
-    color:var(--muted); letter-spacing:.16em; text-transform:uppercase; font-family:'JetBrains Mono',monospace;}
-  .quota-pill b{font-family:'JetBrains Mono',monospace; font-size:.9rem; color:var(--cyan); font-weight:700; letter-spacing:0;}
+.bt{background:var(--p2);color:var(--ac);border:.5px solid var(--ac);padding:12px 22px;font-weight:600;font-family:'IBM Plex Sans Arabic',sans-serif;font-size:.92rem;cursor:pointer;transition:background .12s}
+.bt:hover:not(:disabled){background:var(--ac-bg,rgba(90,169,216,.12))}
+.bt:disabled{opacity:.4;cursor:not-allowed}
+.btbig{width:100%;padding:17px;font-size:1.05rem;background:var(--p2);color:var(--o);border-color:var(--o)}
+.btbig:hover:not(:disabled){background:rgba(217,162,90,.12)}
 
-  .wrap{max-width:1180px; margin:0 auto; padding:22px 26px;}
+.bs{background:var(--p2);border:.5px solid var(--ln2);color:var(--ac);padding:7px 13px;font-family:'IBM Plex Sans Arabic',sans-serif;font-weight:600;font-size:.8rem;cursor:pointer;transition:border-color .12s}
+.bs:hover{border-color:var(--ac)}
+.bs.on{background:var(--p2)!important;border-color:var(--ac)!important;color:var(--ac)!important}
 
-  /* ============ التبويبات — أزرار طرفية حادة ============ */
-  .tabs{
-    display:flex; gap:0; background:var(--panel);
-    border:.5px solid var(--hair); padding:0; margin-bottom:24px; overflow:hidden;
-  }
-  .tab{
-    flex:1; text-align:center; padding:13px 10px; cursor:pointer;
-    font-weight:600; font-size:.86rem; color:var(--muted);
-    transition:none; border:none; border-inline-start:.5px solid var(--line2);
-    background:none; font-family:'IBM Plex Sans Arabic',sans-serif; white-space:nowrap;
-    position:relative;
-  }
-  .tab:first-child{border-inline-start:none;}
-  .tab.active{
-    background:var(--panel2); color:var(--cyan);
-    box-shadow:inset 0 -2px 0 var(--cyan);
-  }
-  .tab:hover:not(.active){color:var(--ink); background:rgba(255,255,255,.02);}
-  .active-filter{background:var(--panel2)!important; color:var(--cyan)!important; box-shadow:inset 0 -2px 0 var(--cyan)!important;}
+input{width:100%;padding:11px 13px;border:.5px solid var(--ln2);background:var(--bg2);color:var(--ink);font-family:'JetBrains Mono',monospace;font-size:.9rem;margin-bottom:8px}
+input:focus{outline:none;border-color:var(--ac)}
+input::placeholder{color:var(--mt);font-family:'IBM Plex Sans Arabic',sans-serif}
+select{font-family:'JetBrains Mono',monospace;background:var(--bg2);color:var(--ink);border:.5px solid var(--ln2);padding:9px 12px}
 
-  /* ============ اللوحات المتداخلة — خطوط شعرية ============ */
-  .panel{
-    background:var(--panel); border:.5px solid var(--hair);
-    padding:20px; margin-bottom:14px; position:relative;
-  }
-  /* علامة زاوية طرفية دقيقة */
-  .panel::before{
-    content:""; position:absolute; top:0; inset-inline-start:0;
-    width:10px; height:10px; border-top:1px solid var(--cyan); border-inline-start:1px solid var(--cyan);
-    opacity:.5;
-  }
+.rc{background:var(--p);border:.5px solid var(--ln2);padding:15px 17px;margin-bottom:10px}
+.sb{height:5px;background:var(--bg);overflow:hidden;margin-top:5px;border:.5px solid var(--ln2)}
+.sf{height:100%;transition:width .4s linear}
 
-  .sec-head{display:flex; align-items:center; gap:11px; margin:24px 0 14px;}
-  .sec-head .dot{width:6px; height:6px; background:var(--cyan); box-shadow:0 0 9px var(--cyan-glow);}
-  .sec-head h2{font-size:1.02rem; font-weight:700; letter-spacing:.01em;}
-  .sec-head .tag{
-    margin-inline-start:auto; font-size:.62rem; color:var(--muted);
-    background:var(--panel); padding:5px 11px; border:.5px solid var(--line);
-    font-family:'JetBrains Mono',monospace; letter-spacing:.12em; text-transform:uppercase;
-  }
+.fade{animation:fd .28s ease}@keyframes fd{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--p2);border:.5px solid var(--ac);color:var(--ac);padding:11px 22px;font-weight:600;z-index:100;font-family:'JetBrains Mono',monospace;letter-spacing:.02em;box-shadow:0 8px 26px rgba(0,0,0,.5)}
+.spin{display:inline-block;width:16px;height:16px;border:.5px solid var(--ln2);border-top-color:var(--ac);animation:sp .7s steps(12) infinite;vertical-align:middle}@keyframes sp{to{transform:rotate(360deg)}}
 
-  /* ============ حقل البحث ============ */
-  .hero-search{
-    display:flex; gap:0; background:var(--panel); border:.5px solid var(--hair);
-    padding:0; margin-bottom:12px; align-items:stretch;
-  }
-  .hero-search input{
-    flex:1; background:none; border:none; outline:none; color:var(--ink);
-    font-family:'JetBrains Mono',monospace; font-size:1rem; padding:15px 18px; letter-spacing:.02em;
-  }
-  .hero-search input::placeholder{color:var(--dim); font-family:'IBM Plex Sans Arabic',sans-serif;}
-  .hero-search:focus-within{border-color:var(--cyan);}
+table{-webkit-overflow-scrolling:touch;border-collapse:collapse}
+th{font-family:'JetBrains Mono',monospace!important;font-weight:600!important;letter-spacing:.06em;text-transform:uppercase;color:var(--ac)}
+td{font-variant-numeric:tabular-nums}
+.tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;position:relative}
+.tblwrap::-webkit-scrollbar{height:5px}.tblwrap::-webkit-scrollbar-thumb{background:var(--ln)}
+button{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+input[type=checkbox]{accent-color:var(--ac)!important}
+:focus-visible{outline:1.5px solid var(--ac);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition:none!important}}
 
-  /* ============ الأزرار ============ */
-  .btn-gold{
-    background:var(--panel2); color:var(--cyan); border:.5px solid var(--cyan);
-    padding:13px 26px; font-weight:600; font-family:'IBM Plex Sans Arabic',sans-serif;
-    font-size:.92rem; cursor:pointer; transition:background .12s, border-color .12s; letter-spacing:.02em;
-  }
-  .btn-gold:hover:not(:disabled){background:var(--cyan-bg); border-color:var(--cyan);}
-  .btn-gold:active:not(:disabled){background:rgba(90,169,216,.16);}
-  .btn-gold:disabled{opacity:.35; cursor:not-allowed;}
-
-  /* ============ بطاقات المجموعات ============ */
-  .sector-block{margin-bottom:20px;}
-  .sector-title{
-    font-weight:600; color:var(--cyan); font-size:.72rem; margin-bottom:10px;
-    padding-bottom:7px; border-bottom:.5px solid var(--line);
-    font-family:'JetBrains Mono',monospace; letter-spacing:.18em; text-transform:uppercase;
-  }
-  .group-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:1px; background:var(--line2);}
-  .group-card{background:var(--panel); border:.5px solid transparent; padding:13px 15px; cursor:pointer; transition:none;}
-  .group-card:hover{background:var(--panel2);}
-  .group-card.sel{border-color:var(--cyan); background:var(--cyan-bg); box-shadow:inset 0 0 20px rgba(0,229,255,.06);}
-  .group-card .gn{font-weight:600; font-size:.9rem; display:flex; align-items:center; gap:9px;}
-  .group-card .gc{width:16px; height:16px; border:.5px solid var(--muted); flex-shrink:0;
-    display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--cyan);}
-  .group-card.sel .gc{background:var(--cyan); border-color:var(--cyan); color:#04121a;}
-  .group-card .gs{font-size:.72rem; color:var(--muted); margin-top:6px; line-height:1.55; font-family:'JetBrains Mono',monospace;}
-
-  /* ============ شريط الاختيار السفلي ============ */
-  .selbar{
-    position:sticky; bottom:0; background:var(--panel2); border:.5px solid var(--cyan);
-    padding:13px 18px; margin-top:16px; display:flex; justify-content:space-between;
-    align-items:center; gap:14px; z-index:20; box-shadow:0 -6px 26px rgba(0,0,0,.55), 0 0 22px rgba(0,229,255,.08);
-  }
-  .selbar .cnt{font-size:.82rem; color:var(--muted);}
-  .selbar .cnt b{color:var(--cyan); font-family:'JetBrains Mono',monospace;}
-
-  /* ============ بطاقة القرار النهائي ============ */
-  .verdict-card{
-    background:var(--panel); border:.5px solid var(--hair);
-    padding:26px; margin-bottom:14px; text-align:center; position:relative; overflow:hidden;
-  }
-  .verdict-card::after{
-    content:""; position:absolute; inset:0; pointer-events:none;
-    background:radial-gradient(80% 120% at 50% 0%, rgba(0,229,255,.05), transparent 60%);
-  }
-  .verdict-card .vl{font-size:.82rem; color:var(--ink2); margin-bottom:12px; font-weight:600; letter-spacing:.02em;}
-  .verdict-card .vl .code{color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:.78rem;}
-  .verdict-big{font-size:2.3rem; font-weight:800; letter-spacing:.03em; font-family:'IBM Plex Sans Arabic',sans-serif;}
-  .vb-buy{color:var(--buy); text-shadow:0 0 22px var(--buy-glow);}
-  .vb-sell{color:var(--sell); text-shadow:0 0 22px var(--sell-glow);}
-  .vb-hold{color:var(--hold);}
-  .pct{font-family:'JetBrains Mono',monospace; color:var(--cyan); margin-top:10px; font-size:.95rem; letter-spacing:.06em;}
-  .fv-line{margin-top:16px; padding-top:16px; border-top:.5px solid var(--line); display:flex; justify-content:center; gap:0; flex-wrap:wrap;}
-  .fv-line .it{color:var(--muted); font-size:.72rem; padding:0 22px; border-inline-start:.5px solid var(--line2); letter-spacing:.1em; text-transform:uppercase; font-family:'JetBrains Mono',monospace;}
-  .fv-line .it:first-child{border:none;}
-  .fv-line .it b{color:var(--ink); font-family:'JetBrains Mono',monospace; display:block; font-size:1.15rem; margin-top:5px; letter-spacing:0; text-transform:none;}
-
-  /* ============ صف المحلّل ============ */
-  .agent{display:flex; align-items:flex-start; gap:13px; padding:16px 0; border-bottom:.5px solid var(--line2);}
-  .agent:last-child{border-bottom:none;}
-  .agent .av{width:38px; height:38px; background:var(--panel2); display:flex; align-items:center;
-    justify-content:center; font-size:18px; flex-shrink:0; border:.5px solid var(--line);}
-  .agent .nm{font-weight:600; font-size:.94rem;}
-  .agent .rs{color:var(--muted); font-size:.82rem; line-height:1.65; margin-top:4px;}
-  .agent .vote{margin-inline-start:auto; text-align:left; flex-shrink:0;}
-  .agent .vote .v{font-weight:700; font-size:.9rem;}
-  .agent .vote .c{font-family:'JetBrains Mono',monospace; font-size:.68rem; color:var(--muted); letter-spacing:.05em;}
-
-  /* ============ بطاقة النتيجة ============ */
-  .result-card{background:var(--panel); border:.5px solid var(--hair); padding:15px 17px; margin-bottom:8px;}
-  .result-card:hover{border-color:var(--line);}
-  .result-head{display:flex; justify-content:space-between; align-items:center; cursor:pointer;}
-  .result-head .sym{font-weight:600; font-size:.98rem;}
-  .result-head .sym .code{font-family:'JetBrains Mono',monospace; color:var(--muted); font-size:.78rem; margin-inline-start:6px;}
-  .badge{display:inline-flex; align-items:center; gap:5px; padding:5px 12px; font-size:.76rem;
-    font-weight:700; font-family:'JetBrains Mono',monospace; border:.5px solid transparent; letter-spacing:.03em;}
-  .b-buy{background:var(--buy-bg); color:var(--buy); border-color:rgba(0,255,133,.3);}
-  .b-sell{background:var(--sell-bg); color:var(--sell); border-color:rgba(255,45,85,.3);}
-  .b-hold{background:var(--hold-bg); color:var(--hold); border-color:var(--line);}
-
-  .copy-btn{background:var(--panel2); border:.5px solid var(--line); color:var(--cyan);
-    padding:8px 15px; font-family:'IBM Plex Sans Arabic',sans-serif; font-weight:600; font-size:.78rem;
-    cursor:pointer; transition:none; margin-top:10px;}
-  .copy-btn:hover{border-color:var(--cyan); box-shadow:0 0 12px rgba(0,229,255,.12);}
-
-  /* ============ التحميل / المؤشرات ============ */
-  .spinner{text-align:center; padding:34px; color:var(--muted); font-family:'JetBrains Mono',monospace; letter-spacing:.06em;}
-  .spinner .s{display:inline-block; width:26px; height:26px; border:.5px solid var(--line);
-    border-top-color:var(--cyan); animation:spin .7s steps(12) infinite; box-shadow:0 0 12px rgba(0,229,255,.15);}
-  @keyframes spin{to{transform:rotate(360deg);}}
-  .progress{background:var(--panel); border:.5px solid var(--hair); padding:15px 18px; margin-bottom:14px;
-    font-size:.85rem; font-family:'JetBrains Mono',monospace; letter-spacing:.03em;}
-  .progress .bar{height:5px; background:var(--void); overflow:hidden; margin-top:10px; border:.5px solid var(--line2);}
-  .progress .fill{height:100%; background:var(--cyan); box-shadow:0 0 12px var(--cyan-glow); transition:width .25s linear;}
-
-  .err{background:var(--sell-bg); border:.5px solid var(--sell); padding:14px 18px; color:#ffb3c0;
-    font-size:.86rem; line-height:1.6; font-family:'JetBrains Mono',monospace;}
-  .hidden{display:none;}
-  .fade{animation:fade .28s ease;}
-  @keyframes fade{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;}}
-
-  .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
-    background:var(--panel2); border:.5px solid var(--cyan); color:var(--cyan);
-    padding:12px 24px; font-weight:600; z-index:100; font-family:'JetBrains Mono',monospace;
-    letter-spacing:.03em; box-shadow:0 8px 30px rgba(0,0,0,.6), 0 0 20px rgba(0,229,255,.12);}
-
-  /* ============ الوميض اللحظي — Snap flash (بلا تنعيم) ============ */
-  @keyframes tick-up{0%{background:rgba(0,255,133,.28); color:var(--buy);} 100%{background:transparent;}}
-  @keyframes tick-down{0%{background:rgba(255,45,85,.28); color:var(--sell);} 100%{background:transparent;}}
-  .flash-up{animation:tick-up .5s steps(1,end);}
-  .flash-down{animation:tick-down .5s steps(1,end);}
-  /* توهج الأرقام المتغيّرة لحظياً */
-  .live{font-family:'JetBrains Mono',monospace; text-shadow:0 0 10px rgba(0,229,255,.28);}
-
-  /* جداول: خطوط شعرية بدل مظهر Excel */
-  table{border-collapse:collapse;}
-  th{font-family:'JetBrains Mono',monospace!important; font-weight:600!important; letter-spacing:.1em; text-transform:uppercase;}
-  td{font-variant-numeric:tabular-nums;}
-
-  /* نموذج الاختيار — لون نيون */
-  input[type=checkbox]{accent-color:var(--cyan)!important;}
-  select{font-family:'JetBrains Mono',monospace!important;}
-
-  /* الحركة المخففة */
-  @media (prefers-reduced-motion:reduce){
-    *{animation-duration:.001ms!important; transition:none!important;}
-  }
-
-  /* استجابة الجوال */
-  @media (max-width:640px){
-    .tabs{flex-wrap:wrap;} .tab{flex:1 1 33%;}
-    .wrap{padding:16px;}
-    .fv-line .it{padding:0 14px;}
-  }
-
-  /* تركيز لوحة المفاتيح */
-  :focus-visible{outline:1.5px solid var(--cyan); outline-offset:2px;}
-
-  /* مؤشر حالة السوق */
-  .mkt-status{display:flex; align-items:center; gap:7px; margin-inline-start:14px; padding-inline-start:14px;
-    border-inline-start:.5px solid var(--line); font-family:'JetBrains Mono',monospace;
-    font-size:.6rem; letter-spacing:.16em; text-transform:uppercase; color:var(--muted);}
-  .mkt-status .ms-dot{width:7px; height:7px; background:var(--dim); flex-shrink:0;}
-  .mkt-status.open .ms-dot{background:var(--buy); box-shadow:0 0 10px var(--buy-glow); animation:pulse 1.6s steps(1,end) infinite;}
-  .mkt-status.open .ms-txt{color:var(--buy);}
-  .mkt-status.closed .ms-dot{background:var(--sell);}
-  .mkt-status.closed .ms-txt{color:var(--muted);}
-  @keyframes pulse{0%,60%{opacity:1;} 61%,100%{opacity:.25;}}
-  @media (max-width:640px){.mkt-status{display:none;}}
-</style>
-</head>
-<body>
-<div id="root"></div>
+@media(max-width:768px){
+  .bar{padding:11px 14px}
+  .br .lg{width:34px;height:34px;font-size:16px}.br .nm{font-size:.98rem}.br .nm small{font-size:.5rem;letter-spacing:.3em}
+  .w{padding:12px}
+  .tabs{margin-bottom:14px;position:sticky;top:58px;z-index:40}
+  .tb{padding:12px 6px;font-size:.88rem}
+  .pn{padding:14px}
+  .sh h2{font-size:1rem}.sh .tg{font-size:.6rem;padding:3px 7px}
+  .bt{padding:11px 16px;font-size:.9rem}
+  .btbig{padding:15px;font-size:1rem}
+  .bs{padding:8px 12px;font-size:.82rem}
+  input{padding:11px 12px;font-size:16px}
+  table{font-size:.75rem!important}
+  table th,table td{padding:7px 4px!important}
+  .rc{padding:12px 13px}
+  .toast{bottom:16px;font-size:.85rem;padding:9px 18px;max-width:90%;text-align:center}
+}
+@media(max-width:420px){
+  table{font-size:.68rem!important}
+  table th,table td{padding:6px 3px!important}
+  .sh{flex-wrap:wrap;gap:6px}.sh .tg{margin-inline-start:0;width:100%}
+}
+</style></head><body><div id="root"></div>
 <script>
-const STATE = {tab:"single", groupsData:[], sectorTree:{}, selectedGroups:[], running:false, lastResults:null, scanResults:[], scanSelected:new Set()};
-const C={buy:"var(--buy)",sell:"var(--sell)",hold:"var(--hold)"};
-const VB={"شراء":"vb-buy","بيع":"vb-sell","حياد":"vb-hold"};
-const BB={"شراء":"b-buy","بيع":"b-sell","حياد":"b-hold"};
-const EMOJI={"المحلل الفني":"📈","محلل الشموع والأشكال الفنية":"🕯️","المحلل المالي والاستثماري":"💰","خبير الأخبار والسياسة الاقتصادية":"📰"};
-const SAR={buy:"شراء",sell:"بيع",hold:"حياد"};
-
-async function api(path, opts){
-  const r = await fetch(path, opts);
-  if(!r.ok){
-    let msg=r.statusText;
-    try{const e=await r.json(); msg=typeof e.detail==="string"?e.detail:JSON.stringify(e.detail||e);}catch(_){}
-    throw new Error(msg||("خطأ "+r.status));
-  }
-  return r.json();
-}
-async function loadHealth(){
-  try{const h=await api("/api/health");
-    if(h.ok){const q=document.getElementById("quota"); if(q)q.innerHTML=`طلبات اليوم<b>${h.usage.toLocaleString()} / ${h.limit.toLocaleString()}</b>`;}
-  }catch(e){}
-}
-async function loadGroups(){
-  try{const d=await api("/api/groups"); STATE.groupsData=d.groups; STATE.sectorTree=d.sector_tree||{};}catch(e){STATE.groupsData=[];}
-}
-
-/* ===== حالة السوق (مفتوح/مغلق) — تُحسب من توقيت السعودية كخط دفاع ===== */
-function saudiMarketOpen(){
-  // توقيت السعودية UTC+3 · الأحد–الخميس · 9:30–15:20
-  const now=new Date();
-  const ksa=new Date(now.getTime()+(now.getTimezoneOffset()*60000)+(3*3600000));
-  const day=ksa.getDay(); // 0=أحد ... 6=سبت
-  if(day===5||day===6) return false; // جمعة/سبت
-  const mins=ksa.getHours()*60+ksa.getMinutes();
-  return mins>=570 && mins<=920; // 9:30 → 15:20
-}
-async function refreshMarketStatus(){
-  let open=saudiMarketOpen();
-  try{const m=await api("/api/market-clock"); if(m && typeof m.is_open==="boolean") open=m.is_open;}catch(_){}
-  const el=document.getElementById("mktStatus"); if(!el) return;
-  el.classList.remove("open","closed"); el.classList.add(open?"open":"closed");
-  const t=el.querySelector(".ms-txt"); if(t) t.textContent=open?"السوق مفتوح":"السوق مغلق";
-}
-
-/* ===== الوميض اللحظي — Snap flash عند تغيّر رقم حي ===== */
-function applyTick(el, newVal){
-  if(!el) return;
-  const prev=parseFloat((el.dataset.prev||"").replace(/,/g,""));
-  const curr=parseFloat(String(newVal).replace(/,/g,""));
-  el.classList.remove("flash-up","flash-down");
-  void el.offsetWidth; // إعادة تشغيل الأنيميشن فوراً
-  if(!isNaN(prev)&&!isNaN(curr)&&curr!==prev){
-    el.classList.add(curr>prev?"flash-up":"flash-down");
-  }
-  el.textContent=newVal;
-  el.dataset.prev=String(newVal);
-  el.classList.add("live");
-}
-
-function shell(){
-  document.getElementById("root").innerHTML=`
-    <div class="topbar">
-      <div class="brand"><div class="logo">◈</div><div class="name">وكلاء سهمك<small>RASID // TERMINAL</small></div>
-        <div id="mktStatus" class="mkt-status"><span class="ms-dot"></span><span class="ms-txt">—</span></div>
-      </div>
-      <div class="quota-pill" id="quota">…</div>
-    </div>
-    <div class="wrap">
-      <div class="tabs">
-        <button class="tab ${STATE.tab==='single'?'active':''}" onclick="setTab('single')">🔍 أسهم</button>
-        <button class="tab ${STATE.tab==='groups'?'active':''}" onclick="setTab('groups')">📊 مجموعات</button>
-        <button class="tab ${STATE.tab==='agent'?'active':''}" onclick="setTab('agent')">🧭 الاستراتيجي</button>
-        <button class="tab ${STATE.tab==='patterns'?'active':''}" onclick="setTab('patterns')">🕯️ الأنماط</button>
-        <button class="tab ${STATE.tab==='classicpat'?'active':''}" onclick="setTab('classicpat')">🎯 الأنماط الكلاسيكية</button>
-        <button class="tab ${STATE.tab==='breakout'?'active':''}" onclick="setTab('breakout')">📈 الاختراق والتوافق</button>
-        <button class="tab ${STATE.tab==='rasid'?'active':''}" onclick="setTab('rasid')">🛰️ راصد</button>
-        <button class="tab ${STATE.tab==='strategy'?'active':''}" onclick="setTab('strategy')">🎯 الاستراتيجية</button>
-      </div>
-      <div id="content" class="fade">${renderTab()}</div>
-    </div>`;
-  loadHealth();
-  refreshMarketStatus();
-}
-function renderTab(){
-  if(STATE.tab==="groups") return renderGroups();
-  if(STATE.tab==="agent") return renderAgent();
-  if(STATE.tab==="patterns") return renderPatterns();
-  if(STATE.tab==="classicpat") return renderClassicPatterns();
-  if(STATE.tab==="breakout") return renderBreakout();
-  if(STATE.tab==="rasid") return renderRasid();
-  if(STATE.tab==="strategy") return renderStrategy();
-  return renderSingle();
-}
-
-function renderSingle(){
-  return `
-    <div class="sec-head"><div class="dot"></div><h2>سهم واحد</h2><span class="tag">تحليل سريع</span></div>
-    <div class="hero-search">
-      <input id="quickSym" placeholder="اكتب رمز سهم واحد (مثال: 2222)…" onkeydown="if(event.key==='Enter')runSingle()">
-      <button class="btn-gold" id="singleBtn" onclick="runSingle()">حلّل</button>
-    </div>
-    <div class="sec-head"><div class="dot"></div><h2>عدة أسهم</h2><span class="tag">رموز مفصولة بفاصلة</span></div>
-    <div class="hero-search">
-      <input id="multiSym" placeholder="مثال: 2222, 1120, 7010" onkeydown="if(event.key==='Enter')runMulti()">
-      <button class="btn-gold" id="multiBtn" onclick="runMulti()">حلّل الكل</button>
-    </div>
-    <div class="sec-head"><div class="dot"></div><h2>مسح السوق</h2><span class="tag">اختر طريقة الفحص</span></div>
-    <div class="panel">
-      <p style="color:var(--muted);line-height:1.7;margin-bottom:14px">
-        <b style="color:var(--gold2)">السكانر المجاني</b> يفحص كل السوق (٢٤٤ سهم) بالمؤشرات الفنية (TEMA/VPVR)
-        بسرعة و<b style="color:var(--buy)">بدون أي تكلفة توكن</b>. اختر الأفضل منه ثم حلّلهم بالوكلاء.</p>
-      <button class="btn-gold" style="width:100%;padding:15px;margin-bottom:10px" id="scanBtn" onclick="runScannerOnly()">🔍 مسح السوق بالسكانر (مجاني)</button>
-      <p style="color:var(--muted);line-height:1.7;margin:14px 0 10px;font-size:.88rem">
-        أو التحليل العميق الكامل بالوكلاء الأربعة على كل السوق —
-        <b style="color:var(--sell)">مكلف للتوكن</b>، استخدمه بحذر.</p>
-      <button class="btn-gold" style="width:100%;padding:13px;background:var(--sell-bg);color:var(--sell);border-color:var(--sell)" id="marketBtn" onclick="runMarket()">🧠 السوق كامل بالوكلاء (مكلف)</button>
-    </div>
-    <div id="results"></div>`;
-}
-async function runSingle(){
-  if(STATE.running) return;
-  const sym=document.getElementById("quickSym").value.trim();
-  if(!sym) return;
-  STATE.running=true;
-  const btn=document.getElementById("singleBtn"); if(btn)btn.disabled=true;
-  const box=document.getElementById("results");
-  box.innerHTML=`<div class="spinner"><div class="s"></div><div style="margin-top:12px">الوكلاء يحللون ${sym}…</div></div>`;
-  try{
-    const r=await api("/api/quick/"+encodeURIComponent(sym));
-    box.innerHTML=verdictHTML(r)+scannerHTML(r.scanner)+fairValueCard(r)+agentsHTML(r.opinions||[])+copyBtn(r);
-  }catch(e){ box.innerHTML=`<div class="err">⚠️ ${e.message}</div>`; }
-  finally{ STATE.running=false; if(btn)btn.disabled=false; }
-}
-async function runMulti(){
-  if(STATE.running) return;
-  const raw=document.getElementById("multiSym").value.trim();
-  if(!raw) return;
-  const syms=raw.split(",").map(s=>s.trim()).filter(Boolean);
-  if(!syms.length) return;
-  STATE.running=true;
-  const btn=document.getElementById("multiBtn"); if(btn)btn.disabled=true;
-  const box=document.getElementById("results");
-  box.innerHTML=`<div class="progress">جاري تحليل ${syms.length} سهم…
-    <div class="bar"><div class="fill" id="pfill" style="width:5%"></div></div></div>`;
-  let p=5; const timer=setInterval(()=>{p=Math.min(p+4,92);const f=document.getElementById("pfill");if(f)f.style.width=p+"%";},700);
-  try{
-    const r=await api("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({mode:"manual", symbols:syms})});
-    clearInterval(timer);
-    STATE.lastResults=r.results;
-    renderGroupResults(r, box);
-  }catch(e){ clearInterval(timer); box.innerHTML=`<div class="err">⚠️ ${e.message}</div>`; }
-  finally{ STATE.running=false; if(btn)btn.disabled=false; }
-}
-
-function renderGroups(){
-  const tree = STATE.sectorTree || {};
-  let html = `<div class="sec-head"><div class="dot"></div><h2>اختر مجموعة أو أكثر</h2>
-    <span class="tag">${STATE.groupsData.length} مجموعة</span></div>`;
-  if(Object.keys(tree).length){
-    for(const sector of Object.keys(tree)){
-      html += `<div class="sector-block"><div class="sector-title">${sector}</div><div class="group-grid">`;
-      for(const gname of Object.keys(tree[sector])){ html += groupCard(gname); }
-      html += `</div></div>`;
-    }
-  } else {
-    html += `<div class="group-grid">`;
-    STATE.groupsData.forEach(g=>{ html += groupCard(g.group); });
-    html += `</div>`;
-  }
-  html += `<div id="grpResults"></div>`;
-  html += `<div class="selbar">
-    <div class="cnt">المختار: <b id="selCount">0</b> مجموعة · <b id="symCount">0</b> سهم</div>
-    <button class="btn-gold" id="grpBtn" onclick="runGroups()">▶️ حلّل المختار</button>
-  </div>`;
-  return html;
-}
-function groupCard(gname){
-  const sel = STATE.selectedGroups.includes(gname);
-  const gd = STATE.groupsData.find(g=>g.group===gname);
-  const names = (gd?.symbols||[]).map(s=>s.name).slice(0,4).join("، ");
-  const safe = gname.replace(/'/g,"\\'");
-  return `<div class="group-card ${sel?'sel':''}" onclick="toggleGroup('${safe}')">
-    <div class="gn"><span class="gc">${sel?'✓':''}</span> ${gname}</div>
-    <div class="gs">${names}</div>
-  </div>`;
-}
-function toggleGroup(g){
-  const i=STATE.selectedGroups.indexOf(g);
-  if(i>=0) STATE.selectedGroups.splice(i,1); else STATE.selectedGroups.push(g);
-  document.getElementById("content").innerHTML=renderGroups();
-  updateSelBar();
-}
-function updateSelBar(){
-  const sc=document.getElementById("selCount"), syc=document.getElementById("symCount");
-  if(!sc) return;
-  let syms=[];
-  STATE.selectedGroups.forEach(g=>{ const gd=STATE.groupsData.find(x=>x.group===g); if(gd) syms.push(...gd.symbols.map(s=>s.symbol)); });
-  syms=[...new Set(syms)];
-  sc.textContent=STATE.selectedGroups.length; syc.textContent=syms.length;
-}
-async function runGroups(){
-  if(STATE.running) return;
-  if(!STATE.selectedGroups.length){ showToast("اختر مجموعة واحدة على الأقل"); return; }
-  STATE.running=true;
-  const btn=document.getElementById("grpBtn"); if(btn){btn.disabled=true;}
-  let syms=[];
-  STATE.selectedGroups.forEach(g=>{ const gd=STATE.groupsData.find(x=>x.group===g); if(gd) syms.push(...gd.symbols.map(s=>s.symbol)); });
-  syms=[...new Set(syms)];
-  const box=document.getElementById("grpResults");
-  box.innerHTML=`<div class="progress">جاري تحليل ${syms.length} سهم بتأنٍّ…
-    <div class="bar"><div class="fill" id="pfill" style="width:5%"></div></div>
-    <div id="ptext" style="margin-top:6px;color:var(--muted)">يبدأ التحليل…</div></div>`;
-  let p=5; const timer=setInterval(()=>{ p=Math.min(p+3,92); const f=document.getElementById("pfill"); if(f)f.style.width=p+"%"; },800);
-  try{
-    const r=await api("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({mode:"groups", groups:STATE.selectedGroups})});
-    clearInterval(timer);
-    STATE.lastResults=r.results;
-    renderGroupResults(r, box);
-  }catch(e){ clearInterval(timer); box.innerHTML=`<div class="err">⚠️ ${e.message}</div>`; }
-  finally{ STATE.running=false; if(btn)btn.disabled=false; }
-}
-function renderGroupResults(r, box, targetId, prefixHtml){
-  let html=(prefixHtml||"")+`<div class="sec-head"><div class="dot"></div><h2>النتائج</h2>
-    <span class="tag">${r.candidates_count} سهم · مرتّبة بالأفضلية</span></div>
-    <div style="margin-bottom:14px"><button class="btn-gold" onclick="exportCurrentResults()" style="padding:11px 20px">📄 صدّر تقرير PDF</button></div>`;
-  if(!r.results.length){ html+=`<div class="panel">لا نتائج.</div>`; }
-  r.results.forEach((res,i)=>{
-    html+=`<div class="result-card">
-      <div class="result-head" onclick="toggleDetail(${i})">
-        <span class="sym">${res.name||res.symbol} <span class="code">${res.symbol}</span></span>
-        <span class="badge ${BB[res.decision]||'b-hold'}">${res.decision} ${res.agreement_pct}%</span>
-      </div>
-      <div id="detail-${i}" class="hidden" style="margin-top:14px">
-        ${scannerHTML(res.scanner)}${fairValueCard(res)}${agentsHTML(res.opinions||[])}${copyBtn(res)}
-      </div></div>`;
-  });
-  if(targetId){ document.getElementById(targetId).innerHTML=html; }
-  else { box.innerHTML=html; }
-}
-
-function verdictHTML(r){
-  return `<div class="verdict-card">
-    <div class="vl">${r.name||""} <span class="code">(${r.symbol})</span> · القرار النهائي</div>
-    <div class="verdict-big ${VB[r.decision]||'vb-hold'}">${r.decision}</div>
-    <div class="pct">نسبة التوافق ${r.agreement_pct}%</div>
-    ${fvLine(r)}
-  </div>`;
-}
-function fvLine(r){
-  if(r.current_price==null && r.fair_value==null) return "";
-  const gap = r.gap_pct;
-  const gapColor = gap>0?"var(--buy)":gap<0?"var(--sell)":"var(--muted)";
-  const gapTxt = gap!=null ? `<span style="color:${gapColor}">${gap>0?'+':''}${gap}%</span>` : "—";
-  return `<div class="fv-line">
-    <div class="it">السعر الحالي<b class="live">${r.current_price!=null?r.current_price:'—'}</b></div>
-    <div class="it">السعر العادل<b>${r.fair_value!=null?r.fair_value:'—'}</b></div>
-    <div class="it">الفرق<b>${gapTxt}</b></div>
-  </div>`;
-}
-function fairValueCard(r){
-  if(r.fair_value==null && r.current_price==null) return "";
-  const gap = r.gap_pct;
-  let verdict, vColor, bar;
-  if(gap==null){ verdict="غير متاح"; vColor="var(--muted)"; bar=50; }
-  else if(gap>5){ verdict="مقوّم بأقل من قيمته (فرصة)"; vColor="var(--buy)"; }
-  else if(gap<-5){ verdict="مقوّم بأعلى من قيمته (مبالغة)"; vColor="var(--sell)"; }
-  else { verdict="قريب من قيمته العادلة"; vColor="var(--gold2)"; }
-  // موضع السعر الحالي على شريط [أرخص ... أغلى]
-  bar = gap==null?50:Math.max(5,Math.min(95, 50 - gap*2));
-  const gapTxt = gap!=null ? `${gap>0?'+':''}${gap}%` : "—";
-  return `<div class="panel">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <div style="font-weight:800;font-size:1.05rem">💎 السعر العادل وموقف السعر</div>
-      <div style="font-weight:800;color:${vColor}">${verdict}</div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center;margin-bottom:14px">
-      <div style="background:var(--bg2);border:1px solid var(--line2);border-radius:10px;padding:12px">
-        <div style="color:var(--muted);font-size:.82rem">سعر اليوم</div>
-        <div class="mono" style="font-size:1.3rem;margin-top:4px">${r.current_price!=null?r.current_price:'—'}</div></div>
-      <div style="background:var(--bg2);border:1px solid var(--line2);border-radius:10px;padding:12px">
-        <div style="color:var(--muted);font-size:.82rem">السعر العادل</div>
-        <div class="mono" style="font-size:1.3rem;margin-top:4px;color:var(--gold2)">${r.fair_value!=null?r.fair_value:'—'}</div></div>
-      <div style="background:var(--bg2);border:1px solid var(--line2);border-radius:10px;padding:12px">
-        <div style="color:var(--muted);font-size:.82rem">الفرق</div>
-        <div class="mono" style="font-size:1.3rem;margin-top:4px;color:${vColor}">${gapTxt}</div></div>
-    </div>
-    <div style="position:relative;height:36px">
-      <div style="position:absolute;top:14px;left:0;right:0;height:6px;border-radius:99px;
-        background:linear-gradient(90deg,var(--sell),var(--gold2),var(--buy))"></div>
-      <div style="position:absolute;top:6px;left:calc(${bar}% - 8px);width:3px;height:22px;background:var(--ink);border-radius:2px"></div>
-      <div style="position:absolute;top:30px;left:0;font-size:.7rem;color:var(--sell)">أغلى</div>
-      <div style="position:absolute;top:30px;right:0;font-size:.7rem;color:var(--buy)">أرخص</div>
-    </div>
-  </div>`;
-}
-function agentsHTML(ops){
-  if(!ops.length) return "";
-  return `<div class="panel">`+ops.map(op=>{
-    const sc = op.score!=null?op.score:null;
-    const scColor = sc==null?"var(--muted)":sc>=66?"var(--buy)":sc>=40?"var(--gold2)":"var(--sell)";
-    const scBadge = sc!=null?`<div class="mono" style="font-size:.72rem;color:${scColor};margin-top:2px">${sc}/100</div>`:"";
-    return `
-    <div class="agent"><div class="av">${EMOJI[op.agent]||'🔹'}</div>
-      <div style="flex:1"><div class="nm">${op.agent}</div><div class="rs">${op.reasoning}</div></div>
-      <div class="vote"><div class="v" style="color:${C[op.stance]}">${SAR[op.stance]||op.stance}</div>
-        <div class="c">ثقة ${op.confidence}/10</div>${scBadge}</div></div>`;
-  }).join("")+`</div>`;
-}
-function copyBtn(r){
-  const id="cp"+(r.symbol||Math.random()).toString().replace(/\W/g,"");
-  window["_data_"+id]=r;
-  return `<button class="copy-btn" onclick="copyAnalysis('${id}')">📋 نسخ التحليل كاملاً</button>`;
-}
-function copyAnalysis(id){
-  const r=window["_data_"+id]; if(!r) return;
-  let txt=`📊 تحليل ${r.name||''} (${r.symbol})\n`;
-  txt+=`القرار: ${r.decision} · التوافق ${r.agreement_pct}%\n`;
-  if(r.current_price!=null) txt+=`السعر الحالي: ${r.current_price} · العادل: ${r.fair_value!=null?r.fair_value:'—'} · الفرق: ${r.gap_pct!=null?(r.gap_pct>0?'+':'')+r.gap_pct+'%':'—'}\n`;
-  txt+=`\nآراء المحللين:\n`;
-  (r.opinions||[]).forEach(op=>{ txt+=`\n• ${op.agent} — ${SAR[op.stance]||op.stance} (ثقة ${op.confidence}/10)\n  ${op.reasoning}\n`; });
-  txt+=`\n⚠️ أداة دعم قرار، ليست توصية مالية.`;
-  navigator.clipboard.writeText(txt).then(()=>showToast("✓ نُسخ التحليل")).catch(()=>showToast("تعذّر النسخ"));
-}
-function toggleDetail(i){ const d=document.getElementById("detail-"+i); if(d)d.classList.toggle("hidden"); }
-function showToast(msg){
-  const t=document.createElement("div"); t.className="toast"; t.textContent=msg; document.body.appendChild(t);
-  setTimeout(()=>t.remove(),2200);
-}
-/* ===== الاستراتيجي ===== */
-function renderAgent(){
-  return `
-    <div class="sec-head"><div class="dot"></div><h2>دع الاستراتيجي يقرر</h2><span class="tag">يقرأ السوق ويختار</span></div>
-    <div class="panel">
-      <p style="color:var(--muted);line-height:1.7;margin-bottom:16px">
-        الاستراتيجي يقرأ ملخّص السوق، يختار الأسهم الأنسب تلقائياً، ثم يشغّل الوكلاء الأربعة عليها.</p>
-      <button class="btn-gold" style="width:100%;padding:15px" id="agentBtn" onclick="runAgent()">🧭 شغّل الاستراتيجي</button>
-    </div>
-    <div id="agentResults"></div>`;
-}
-async function runScannerOnly(){
-  if(STATE.running) return;
-  STATE.running=true;
-  const btn=document.getElementById("scanBtn"); if(btn)btn.disabled=true;
-  const box=document.getElementById("results");
-  box.innerHTML=`<div class="spinner"><div class="s"></div><div style="margin-top:12px">مسح السوق بالسكانر (مجاني، بلا توكن)…</div></div>`;
-  try{
-    const r=await api("/api/run-scan",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({scan_type:"all_market", filter_mode:"all_results"})});
-    STATE.scanResults=r.results;
-    STATE.scanSelected=new Set();
-    renderScanResults(r, box);
-  }catch(e){ box.innerHTML=`<div class="err">⚠️ ${e.message}</div>`; }
-  finally{ STATE.running=false; if(btn)btn.disabled=false; }
-}
-function renderScanResults(r, box){
-  STATE.scanResults = r.results;
-  let html=`<div class="sec-head"><div class="dot"></div><h2>نتائج السكانر</h2>
-    <span class="tag">${r.qualified} سهم · مرتّبة بالأفضلية</span></div>
-    <div class="panel" style="position:sticky;top:70px;z-index:15">
-      <div style="color:var(--muted);font-size:.88rem;margin-bottom:10px">
-        السكانر مجاني (بلا توكن). اختر الأفضل ثم حلّلهم بالوكلاء — كل سهم يستهلك رصيداً.</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-        <button class="copy-btn" onclick="pickTop(5)">أفضل ٥</button>
-        <button class="copy-btn" onclick="pickTop(10)">أفضل ١٠</button>
-        <button class="copy-btn" onclick="pickTop(15)">أفضل ١٥</button>
-        <button class="copy-btn" onclick="clearScanSel()">مسح الاختيار</button>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-        <div style="font-size:.9rem">المختار: <b id="scanSelCount" style="color:var(--gold2);font-family:'IBM Plex Mono'">0</b> سهم
-          <span style="color:var(--muted)">(≈ <span id="scanCost">0</span> نداء وكلاء)</span></div>
-        <button class="btn-gold" id="analyzeSelBtn" onclick="analyzeSelected()">🧠 حلّل المختار بالوكلاء</button>
-      </div>
-    </div>`;
-  r.results.forEach((res,i)=>{
-    const sColor = res.score>=100?"var(--buy)":res.score>=65?"var(--gold2)":res.score>=40?"var(--hold)":"var(--sell)";
-    const rank = i<5?"🥇":i<10?"🥈":i<15?"🥉":"";
-    html+=`<div class="result-card" id="scan-card-${res.symbol}">
-      <div class="result-head">
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;flex:1">
-          <input type="checkbox" id="chk-${res.symbol}" onchange="toggleScanSel('${res.symbol}')" style="width:18px;height:18px;accent-color:var(--gold)">
-          <span class="sym">${rank} ${res.name||res.symbol} <span class="code">${res.symbol}</span></span>
-        </label>
-        <span class="badge" style="background:var(--bg2);color:${sColor}">${res.status} · ${res.score}</span>
-      </div>
-      <div style="margin-top:10px;display:flex;gap:16px;flex-wrap:wrap;font-size:.82rem;color:var(--muted)">
-        <span>السعر ${res.price}</span><span>TEMA ${res.tema_20??'—'}</span>
-        <span>POC90 ${res.poc_90??'—'}</span><span>VAH90 ${res.vah_90??'—'}</span>
-      </div></div>`;
-  });
-  box.innerHTML=html;
-  updateScanCount();
-}
-function pickTop(n){
-  STATE.scanSelected=new Set();
-  STATE.scanResults.slice(0,n).forEach(r=>STATE.scanSelected.add(r.symbol));
-  // حدّث خانات الاختيار
-  STATE.scanResults.forEach(r=>{
-    const chk=document.getElementById("chk-"+r.symbol);
-    if(chk) chk.checked=STATE.scanSelected.has(r.symbol);
-  });
-  updateScanCount();
-}
-function clearScanSel(){
-  STATE.scanSelected=new Set();
-  STATE.scanResults.forEach(r=>{ const chk=document.getElementById("chk-"+r.symbol); if(chk)chk.checked=false; });
-  updateScanCount();
-}
-function updateScanCount(){
-  const n=(STATE.scanSelected||new Set()).size;
-  const c=document.getElementById("scanSelCount"); if(c)c.textContent=n;
-  const cost=document.getElementById("scanCost"); if(cost)cost.textContent=n*4;   // ~4 نداءات لكل سهم
-}
-function toggleScanSel(sym){
-  if(!STATE.scanSelected) STATE.scanSelected=new Set();
-  if(STATE.scanSelected.has(sym)) STATE.scanSelected.delete(sym); else STATE.scanSelected.add(sym);
-  updateScanCount();
-}
-async function analyzeSelected(){
-  if(STATE.running) return;
-  const syms=[...(STATE.scanSelected||[])];
-  if(!syms.length){ showToast("اختر سهماً واحداً على الأقل"); return; }
-  STATE.running=true;
-  const btn=document.getElementById("analyzeSelBtn"); if(btn)btn.disabled=true;
-  const box=document.getElementById("results");
-  box.innerHTML=`<div class="progress">تحليل ${syms.length} سهم مختار بالوكلاء…
-    <div class="bar"><div class="fill" id="pfill" style="width:5%"></div></div></div>`;
-  let p=5; const timer=setInterval(()=>{p=Math.min(p+3,92);const f=document.getElementById("pfill");if(f)f.style.width=p+"%";},800);
-  try{
-    const r=await api("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({mode:"manual", symbols:syms})});
-    clearInterval(timer);
-    STATE.lastResults=r.results;
-    renderGroupResults(r, box);
-  }catch(e){ clearInterval(timer); box.innerHTML=`<div class="err">⚠️ ${e.message}</div>`; }
-  finally{ STATE.running=false; if(btn)btn.disabled=false; }
-}
-
-async function runMarket(){
-  if(STATE.running) return;
-  let syms=[];
-  STATE.groupsData.forEach(g=>{ syms.push(...g.symbols.map(s=>s.symbol)); });
-  syms=[...new Set(syms)];
-  if(!syms.length){ showToast("القائمة فارغة"); return; }
-  if(!confirm(`⚠️ تحذير تكلفة: سيُحلّل ${syms.length} سهم بالوكلاء الأربعة (استهلاك توكن كبير). \n\nالأفضل استخدام "السكانر المجاني" أولاً ثم تحليل المختار فقط. \n\nمتابعة التحليل الكامل المكلف؟`)) return;
-  STATE.running=true;
-  const btn=document.getElementById("marketBtn"); if(btn)btn.disabled=true;
-  const box=document.getElementById("results");
-  const all=[]; let done=0, failed=0;
-  function draw(){
-    const pct=Math.round(done/syms.length*100);
-    box.innerHTML=`<div class="progress">فحص السوق: <b>${done}</b> / ${syms.length} (${pct}%) · فشل ${failed}
-      <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
-      <div style="margin-top:6px;color:var(--muted)">يحلّل بتأنٍّ لحماية التوكن…</div></div>`
-      + currentRankingHTML(all);
-  }
-  draw();
-  for(const sym of syms){
-    if(!STATE.running) break;
-    try{ const r=await api("/api/quick/"+encodeURIComponent(sym)); all.push(r); }
-    catch(e){ failed++; }
-    done++; draw();
-    await new Promise(res=>setTimeout(res, 1200));   // بطء متعمّد: 1.2 ثانية بين الأسهم
-  }
-  STATE.lastResults=all;
-  STATE.running=false; if(btn)btn.disabled=false;
-  box.innerHTML=`<div class="sec-head"><div class="dot"></div><h2>نتائج السوق</h2>
-    <span class="tag">${all.length} سهم · فشل ${failed}</span></div>
-    <div style="margin-bottom:14px"><button class="btn-gold" onclick="exportCurrentResults()" style="padding:11px 20px">📄 صدّر تقرير PDF</button></div>`+ rankedResultsHTML(all);
-}
-function _rankKey(r){
-  const dec = r.decision==="شراء"?2 : r.decision==="حياد"?1 : 0;
-  const sc = r.scanner?r.scanner.score:0;
-  return dec*1000 + sc*5 + (r.agreement_pct||0);
-}
-function currentRankingHTML(all){
-  if(!all.length) return "";
-  const sorted=[...all].sort((a,b)=>_rankKey(b)-_rankKey(a)).slice(0,10);
-  return `<div style="margin-top:14px;color:var(--muted);font-size:.85rem">أفضل ١٠ حتى الآن:</div>`
-    + sorted.map(r=>`<div style="display:flex;justify-content:space-between;padding:8px 12px;background:var(--bg2);border:1px solid var(--line2);border-radius:9px;margin-top:6px">
-        <span>${r.name||r.symbol} <span class="mono" style="color:var(--muted);font-size:.8rem">${r.symbol}</span></span>
-        <span class="badge ${BB[r.decision]||'b-hold'}">${r.decision}${r.scanner?' · '+r.scanner.score:''}</span>
-      </div>`).join("");
-}
-function rankedResultsHTML(all){
-  const sorted=[...all].sort((a,b)=>_rankKey(b)-_rankKey(a));
-  let html="";
-  sorted.forEach((res,i)=>{
-    html+=`<div class="result-card">
-      <div class="result-head" onclick="toggleDetail(${i})">
-        <span class="sym">#${i+1} ${res.name||res.symbol} <span class="code">${res.symbol}</span></span>
-        <span class="badge ${BB[res.decision]||'b-hold'}">${res.decision} ${res.agreement_pct}%${res.scanner?' · '+res.scanner.score:''}</span>
-      </div>
-      <div id="detail-${i}" class="hidden" style="margin-top:14px">
-        ${scannerHTML(res.scanner)}${fairValueCard(res)}${agentsHTML(res.opinions||[])}${copyBtn(res)}
-      </div></div>`;
-  });
-  return html;
-}
-
-async function runAgent(){
-  if(STATE.running) return;
-  STATE.running=true;
-  const btn=document.getElementById("agentBtn"); if(btn)btn.disabled=true;
-  const box=document.getElementById("agentResults");
-  box.innerHTML=`<div class="spinner"><div class="s"></div><div style="margin-top:12px">الاستراتيجي يقرأ السوق ويحلّل…</div></div>`;
-  try{
-    const r=await api("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({mode:"agent"})});
-    let html="";
-    if(r.pick){ html+=`<div class="verdict-card"><div class="vl">قرار الاستراتيجي · السوق: ${r.pick.market_mood}</div>
-      <div class="verdict-big" style="color:var(--gold2);font-size:1.5rem">${r.pick.chosen_preset}</div>
-      <div class="pct">${r.pick.reasoning}</div></div>`; }
-    box.innerHTML=html;
-    renderGroupResults(r, {innerHTML:""}, "agentResults", html);
-  }catch(e){ box.innerHTML=`<div class="err">⚠️ ${e.message}</div>`; }
-  finally{ STATE.running=false; if(btn)btn.disabled=false; }
-}
-
-/* ===== مكوّن مؤشرات السكانر ===== */
-function scannerHTML(sc){
-  if(!sc) return "";
-  const sigColor = sc.score>=100?"var(--buy)":sc.score>=65?"var(--gold2)":sc.score>=40?"var(--hold)":"var(--sell)";
-  const yn = b => b ? `<span style="color:var(--buy)">✓</span>` : `<span style="color:var(--sell)">✗</span>`;
-  const s = sc.signals||{};
-  return `<div class="panel">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <div style="font-weight:800;font-size:1.05rem">📐 المؤشرات الفنية (سكانر)</div>
-      <div style="font-weight:800;color:${sigColor}">${sc.status} · ${sc.score}/100</div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;font-size:.85rem">
-      <div style="background:var(--bg2);border:1px solid var(--line2);border-radius:10px;padding:10px">
-        <div style="color:var(--muted)">TEMA(20)</div><div class="mono" style="font-size:1.1rem;margin-top:3px">${sc.tema_20??'—'}</div></div>
-      <div style="background:var(--bg2);border:1px solid var(--line2);border-radius:10px;padding:10px">
-        <div style="color:var(--muted)">POC 30/90</div><div class="mono" style="font-size:.95rem;margin-top:3px">${sc.poc_30??'—'} / ${sc.poc_90??'—'}</div></div>
-      <div style="background:var(--bg2);border:1px solid var(--line2);border-radius:10px;padding:10px">
-        <div style="color:var(--muted)">VAH 30/90</div><div class="mono" style="font-size:.95rem;margin-top:3px">${sc.vah_30??'—'} / ${sc.vah_90??'—'}</div></div>
-    </div>
-    <div style="margin-top:12px;font-size:.84rem;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap">
-      <span>فوق TEMA ${yn(s.above_tema)}</span>
-      <span>فوق POC ${yn(s.above_poc)}</span>
-      <span>فوق VAH30 ${yn(s.above_vah30)}</span>
-      <span>فوق VAH90 ${yn(s.above_vah90)}</span>
-    </div>
-  </div>`;
-}
-
-/* ===== تصدير PDF (عبر الطباعة — يدعم العربية بشكل مثالي) ===== */
-function exportPDF(results, title){
-  if(!results || !results.length){ showToast("لا نتائج للتصدير"); return; }
-  const today = new Date().toLocaleDateString('ar-SA');
-  const decColor = d => d==="شراء"?"#1a7a4c":d==="بيع"?"#b32d38":"#8a7320";
-  // صفحة الملخّص: جدول مرتّب
-  let summaryRows = results.map((r,i)=>`
-    <tr>
-      <td>${i+1}</td>
-      <td style="text-align:right">${r.name||r.symbol} <span style="color:#888;font-size:11px">${r.symbol}</span></td>
-      <td style="color:${decColor(r.decision)};font-weight:bold">${r.decision}</td>
-      <td>${r.agreement_pct??'—'}%</td>
-      <td>${r.scanner?r.scanner.score+'/100':'—'}</td>
-      <td>${r.current_price??'—'}</td>
-      <td>${r.fair_value??'—'}</td>
-      <td style="color:${r.gap_pct>0?'#1a7a4c':r.gap_pct<0?'#b32d38':'#666'}">${r.gap_pct!=null?(r.gap_pct>0?'+':'')+r.gap_pct+'%':'—'}</td>
-    </tr>`).join("");
-
-  // تفاصيل كل سهم
-  let details = results.map((r,i)=>{
-    const sc = r.scanner;
-    const scanBlock = sc ? `
-      <div class="det-sec"><b>📐 المؤشرات الفنية:</b> الحالة ${sc.status} (${sc.score}/100) ·
-        TEMA ${sc.tema_20??'—'} · POC90 ${sc.poc_90??'—'} · VAH90 ${sc.vah_90??'—'}</div>` : "";
-    const fvBlock = (r.fair_value!=null||r.current_price!=null) ? `
-      <div class="det-sec"><b>💎 السعر العادل:</b> الحالي ${r.current_price??'—'} · العادل ${r.fair_value??'—'} ·
-        الفرق ${r.gap_pct!=null?(r.gap_pct>0?'+':'')+r.gap_pct+'%':'—'}</div>` : "";
-    const agentsBlock = (r.opinions||[]).map(op=>`
-      <div class="agent-row">
-        <div><b>${op.agent}</b> — <span style="color:${decColor(SAR[op.stance])}">${SAR[op.stance]||op.stance}</span>
-        (ثقة ${op.confidence}/10${op.score!=null?' · '+op.score+'/100':''})</div>
-        <div style="color:#444;font-size:12px">${op.reasoning}</div>
-      </div>`).join("");
-    return `
-      <div class="stock-detail ${i>0?'page-break':''}">
-        <h2>${i+1}. ${r.name||r.symbol} <span style="color:#888">(${r.symbol})</span></h2>
-        <div class="verdict" style="color:${decColor(r.decision)}">القرار: ${r.decision} · التوافق ${r.agreement_pct??'—'}%</div>
-        ${scanBlock}${fvBlock}
-        <div class="det-sec"><b>🧠 آراء المحللين:</b></div>
-        ${agentsBlock}
-      </div>`;
-  }).join("");
-
-  const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
-    <title>${title||'تقرير وكلاء سهمك'}</title>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800&display=swap');
-      *{font-family:'Tajawal',sans-serif;box-sizing:border-box}
-      body{padding:30px;color:#1a1a1a;line-height:1.6}
-      .header{text-align:center;border-bottom:3px solid #C9A24B;padding-bottom:16px;margin-bottom:24px}
-      .header h1{color:#08251C;margin:0;font-size:24px}
-      .header .sub{color:#888;font-size:13px;margin-top:4px}
-      table{width:100%;border-collapse:collapse;margin-bottom:20px}
-      th{background:#08251C;color:#E4C887;padding:10px 8px;font-size:13px}
-      td{padding:9px 8px;border-bottom:1px solid #e5e5e5;text-align:center;font-size:13px}
-      tr:nth-child(even){background:#f8f8f6}
-      .stock-detail{margin-bottom:26px;padding:18px;border:1px solid #ddd;border-radius:10px}
-      .stock-detail h2{color:#08251C;font-size:18px;margin:0 0 8px;border-bottom:1px solid #eee;padding-bottom:6px}
-      .verdict{font-weight:800;font-size:15px;margin-bottom:10px}
-      .det-sec{margin:8px 0;font-size:13px}
-      .agent-row{margin:8px 0;padding:8px 12px;background:#f6f6f4;border-radius:8px}
-      .page-break{page-break-before:always}
-      .footer{margin-top:20px;padding-top:14px;border-top:1px solid #ddd;color:#999;font-size:11px;text-align:center}
-      @media print{body{padding:12px}}
-    </style></head><body>
-    <div class="header"><h1>◆ وكلاء سهمك — تقرير التحليل</h1>
-      <div class="sub">${title||''} · ${today} · ${results.length} سهم</div></div>
-    <h2 style="color:#08251C;font-size:17px">📊 الملخّص</h2>
-    <table><thead><tr>
-      <th>#</th><th>السهم</th><th>القرار</th><th>التوافق</th><th>الدرجة الفنية</th>
-      <th>السعر</th><th>العادل</th><th>الفرق</th>
-    </tr></thead><tbody>${summaryRows}</tbody></table>
-    <div class="page-break"></div>
-    <h2 style="color:#08251C;font-size:17px">📋 التفاصيل</h2>
-    ${details}
-    <div class="footer">⚠️ هذا التقرير أداة دعم قرار وليس توصية مالية. راجع بياناتك واستشر مختصاً قبل أي قرار استثماري.</div>
-    </body></html>`;
-
-  const w = window.open('', '_blank');
-  if(!w){ showToast("اسمح بالنوافذ المنبثقة للتصدير"); return; }
-  w.document.write(html);
-  w.document.close();
-  setTimeout(()=>{ w.focus(); w.print(); }, 600);   // نافذة الطباعة → احفظ كـ PDF
-}
-function exportCurrentResults(){
-  const r = STATE.lastResults;
-  if(!r || !r.length){ showToast("حلّل أسهماً أولاً"); return; }
-  exportPDF(r, "نتائج التحليل");
-}
-
-/* ===== تبويب الأنماط: كاشف الوتد الهابط + دايفرجنز MACD (مستقل) ===== */
-function renderPatterns(){
-  return `
-    <div class="sec-head"><div class="dot"></div><h2>الأنماط الفنية</h2>
-      <span class="tag">الوتد الهابط + دايفرجنز MACD · صفر توكن</span></div>
-
-    <div class="panel" style="margin-bottom:16px">
-      <div style="font-size:.85rem;color:var(--muted);margin-bottom:8px">الفاصل الزمني (لكل العمليات):</div>
-      <select id="wedgeInterval" style="padding:9px 14px;border-radius:8px;background:var(--bg2);color:var(--ink);border:1px solid var(--line);margin-bottom:16px">
-        <option value="60m">ساعة (60m) — الأفضل</option>
-        <option value="1d">يومي (1d)</option>
-      </select>
-
-      <!-- زر ١: تحديث الشموع فقط -->
-      <div style="border-top:1px solid var(--line);padding-top:14px;margin-bottom:14px">
-        <div style="font-weight:700;margin-bottom:4px">١· تحديث قاعدة الشموع فقط</div>
-        <div style="font-size:.82rem;color:var(--muted);margin-bottom:10px">يسحب الشموع ويخزّنها في الأرشيف — بدون تحليل. استخدمه دورياً (يومي/أسبوعي).</div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-          <button class="btn-gold" onclick="buildArchive('all')" style="padding:10px 20px">📥 حدّث كل السوق</button>
-          <input id="archiveTarget" placeholder="رمز (مثال: 2222)" style="padding:9px 12px;border-radius:8px;background:var(--bg2);color:var(--ink);border:1px solid var(--line);flex:1;min-width:140px">
-          <button class="copy-btn" onclick="buildArchive('symbol')">حدّث سهماً</button>
-        </div>
-      </div>
-
-      <!-- زر ٢: تحليل فقط -->
-      <div style="border-top:1px solid var(--line);padding-top:14px;margin-bottom:14px">
-        <div style="font-weight:700;margin-bottom:4px">٢· تحليل الأنماط فقط</div>
-        <div style="font-size:.82rem;color:var(--muted);margin-bottom:10px">يفحص الشموع المخزّنة بحثاً عن النموذج — بدون سحب جديد. سريع ومجاني.</div>
-        <button class="btn-gold" onclick="runWedgeScan()" style="padding:10px 20px">🔍 حلّل السوق للأنماط</button>
-      </div>
-
-      <!-- زر ٣: تحديث + تحليل (معطّل لاحقاً) -->
-      <div style="border-top:1px solid var(--line);padding-top:14px">
-        <div style="font-weight:700;margin-bottom:4px">٣· تحديث + تحليل معاً <span style="font-size:.7rem;color:var(--muted)">(لاحقاً)</span></div>
-        <div style="font-size:.82rem;color:var(--muted);margin-bottom:10px">يسحب الشموع ثم يحلّل مباشرة — بعد اكتمال تراكم القاعدة.</div>
-        <button class="copy-btn" onclick="updateAndAnalyze()" style="opacity:.55;cursor:not-allowed" disabled>🔄 تحديث + تحليل</button>
-      </div>
-
-      <div style="display:flex;gap:10px;align-items:center;margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
-        <button class="copy-btn" onclick="refreshArchiveStats()">📊 عدد الشموع المخزّنة</button>
-        <span id="archiveStats" style="font-size:.85rem;color:var(--muted)">—</span>
-      </div>
-      <div style="display:flex;gap:10px;align-items:center;margin-top:10px">
-        <button class="btn-gold" onclick="runHistoricalBackfill()">🕒 تعبئة تاريخية (3 سنوات لكل السوق)</button>
-        <span id="backfillMsg" style="font-size:.85rem;color:var(--muted)"></span>
-      </div>
-      <div id="archiveMsg" style="margin-top:10px"></div>
-    </div>
-
-    <div id="wedgeResults"></div>
-
-    <!-- ═══════════════════════════════════════════════════════════
-         ▼▼▼ قسم مستقل: التوصيات اليومية (منقول من الأنماط الكلاسيكية)
-         قسم قائم بذاته — يعرض توصيات السكان اليومي (الإيميل موقوف)
-         لإعادة الترتيب لاحقاً: انقل هذا البلوك كاملاً + دالة loadDailyRecos
-         ═══════════════════════════════════════════════════════════ -->
-    <div style="margin-top:24px;border-top:2px dashed var(--gold2);padding-top:20px">
-      <div class="sec-head"><div class="dot"></div><h2>📅 التوصيات اليومية</h2>
-        <span class="tag">استعراض في الموقع · بدون إيميل</span></div>
-      <div class="panel" style="margin-bottom:14px">
-        <div style="font-size:.85rem;color:var(--muted);line-height:1.8">
-          توصيات السكان اليومي محفوظة هنا للاستعراض (إيميلها موقوف).
-          اختر اليوم لعرض توصياته: الأسهم، الأهداف، ومدى تحقّقها.
-        </div>
-        <button class="btn-gold" onclick="loadDailyRecos()" style="padding:10px 20px;margin-top:12px">📅 استعرض التوصيات اليومية</button>
-      </div>
-      <div id="dailyRecoStats"></div>
-      <div id="dailyRecoResults"></div>
-    </div>
-    <!-- ▲▲▲ نهاية قسم التوصيات اليومية ▲▲▲ -->`;
-}
-
-async function updateAndAnalyze(){
-  // معطّل حالياً — يُفعّل بعد اكتمال تراكم القاعدة
-  const interval=document.getElementById("wedgeInterval").value;
-  document.getElementById("archiveMsg").innerHTML=
-    `<div class="panel" style="color:var(--muted)">⏳ جاري التحديث ثم التحليل...</div>`;
-  await buildArchive('all', true);   // اسحب بصمت
-  await runWedgeScan();              // ثم حلّل
-}
-
-async function buildArchive(mode, silent){
-  if(STATE.running) return;
-  const msg=document.getElementById("archiveMsg");
-  let body;
-  if(mode==="all"){
-    if(!silent && !confirm("سحب كل السوق (٢٤٤ سهم) قد يستغرق عدة دقائق. متابعة؟")) return;
-    body={scope:"all"};
-  }else{
-    const t=document.getElementById("archiveTarget").value.trim();
-    if(!t){ msg.innerHTML=`<span style="color:var(--sell)">اكتب رمز سهم أولاً</span>`; return; }
-    body={scope:"symbols",target:[t]};
-  }
-  STATE.running=true;
-  msg.innerHTML=`<div class="panel" style="text-align:center;color:var(--muted)">⏳ جاري بدء السحب...</div>`;
-  try{
-    await api("/api/archive/save",{
-      method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify(body)
-    });
-    const poll=setInterval(async()=>{
-      try{
-        const s=await api("/api/bg-status/archive");
-        if(s.status==="running"){
-          msg.innerHTML=`<div class="panel" style="text-align:center;color:var(--muted)">⏳ جاري السحب... ${s.progress||0}% (${s.done||0}/${s.total||0})</div>`;
-        }else if(s.status==="done"){
-          clearInterval(poll); STATE.running=false;
-          msg.innerHTML=`<div class="panel" style="color:var(--buy)">
-            ✅ تم! عولج ${s.symbols_processed} سهم · حُفظت ${s.candles_saved} شمعة · أخطاء ${s.errors}</div>`;
-          refreshArchiveStats();
-        }else if(s.status==="error"){
-          clearInterval(poll); STATE.running=false;
-          msg.innerHTML=`<div class="panel" style="color:var(--sell)">خطأ: ${s.error}</div>`;
-        }
-      }catch(e){ /* تجاهل */ }
-    },3000);
-  }catch(e){
-    STATE.running=false;
-    msg.innerHTML=`<div class="panel" style="color:var(--sell)">خطأ: ${e.message}</div>`;
-  }
-}
-
-async function refreshArchiveStats(){
-  const el=document.getElementById("archiveStats");
-  el.textContent="⏳ ...";
-  try{
-    const d=await api("/api/archive/stats");
-    el.innerHTML=`إجمالي الشموع المخزّنة: <b style="color:var(--gold2);font-family:'IBM Plex Mono'">${d.total_rows}</b>`;
-  }catch(e){ el.textContent="تعذّر جلب الإحصائية"; }
-}
-
-async function runHistoricalBackfill(){
-  if(STATE.running) return;
-  if(!confirm("تعبئة تاريخية لـ3 سنوات لكل السوق (~240 سهم) قد تستغرق عدة دقائق. متابعة؟")) return;
-  const msg=document.getElementById("backfillMsg");
-  STATE.running=true;
-  msg.textContent="⏳ جاري بدء السحب التاريخي...";
-  try{
-    await api("/api/archive/backfill-all?years=3",{method:"POST"});
-    const poll=setInterval(async()=>{
-      try{
-        const s=await api("/api/bg-status/backfill");
-        if(s.status==="running"){
-          msg.textContent=`⏳ جاري السحب التاريخي... ${s.progress||0}% (${s.done||0}/${s.total||0})`;
-        }else if(s.status==="done"){
-          clearInterval(poll); STATE.running=false;
-          msg.innerHTML=`<span style="color:var(--buy)">✅ تم! نجح ${s.succeeded} · فشل ${s.failed} · إجمالي شموع ${s.total_candles}</span>`;
-          refreshArchiveStats();
-        }else if(s.status==="error"){
-          clearInterval(poll); STATE.running=false;
-          msg.innerHTML=`<span style="color:var(--sell)">خطأ: ${s.error}</span>`;
-        }
-      }catch(e){ /* تجاهل */ }
-    },3000);
-  }catch(e){
-    STATE.running=false;
-    msg.innerHTML=`<span style="color:var(--sell)">خطأ: ${e.message}</span>`;
-  }
-}
-
-async function runWedgeScan(){
-  if(STATE.running) return;
-  const interval=document.getElementById("wedgeInterval").value;
-  const box=document.getElementById("wedgeResults");
-  STATE.running=true;
-  box.innerHTML=`<div class="panel" style="text-align:center;color:var(--muted)">
-    ⏳ جاري مسح السوق للوتد الهابط... (قد يستغرق دقيقة)</div>`;
-  try{
-    const d=await api("/api/pattern/wedge",{
-      method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({scope:"all",interval:interval,use_archive:true})
-    });
-    renderWedgeResults(d,box);
-  }catch(e){
-    box.innerHTML=`<div class="panel" style="color:var(--sell)">خطأ: ${e.message}</div>`;
-  }finally{ STATE.running=false; }
-}
-
-function renderWedgeResults(d,box){
-  const fully=d.fully_formed||[], near=d.near_forming||[];
-  if(!fully.length && !near.length){
-    box.innerHTML=`<div class="panel" style="color:var(--muted)">
-      لا أسهم تطابق الشرط حالياً على فاصل ${d.interval}. (فُحص ${d.scanned} سهم)</div>`;
-    return;
-  }
-  const card=(r,badge,bColor)=>`
-    <div class="result-card">
-      <div class="result-head">
-        <span class="sym">${r.name||r.symbol} <span class="code">${r.symbol}</span></span>
-        <span class="badge" style="background:var(--bg2);color:${bColor}">${badge} · ${r.score}/100</span>
-      </div>
-      <div style="margin-top:6px;font-size:.8rem;color:var(--gold2)">${r.status}</div>
-      <div style="margin-top:8px;display:flex;gap:16px;flex-wrap:wrap;font-size:.82rem;color:var(--muted)">
-        <span>السعر ${r.current_price??'—'}</span>
-        <span>🎯 الهدف ${r.target??'—'}</span>
-        <span>الشموع ${r.candles??'—'}</span>
-        ${r.detected_at?`<span>🕐 ${r.detected_at}</span>`:''}
-      </div>
-    </div>`;
-  let html="";
-  if(fully.length){
-    html+=`<div class="sec-head"><div class="dot"></div><h2>✅ محقّقون بالكامل</h2>
-      <span class="tag">${fully.length} سهم</span></div>`;
-    html+=fully.map(r=>card(r,"محقق","var(--buy)")).join("");
-  }
-  if(near.length){
-    html+=`<div class="sec-head" style="margin-top:20px"><div class="dot"></div><h2>⏳ القائمة المهمة (قريبون)</h2>
-      <span class="tag">${near.length} سهم · للمتابعة اليومية</span></div>`;
-    html+=near.map(r=>card(r,"قريب","var(--hold)")).join("");
-  }
-  // زر نسخ القائمة المهمة للمتابعة
-  if(d.watchlist&&d.watchlist.length){
-    html+=`<div class="panel" style="margin-top:16px">
-      <div style="font-size:.85rem;color:var(--muted);margin-bottom:8px">القائمة المهمة (${d.watchlist.length} رمز):</div>
-      <div style="font-family:'IBM Plex Mono';color:var(--gold2)">${d.watchlist.join("، ")}</div>
-    </div>`;
-  }
-  box.innerHTML=html;
-}
-
-function setTab(t){ STATE.tab=t; shell(); if(t==="groups") setTimeout(updateSelBar,50);
-  if(t==="strategy") setTimeout(()=>{ loadStrategySignals(); loadStrategyPerf(); loadHorizon(); },50); }
-
-// ═══════════════════════════════════════════════════════════════
-//  تبويب مستقل جديد: استراتيجية الاختراق والتوافق الرقمي
-//  (لا يستخدم أي دالة أو متغيّر من تبويبات الأنماط/السكانر الأخرى)
-// ═══════════════════════════════════════════════════════════════
-
-function renderBreakout(){
-  return `
-    <div class="sec-head"><div class="dot"></div><h2>استراتيجية الاختراق والتوافق الرقمي</h2>
-      <span class="tag">زخم + مقاومات + توافق ماكد رباعي · سكور 0-140</span></div>
-
-    <div class="panel" style="margin-bottom:16px">
-      <div style="font-size:.85rem;color:var(--muted);margin-bottom:10px">
-        الأساس (100) = جودة الزخم والسيولة (VPVR, ADX, Williams%R, MFI, RSI, EMV)<br>
-        + بونص مستقل اختراق المقاومات (حتى 20) + بونص مستقل توافق الماكد الرباعي (حتى 20)
-      </div>
-      <select id="breakoutScope" style="padding:9px 14px;border-radius:8px;background:var(--bg2);color:var(--ink);border:1px solid var(--line);margin-bottom:14px">
-        <option value="all_market">كل السوق</option>
-      </select>
-      <button class="btn-gold" onclick="runBreakoutScan()" style="padding:10px 20px">🚀 شغّل السكانر</button>
-      <span id="breakoutMsg" style="margin-inline-start:12px;font-size:.85rem;color:var(--muted)"></span>
-    </div>
-
-    <div id="breakoutResults"></div>`;
-}
-
-async function runBreakoutScan(){
-  if(STATE.running) return;
-  const box=document.getElementById("breakoutResults");
-  const msg=document.getElementById("breakoutMsg");
-  STATE.running=true;
-  msg.textContent="⏳ جاري الفحص... قد يستغرق دقيقة لكل السوق";
-  box.innerHTML="";
-  try{
-    const d=await api("/api/breakout-scan",{
-      method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({scan_type:"all_market"})
-    });
-    msg.textContent=`تم فحص ${d.scanned} سهم · ${d.qualified} نتيجة · ${d.errors_count} خطأ`;
-    renderBreakoutResults(d,box);
-  }catch(e){
-    msg.textContent="";
-    box.innerHTML=`<div class="panel" style="color:var(--sell)">خطأ: ${e.message}</div>`;
-  }finally{ STATE.running=false; }
-}
-
-function renderBreakoutResults(d,box){
-  const rows=d.results||[];
-  if(!rows.length){
-    box.innerHTML=`<div class="panel" style="color:var(--muted)">لا نتائج (تحقق من وجود بيانات بالأرشيف).</div>`;
-    return;
-  }
-  const card=(r)=>{
-    const det=r.details||{};
-    return `
-    <div class="result-card">
-      <div class="result-head">
-        <span class="sym">${r.name||r.symbol} <span class="code">${r.symbol}</span></span>
-        <span class="badge" style="background:var(--bg2);color:var(--gold2)">${r.final_score}/140</span>
-      </div>
-      <div style="margin-top:6px;display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--muted)">
-        <span>الأساس (زخم) ${r.base_score}/100</span>
-        <span>بونص مقاومات ${r.resistance_bonus}/20</span>
-        <span>بونص ماكد ${r.macd_bonus}/20</span>
-      </div>
-      <div style="margin-top:8px;display:flex;gap:16px;flex-wrap:wrap;font-size:.8rem;color:var(--muted)">
-        <span>السعر ${r.price?.toFixed?r.price.toFixed(2):r.price}</span>
-        <span>ADX ${det.adx?.toFixed?det.adx.toFixed(1):'—'}</span>
-        <span>RSI ${det.rsi?.toFixed?det.rsi.toFixed(1):'—'}</span>
-        <span>MFI ${det.mfi?.toFixed?det.mfi.toFixed(1):'—'}</span>
-        <span>Williams%R ${det.williams_r?.toFixed?det.williams_r.toFixed(1):'—'}</span>
-      </div>
-      <div style="margin-top:6px;display:flex;gap:14px;flex-wrap:wrap;font-size:.78rem;color:var(--muted)">
-        <span>VAH شهر ${det.vpvr_1m_vah??'—'}</span>
-        <span>VAH 3 أشهر ${det.vpvr_3m_vah??'—'}</span>
-        <span>ماكد يومي ${det.macd_daily_above?'✅':'❌'}</span>
-        <span>أسبوعي ${det.macd_weekly_above?'✅':'❌'}</span>
-        <span>ساعة ${det.macd_hourly_above?'✅':'❌'}</span>
-        <span>شهري ${det.macd_monthly_above?'✅':'❌'}</span>
-      </div>
-    </div>`;
-  };
-  box.innerHTML = rows.map(card).join("");
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  تبويب مستقل جديد: راصد — 58 عمود بديلة عن تكرشارت من بيانات سهمك
-//  (لا يستخدم أي دالة أو متغيّر من تبويبات الاختراق/الأنماط الأخرى)
-// ═══════════════════════════════════════════════════════════════
-
-const RASID_COLS = [
-  "فوق المتوسطات","سيولة انفجارية","Daily william positive with change ref to old data",
-  "Weekly william positive with change ref to old data","4H william positive with change ref to old data",
-  "4H william","اختبار ترند","أختراق قمة","الحجم أعلى من متوسطه 100-144-200","أسهم الطفرة",
-  "ايشيموكو","فوق rsi60 ساعه مع المتوسطات","متوسط الحجم","%W","NEw","أسهم الطفرة 2 ايشمكو",
-  "الاسهم الذهبيه","اختراق MFI 60 اسبوعي","أسهم أستثمارية","فوق 69 rsi اسبوعي","TEMA",
-  "تقاطعات الماكد الايجابية","أسهم النسب","ويليم مفاجئ","اختراق WR لمستوى -50 صعودا",
-  "اختراق sto","تشبع في البيع مع صعود RSI","اسهم فوق 20-35-50","5 يخترق 10",
-  "CCI اشارة ايجابية","ارتكاز","الايجابية","التجميع وتصريف","تدفق السيولة","صافي السيولة",
-  "نسبة السيولة %","% عن متوسط 50","% عن متوسط 100","% عن متوسط 200",
-  "التغير الاسبوعي %","التغير الشهري %"
-];
-
-function renderRasid(){
-  return `
-    <div class="sec-head"><div class="dot"></div><h2>راصد — بديل تكرشارت</h2>
-      <span class="tag">58 عمود من بيانات سهمك · لقطات تاريخية محفوظة</span></div>
-
-    <div class="panel" style="margin-bottom:16px">
-      <div style="font-size:.85rem;color:var(--muted);margin-bottom:10px">
-        يسحب كل السوق من أرشيف سهمك، يحسب 58 عمودًا (نفس أعمدة تكرشارت)، ويحفظ لقطة
-        تاريخية جديدة بكل تشغيل — بدون حذف اللقطات القديمة.
-      </div>
-      <button class="btn-gold" onclick="runRasidScan()" style="padding:10px 20px">🚀 شغّل السحب الآن</button>
-      <button class="copy-btn" onclick="loadRasidLatest()" style="margin-inline-start:8px">📋 آخر لقطة محفوظة</button>
-      <button class="copy-btn" onclick="exportRasidLatest()" style="margin-inline-start:8px">📤 تصدير CSV للمقارنة</button>
-      <span id="rasidMsg" style="margin-inline-start:12px;font-size:.85rem;color:var(--muted)"></span>
-    </div>
-
-    <div class="panel" style="margin-bottom:16px">
-      <div style="font-size:.85rem;color:var(--muted);margin-bottom:8px">📅 استعراض بيانات فترة زمنية</div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <label style="font-size:.82rem;color:var(--muted)">من:</label>
-        <input type="date" id="rasidDateFrom" style="padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:.85rem">
-        <label style="font-size:.82rem;color:var(--muted)">إلى:</label>
-        <input type="date" id="rasidDateTo" style="padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:.85rem">
-        <button class="copy-btn" onclick="loadRasidByRange()" style="padding:8px 16px">📋 استعراض</button>
-        <button class="copy-btn" onclick="exportRasidRange()" style="padding:8px 16px">📤 تصدير CSV</button>
-        <span id="rasidRangeMsg" style="font-size:.82rem;color:var(--muted)"></span>
-      </div>
-    </div>
-
-    <div id="rasidResults" style="overflow-x:auto"></div>`;
-}
-
-async function runRasidScan(){
-  if(STATE.running) return;
-  const msg=document.getElementById("rasidMsg");
-  const box=document.getElementById("rasidResults");
-  STATE.running=true;
-  msg.textContent="⏳ جاري بدء السحب...";
-  box.innerHTML="";
-  try{
-    await api("/api/rasid/run",{
-      method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({scan_type:"all_market"})
-    });
-    // متابعة التقدم كل 3 ثوانٍ
-    const poll=setInterval(async()=>{
-      try{
-        const s=await api("/api/bg-status/rasid");
-        if(s.status==="running"){
-          msg.textContent=`⏳ جاري السحب... ${s.progress||0}% (${s.done||0}/${s.total||0})`;
-        }else if(s.status==="done"){
-          clearInterval(poll);
-          STATE.running=false;
-          msg.textContent=`✅ تم فحص ${s.scanned} سهم · حُفظت ${s.saved} لقطة · ${s.errors_count} خطأ`;
-          loadRasidLatest();
-        }else if(s.status==="error"){
-          clearInterval(poll);
-          STATE.running=false;
-          msg.textContent="";
-          box.innerHTML=`<div class="panel" style="color:var(--sell)">خطأ: ${s.error}</div>`;
-        }
-      }catch(e){ /* تجاهل أخطاء الاستعلام المؤقتة */ }
-    },3000);
-  }catch(e){
-    STATE.running=false;
-    msg.textContent="";
-    box.innerHTML=`<div class="panel" style="color:var(--sell)">خطأ: ${e.message}</div>`;
-  }
-}
-
-
-// ═══════════════════════════════════════════════════════════════
-//  تبويب الاستراتيجية — مساران مستقلان مع تتبع وتعلّم
-// ═══════════════════════════════════════════════════════════════
-STATE.stratFilter = "active";
-STATE.stratPath = "both";
-STATE.stratShared = false;
-
-function renderStrategy(){
-  return `
-    <div class="sec-head"><div class="dot"></div><h2>الاستراتيجية اليومية</h2>
-      <span class="tag">مساران · هدف +2% خلال 5 أيام</span></div>
-
-    <div class="panel" style="margin-bottom:14px">
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <button class="btn-gold" onclick="runStrategy()" style="padding:10px 20px">🎯 شغّل الاستراتيجية</button>
-        <button class="copy-btn" onclick="loadStrategyPerf()">📊 تقرير الأداء</button>
-        <a class="copy-btn" href="/api/strategy/email/preview" target="_blank"
-           style="text-decoration:none;display:inline-block">📧 معاينة التقرير</a>
-        <button class="copy-btn" onclick="exportStrategyCsv()">📤 تصدير CSV</button>
-        <button class="copy-btn" onclick="exportStrategyJson()">🗂️ نسخة كاملة</button>
-        <span id="stratMsg" style="font-size:.85rem;color:var(--muted)"></span>
-      </div>
-      <div style="font-size:.8rem;color:var(--muted);margin-top:8px">
-        يقرأ آخر لقطة راصد ويحسب مسارين مستقلين — حساب رياضي بالكامل، صفر توكن.
-      </div>
-    </div>
-
-    <div id="stratPerf"></div>
-    <div id="stratHorizon"></div>
-
-    <div class="panel" style="margin-bottom:14px">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <span style="font-size:.85rem;color:var(--muted)">المسار:</span>
-        ${["both","khalid","claude"].map(p=>`
-          <button class="copy-btn ${STATE.stratPath===p?'active-filter':''}"
-            onclick="setStratPath('${p}')" style="padding:6px 14px">
-            ${p==="both"?"الاثنان":p==="khalid"?"خالد":"كلود"}</button>`).join("")}
-        <span style="width:14px"></span>
-        <span style="font-size:.85rem;color:var(--muted)">الحالة:</span>
-        ${[["active","🔵 جارية"],["success","✅ ناجحة"],["flat","⚪ بلا حركة"],
-           ["failed","❌ فاشلة"],["closed","📁 منتهية"]].map(([k,l])=>`
-          <button class="copy-btn ${STATE.stratFilter===k?'active-filter':''}"
-            onclick="setStratFilter('${k}')" style="padding:6px 14px">${l}</button>`).join("")}
-        <span style="width:14px"></span>
-        <button class="copy-btn ${STATE.stratShared?'active-filter':''}"
-          onclick="toggleShared()" style="padding:6px 14px">🤝 المشترك فقط</button>
-      </div>
-    </div>
-
-    <div id="stratResults"></div>`;
-}
-
-function toggleShared(){ STATE.stratShared=!STATE.stratShared; shell(); setTimeout(()=>{loadStrategySignals();loadStrategyPerf();},50); }
-function setStratPath(p){ STATE.stratPath=p; shell(); setTimeout(()=>{loadStrategySignals();loadStrategyPerf();},50); }
-function setStratFilter(f){ STATE.stratFilter=f; shell(); setTimeout(()=>{loadStrategySignals();loadStrategyPerf();},50); }
-
-
-async function exportStrategyCsv(){
-  const msg=document.getElementById("stratMsg");
-  msg.textContent="⏳ جاري التجهيز...";
-  try{
-    const res=await fetch("/api/strategy/export.csv");
-    if(!res.ok){ let d=""; try{d=(await res.json()).detail||"";}catch(e){}
-      throw new Error(d||`خطأ ${res.status}`); }
-    const blob=await res.blob();
-    if(blob.size<60) throw new Error("لا توجد إشارات بعد");
-    const u=URL.createObjectURL(blob), a=document.createElement("a");
-    a.href=u; a.download=`strategy_${new Date().toISOString().slice(0,10)}.csv`; a.click();
-    URL.revokeObjectURL(u);
-    msg.textContent="✅ تم تنزيل CSV";
-  }catch(e){ msg.innerHTML=`<span style="color:var(--sell)">❌ ${e.message}</span>`; }
-}
-
-async function exportStrategyJson(){
-  const msg=document.getElementById("stratMsg");
-  msg.textContent="⏳ جاري التجهيز...";
-  try{
-    const res=await fetch("/api/strategy/export");
-    if(!res.ok) throw new Error(`خطأ ${res.status}`);
-    const blob=await res.blob();
-    const u=URL.createObjectURL(blob), a=document.createElement("a");
-    a.href=u; a.download=`strategy_full_${new Date().toISOString().slice(0,10)}.json`; a.click();
-    URL.revokeObjectURL(u);
-    msg.textContent="✅ تم تنزيل النسخة الكاملة";
-  }catch(e){ msg.innerHTML=`<span style="color:var(--sell)">❌ ${e.message}</span>`; }
-}
-
-async function loadHorizon(){
-  const box=document.getElementById("stratHorizon");
-  if(!box) return;
-  try{
-    const d=await api("/api/strategy/horizon");
-    if(!d.ready){ box.innerHTML=""; return; }
-    const bs=d.by_strategy||{};
-    if(!Object.keys(bs).length){ box.innerHTML=""; return; }
-    const card=(k,t)=>{
-      const x=bs[k]; if(!x) return "";
-      return `<div style="flex:1;min-width:250px">
-        <div style="font-weight:700;color:var(--gold2);margin-bottom:6px">${t}</div>
-        <div style="font-size:.83rem;line-height:1.9">
-          ذروة الناجحة عند الحسم: <b>${x.avg_peak_at_close}%</b><br>
-          الذروة الكاملة (3 أسابيع): <b style="color:var(--buy)">${x.avg_peak_full}%</b>
-          ${x.avg_extra_gain>0?`<span style="color:var(--muted)"> (+${x.avg_extra_gain}% بعد الهدف)</span>`:""}<br>
-          نجاح متأخر: <b style="color:${x.late_success_pct>=30?'var(--gold2)':'var(--muted)'}">${x.late_success}</b>
-          من ${x.lost} خاسرة <span style="color:var(--muted)">(${x.late_success_pct}%)</span>
-          ${x.avg_days_to_late?`<span style="color:var(--muted)"> · ~${x.avg_days_to_late} يوم</span>`:""}
-        </div>
-        ${!x.mature?`<div style="font-size:.72rem;color:var(--muted);margin-top:4px">⚠️ العينة ${x.closed}/20</div>`:""}
-      </div>`;
-    };
-    let h=`<div class="panel" style="margin-bottom:14px">
-      <div style="font-weight:700;color:var(--gold2);margin-bottom:10px">
-        ⏱️ كفاية الهدف والمهلة
-        <span style="font-size:.75rem;color:var(--muted);font-weight:400">
-          · الهدف +${d.target_pct}% خلال ${d.horizon_days} أيام · متابعة ${d.watch_days} يوم بعدها</span>
-      </div>
-      <div style="display:flex;gap:20px;flex-wrap:wrap">
-        ${card("khalid","🧭 خالد")}${card("claude","🤖 كلود")}</div>`;
-    if((d.notes||[]).length){
-      h+=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
-        ${d.notes.map(n=>`<div style="font-size:.82rem;color:var(--gold2);margin:3px 0">💡 ${n}</div>`).join("")}
-      </div>`;
-    }
-    box.innerHTML=h+`</div>`;
-  }catch(e){ box.innerHTML=""; }
-}
-
-async function runStrategy(){
-  if(STATE.running) return;
-  const msg=document.getElementById("stratMsg");
-  STATE.running=true;
-  msg.textContent="⏳ جاري التشغيل...";
-  try{
-    await api(`/api/strategy/run?strategy=both&max_picks=10`);
-    const poll=setInterval(async()=>{
-      try{
-        const s=await api("/api/bg-status/strategy");
-        if(s.status==="done"){
-          clearInterval(poll); STATE.running=false;
-          const r=s.result||{};
-          const sv=r.saved||{};
-          const u=r.updated||{};
-          msg.innerHTML=`✅ خالد: ${sv.khalid||0} · كلود: ${sv.claude||0}`
-            +` <span style="color:var(--muted)">| حُسم: ${u.success||0} ناجحة، ${u.flat||0} بلا حركة، ${u.failed||0} فاشلة</span>`;
-          loadStrategySignals(); loadStrategyPerf(); loadHorizon();
-        }else if(s.status==="error"){
-          clearInterval(poll); STATE.running=false;
-          msg.innerHTML=`<span style="color:var(--sell)">خطأ: ${s.error}</span>`;
-        }
-      }catch(e){}
-    },2500);
-  }catch(e){
-    STATE.running=false;
-    msg.innerHTML=`<span style="color:var(--sell)">خطأ: ${e.message}</span>`;
-  }
-}
-
-async function loadStrategySignals(){
-  const box=document.getElementById("stratResults");
-  if(!box) return;
-  box.innerHTML=`<div class="panel" style="text-align:center;color:var(--muted)">⏳ جاري التحميل...</div>`;
-  try{
-    const p=STATE.stratPath==="both"?"":`strategy=${STATE.stratPath}&`;
-    const sh=STATE.stratShared?"&shared_only=true":"";
-    const d=await api(`/api/strategy/signals?${p}status=${STATE.stratFilter}&limit=500${sh}`);
-    renderStratTable(d.results||[],box);
-  }catch(e){
-    box.innerHTML=`<div class="panel" style="color:var(--sell)">خطأ: ${e.message}</div>`;
-  }
-}
-
-function renderStratTable(rows,box){
-  if(!rows.length){
-    box.innerHTML=`<div class="panel" style="text-align:center;color:var(--muted)">لا توجد إشارات بهذا التصنيف</div>`;
-    return;
-  }
-  const badge=r=>{
-    if(r.status==="active") return `<span style="color:#5aa9ff;white-space:nowrap">🔵 جارية</span>`;
-    if(r.outcome==="success") return `<span style="color:var(--buy);white-space:nowrap">✅ ناجحة</span>`;
-    if(r.outcome==="flat") return `<span style="color:var(--muted);white-space:nowrap">⚪ بلا حركة</span>`;
-    return `<span style="color:var(--sell);white-space:nowrap">❌ فاشلة</span>`;
-  };
-  const pathName=s=>s==="khalid"?"خالد":"كلود";
-  const pathTag=s=>s==="khalid"
-    ? `<span style="background:#1d4d3a;color:#7fd8a8;padding:2px 8px;border-radius:6px;font-size:.75rem;white-space:nowrap">🧭 خالد</span>`
-    : `<span style="background:#2a3d5c;color:#8ab6ff;padding:2px 8px;border-radius:6px;font-size:.75rem;white-space:nowrap">🤖 كلود</span>`;
-
-  // تجميع حسب التاريخ (الأحدث أولاً)
-  const byDate={};
-  for(const r of rows){ (byDate[r.appeared_date||"—"] ||= []).push(r); }
-  const dates=Object.keys(byDate).sort().reverse();
-
-  let h="", n=0;
-  for(const d of dates){
-    const list=byDate[d].sort((a,b)=>Number(b.score||0)-Number(a.score||0));
-    const sharedCount=list.filter(x=>x.is_shared).length;
-
-    h+=`<div class="panel" style="margin-bottom:12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;
-                  padding-bottom:8px;margin-bottom:8px;border-bottom:1px solid var(--line)">
-        <div style="font-weight:700;color:var(--gold2)">📅 ${d}</div>
-        <div style="font-size:.8rem;color:var(--muted)">
-          ${list.length} إشارة${sharedCount?` · <span style="color:var(--gold2)">🤝 ${sharedCount} مشتركة</span>`:""}
-        </div>
-      </div>
-      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.85rem">
-      <tr style="border-bottom:1px solid var(--line2);color:var(--muted);font-size:.78rem">
-        <th style="padding:6px 4px;width:34px">#</th>
-        <th style="padding:6px;text-align:right">المسار</th>
-        <th style="padding:6px;text-align:right">السهم</th>
-        <th style="padding:6px">النقاط</th>
-        <th style="padding:6px">الدخول</th>
-        <th style="padding:6px">الهدف</th>
-        <th style="padding:6px">الذروة</th>
-        <th style="padding:6px">الحالة</th>
-        <th style="padding:6px;text-align:right">الإشارات</th>
-      </tr>`;
-
-    for(const r of list){
-      n++;
-      const peak=Number(r.peak_pct||0);
-      const pc=peak>=2?"var(--buy)":peak<=-2?"var(--sell)":"var(--muted)";
-      const sigs=(r.signals||[]).slice(0,3).join(" · ");
-
-      // وسم التقاطع وسبق الاكتشاف
-      let mark="";
-      if(r.is_shared){
-        mark=`<span title="رصده المساران" style="color:var(--gold2)">🤝</span>`;
-        if(r.first_by===r.strategy && r.days_earlier>0){
-          mark+=` <span title="سبق الآخر بـ${r.days_earlier} يوم"
-            style="background:#4a3d1a;color:var(--gold2);padding:1px 6px;border-radius:5px;font-size:.7rem;white-space:nowrap">⚡ سبق ${r.days_earlier}ي</span>`;
-        }else if(r.first_by==="tie"){
-          mark+=` <span title="رصداه في نفس اليوم" style="color:var(--muted);font-size:.72rem">= معاً</span>`;
-        }
-      }
-      const rowBg=r.is_shared?"background:rgba(212,175,55,.06)":"";
-
-      h+=`<tr style="border-bottom:1px solid var(--line2);${rowBg}">
-        <td style="padding:6px 4px;text-align:center;color:var(--muted);font-size:.78rem">${n}</td>
-        <td style="padding:6px">${pathTag(r.strategy)}</td>
-        <td style="padding:6px">
-          <div style="font-weight:700">${r.symbol} ${mark}</div>
-          <div style="font-size:.75rem;color:var(--muted)">${r.name||""}</div>
-        </td>
-        <td style="padding:6px;text-align:center">
-          <b style="color:var(--gold2)">${Number(r.score||0).toFixed(0)}</b>
-          ${r.is_shared&&r.other_score!=null?`<div style="font-size:.68rem;color:var(--muted)">
-            ${pathName(r.strategy==="khalid"?"claude":"khalid")}: ${Number(r.other_score).toFixed(0)}</div>`:""}
-        </td>
-        <td style="padding:6px;text-align:center">${r.entry_price}</td>
-        <td style="padding:6px;text-align:center">${r.target_price}</td>
-        <td style="padding:6px;text-align:center;color:${pc}"><b>${peak.toFixed(1)}%</b></td>
-        <td style="padding:6px;text-align:center">${badge(r)}</td>
-        <td style="padding:6px;font-size:.76rem;color:var(--muted)">${sigs}</td>
-      </tr>`;
-    }
-    h+=`</table></div></div>`;
-  }
-  box.innerHTML=h;
-}
-
-async function loadStrategyPerf(){
-  const box=document.getElementById("stratPerf");
-  if(!box) return;
-  try{
-    const d=await api("/api/strategy/performance");
-    const s=d.strategies||{};
-    const card=(k,t)=>{
-      const x=s[k]||{};
-      const mature=x.mature;
-      return `<div class="panel" style="flex:1;min-width:240px">
-        <div style="font-weight:700;color:var(--gold2);margin-bottom:8px">${t}</div>
-        <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:.85rem">
-          <span>🔵 جارية: <b>${x.active||0}</b></span>
-          <span>✅ ناجحة: <b style="color:var(--buy)">${x.success||0}</b></span>
-          <span>⚪ بلا حركة: <b>${x.flat||0}</b></span>
-          <span>❌ فاشلة: <b style="color:var(--sell)">${x.failed||0}</b></span>
-        </div>
-        <div style="margin-top:8px;font-size:.9rem">
-          نسبة النجاح: <b style="color:${mature?'var(--gold2)':'var(--muted)'}">${x.success_rate||0}%</b>
-          <span style="color:var(--muted);font-size:.8rem"> · متوسط الذروة ${x.avg_peak||0}%</span>
-        </div>
-        ${!mature?`<div style="margin-top:6px;font-size:.75rem;color:var(--muted)">
-          ⚠️ العينة صغيرة (${x.closed||0}/${d.min_sample}) — النسبة غير ذات دلالة بعد</div>`:""}
-      </div>`;
-    };
-    let h=`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
-      ${card("khalid","🧭 استراتيجية خالد")}${card("claude","🤖 استراتيجية كلود")}</div>`;
-
-    // مقارنة المشترك مقابل المنفرد
-    const sh=d.shared||{};
-    if((sh.shared?.count||0)+(sh.solo?.count||0)>0){
-      const a=sh.shared||{}, b=sh.solo||{};
-      const diff=(a.success_rate||0)-(b.success_rate||0);
-      h+=`<div class="panel" style="margin-bottom:14px">
-        <div style="font-weight:700;color:var(--gold2);margin-bottom:8px">🤝 هل اتفاق المسارين أقوى؟</div>
-        <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:.86rem">
-          <span>مشتركة: <b style="color:var(--gold2)">${a.success_rate||0}%</b>
-            <span style="color:var(--muted)">(${a.count||0} محسومة · ذروة ${a.avg_peak||0}%)</span></span>
-          <span>منفردة: <b>${b.success_rate||0}%</b>
-            <span style="color:var(--muted)">(${b.count||0} محسومة · ذروة ${b.avg_peak||0}%)</span></span>
-          ${sh.shared_active?`<span style="color:var(--muted)">🔵 ${sh.shared_active} مشتركة جارية</span>`:""}
-        </div>
-        ${(a.count||0)>=10?`<div style="margin-top:6px;font-size:.82rem;color:${diff>0?'var(--buy)':diff<0?'var(--sell)':'var(--muted)'}">
-          ${diff>0?`الاتفاق يتفوق بـ+${diff.toFixed(1)} نقطة`:diff<0?`الاتفاق أضعف بـ${Math.abs(diff).toFixed(1)} نقطة`:"لا فرق يُذكر"}</div>`
-          :`<div style="margin-top:6px;font-size:.75rem;color:var(--muted)">⚠️ العينة صغيرة — النتيجة غير حاسمة بعد</div>`}
-      </div>`;
-    }
-
-    const sp=d.signals||[];
-    if(sp.length){
-      h+=`<div class="panel" style="margin-bottom:14px">
-        <div style="font-weight:700;color:var(--gold2);margin-bottom:8px">📈 أداء الإشارات (أساس التعلّم)</div>
-        <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.82rem">
-        <tr style="border-bottom:1px solid var(--line)">
-          <th style="padding:6px;text-align:right">المسار</th>
-          <th style="padding:6px;text-align:right">الإشارة</th>
-          <th style="padding:6px">العدد</th>
-          <th style="padding:6px">نجاح %</th>
-          <th style="padding:6px">متوسط الذروة</th></tr>`;
-      for(const x of sp.slice(0,20)){
-        const c=x.success_rate>=60?"var(--buy)":x.success_rate<=40?"var(--sell)":"var(--muted)";
-        h+=`<tr style="border-bottom:1px solid var(--line2)">
-          <td style="padding:6px">${x.strategy==="khalid"?"خالد":"كلود"}</td>
-          <td style="padding:6px">${x.signal}</td>
-          <td style="padding:6px;text-align:center">${x.count}</td>
-          <td style="padding:6px;text-align:center;color:${c}"><b>${x.success_rate}%</b></td>
-          <td style="padding:6px;text-align:center">${x.avg_peak}%</td></tr>`;
-      }
-      h+=`</table></div></div>`;
-    }
-    box.innerHTML=h;
-  }catch(e){
-    box.innerHTML=`<div class="panel" style="color:var(--sell)">خطأ: ${e.message}</div>`;
-  }
-}
-
-async function exportRasidLatest(){
-  const msg=document.getElementById("rasidMsg");
-  msg.textContent="⏳ جاري تجهيز الملف...";
-  try{
-    const res=await fetch("/api/rasid/export");
-    if(!res.ok){
-      let d=""; try{ d=(await res.json()).detail||""; }catch(e){}
-      throw new Error(d||`خطأ ${res.status}`);
-    }
-    const blob=await res.blob();
-    if(blob.size<50) throw new Error("الملف فاضي — شغّل السحب أولاً");
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement("a");
-    const today=new Date().toISOString().slice(0,10);
-    a.href=url; a.download=`rasid_${today}.csv`; a.click();
-    URL.revokeObjectURL(url);
-    msg.textContent="✅ تم تنزيل الملف";
-  }catch(e){
-    msg.textContent=`❌ ${e.message}`;
-  }
-}
-
-async function loadRasidLatest(){
-  const box=document.getElementById("rasidResults");
-  box.innerHTML=`<div class="panel" style="text-align:center;color:var(--muted)">⏳ جاري التحميل...</div>`;
-  try{
-    const d=await api("/api/rasid/latest");
-    renderRasidTable(d.results||[],box);
-  }catch(e){
-    box.innerHTML=`<div class="panel" style="color:var(--sell)">خطأ: ${e.message}</div>`;
-  }
-}
-
-async function loadRasidByRange(){
-  const df=document.getElementById("rasidDateFrom").value;
-  const dt=document.getElementById("rasidDateTo").value;
-  const msg=document.getElementById("rasidRangeMsg");
-  const box=document.getElementById("rasidResults");
-  if(!df||!dt){ showToast("حدد تاريخ البداية والنهاية"); return; }
-  msg.textContent="⏳ جاري التحميل...";
-  box.innerHTML="";
-  try{
-    const d=await api(`/api/rasid/range?date_from=${df}&date_to=${dt}`);
-    msg.textContent=`${d.count} لقطة من ${df} إلى ${dt}`;
-    renderRasidTable(d.results||[],box);
-  }catch(e){
-    msg.textContent="";
-    box.innerHTML=`<div class="panel" style="color:var(--sell)">خطأ: ${e.message}</div>`;
-  }
-}
-
-async function exportRasidRange(){
-  const df=document.getElementById("rasidDateFrom").value;
-  const dt=document.getElementById("rasidDateTo").value;
-  const msg=document.getElementById("rasidRangeMsg");
-  if(!df||!dt){ showToast("حدد تاريخ البداية والنهاية"); return; }
-  msg.textContent="⏳ جاري تجهيز الملف...";
-  try{
-    const d=await api(`/api/rasid/range?date_from=${df}&date_to=${dt}`);
-    const rows=d.results||[];
-    if(!rows.length){ msg.textContent="لا توجد بيانات بهذه الفترة"; return; }
-
-    // نبني CSV من البيانات مباشرة (لا نعتمد على الجدول المعروض)
-    const cols=Object.keys(rows[0].columns||{}).filter(c=>!c.startsWith("_")&&c!=="name"&&c!=="symbol");
-    let csv="\uFEFF"+["الرمز","الاسم","السعر","وقت السحب",...cols].map(h=>`"${h}"`).join(",")+"\n";
-    for(const r of rows){
-      const c=r.columns||{};
-      const vals=[r.symbol,r.name||"",r.price??"",r.snapshot_time||"",...cols.map(k=>c[k]??"")];
-      csv+=vals.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")+"\n";
-    }
-    const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement("a");
-    a.href=url; a.download=`rasid_${df}_${dt}.csv`; a.click();
-    URL.revokeObjectURL(url);
-    msg.textContent=`✅ تم تنزيل ${rows.length} لقطة`;
-  }catch(e){
-    msg.textContent=`❌ ${e.message}`;
-  }
-}
-
-function renderRasidTable(rows,box){
-  if(!rows.length){
-    box.innerHTML=`<div class="panel" style="color:var(--muted)">لا توجد لقطات محفوظة بعد. اضغط "شغّل السحب الآن".</div>`;
-    return;
-  }
-  const fmt=(v)=>{
-    if(v===null||v===undefined) return '<span style="color:var(--muted)">—</span>';
-    if(v===true) return '<span style="color:var(--buy)">✅</span>';
-    if(v===false) return '<span style="color:var(--sell)">❌</span>';
-    if(typeof v==="number") return v.toFixed(2);
-    return v;
-  };
-  let html = `<table style="border-collapse:collapse;font-size:.78rem;white-space:nowrap">
-    <thead><tr style="border-bottom:1px solid var(--line)">
-      <th style="padding:6px 10px;position:sticky;right:0;background:var(--panel)">الرمز</th>
-      <th style="padding:6px 10px;position:sticky;right:60px;background:var(--panel)">الاسم</th>
-      <th style="padding:6px 10px">السعر</th>
-      ${RASID_COLS.map(c=>`<th style="padding:6px 10px">${c}</th>`).join("")}
-    </tr></thead><tbody>`;
-  for(const r of rows){
-    const cols=r.columns||{};
-    html+=`<tr style="border-bottom:1px solid var(--line2)">
-      <td style="padding:6px 10px;position:sticky;right:0;background:var(--bg2);font-family:'IBM Plex Mono'">${r.symbol}</td>
-      <td style="padding:6px 10px;position:sticky;right:60px;background:var(--bg2)">${r.name||''}</td>
-      <td style="padding:6px 10px">${fmt(r.price)}</td>
-      ${RASID_COLS.map(c=>`<td style="padding:6px 10px">${fmt(cols[c])}</td>`).join("")}
-    </tr>`;
-  }
-  html+="</tbody></table>";
-  box.innerHTML=html;
-}
-
-
-
-// ═══════════════════════════════════════════════════════════════
-//  تبويب مستقل جديد: مكتشف الأنماط الفنية الكلاسيكية
-//  (15 نموذج · محرك ذكي · تقييم كلود اختياري · تقرير أسبوعي)
-//  لا يستخدم أي دالة أو متغيّر من التبويبات الأخرى
-// ═══════════════════════════════════════════════════════════════
-
-const CLASSIC_STATE = { running:false, results:[], stats:null, aiCache:{} };
-
-function renderClassicPatterns(){
-  return `
-    <div class="sec-head"><div class="dot"></div><h2>مكتشف الأنماط الفنية الكلاسيكية</h2>
-      <span class="tag">15 نموذج · محرك ذكي · فاصل يومي</span></div>
-
-    <div class="panel" style="margin-bottom:16px">
-      <div style="font-size:.85rem;color:var(--muted);margin-bottom:12px;line-height:1.9">
-        يكتشف الأنماط الكلاسيكية (قاع/قمة مزدوجة وثلاثية، رأس وكتفين، مثلثات، أوتاد،
-        كوب وعروة، أعلام، قنوات، جزر) بمعادلات دورة الدكتور فارس العتيبي.<br>
-        كل نموذج يُقيّم بالحجم والسياق وجودة الخطوط (R²) — مع تقييم كلود اختياري.
-      </div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <button class="btn-gold" onclick="runClassicScan()" style="padding:10px 20px">🚀 افحص السوق</button>
-        <select id="classicQuality" style="padding:9px 14px;border-radius:8px;background:var(--bg2);color:var(--ink);border:1px solid var(--line)">
-          <option value="0">كل الأنماط</option>
-          <option value="40">جودة 40+</option>
-          <option value="60" selected>جودة 60+ (موصى)</option>
-          <option value="75">جودة 75+ (الأقوى)</option>
-        </select>
-        <button class="tab" onclick="loadWeeklyClassicReport()" style="padding:9px 16px;flex:none">📊 التقرير الأسبوعي</button>
-        <button class="tab" onclick="loadPreviousReports()" style="padding:9px 16px;flex:none">📚 التقارير السابقة</button>
-        <button class="tab" onclick="loadTrackingSummary()" style="padding:9px 16px;flex:none">🎯 المراقبة الذكية</button>
-        <button class="tab" onclick="loadBacktest()" style="padding:9px 16px;flex:none">🔬 قياس الدقة</button>
-        <span id="classicMsg" style="margin-inline-start:8px;font-size:.85rem;color:var(--muted)"></span>
-      </div>
-    </div>
-
-    <div id="classicStats"></div>
-    <div id="classicResults"></div>`;
-}
-
-async function runClassicScan(){
-  if(CLASSIC_STATE.running) return;
-  const box=document.getElementById("classicResults");
-  const statsBox=document.getElementById("classicStats");
-  const msg=document.getElementById("classicMsg");
-  const minQ=document.getElementById("classicQuality").value;
-  CLASSIC_STATE.running=true;
-  msg.textContent="⏳ جاري الفحص... قد يستغرق 1-2 دقيقة لكل السوق";
-  box.innerHTML=""; statsBox.innerHTML="";
-  try{
-    // بدء الفحص بالخلفية
-    const start=await api("/api/classic-patterns/scan",{
-      method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({scope:"all",interval:"1d",min_quality:parseFloat(minQ)})
-    });
-    // الاستطلاع حتى الانتهاء
-    let done=false, tries=0;
-    while(!done && tries<120){
-      await new Promise(r=>setTimeout(r,3000));
-      tries++;
-      const st=await api("/api/bg-status/classic_patterns");
-      if(st.status==="done"){ done=true; renderClassicResults(st.result,box,statsBox,msg); }
-      else if(st.status==="error"){ done=true; msg.textContent="خطأ: "+(st.error||""); }
-      else { msg.textContent=`⏳ جاري الفحص... (${tries*3} ثانية)`; }
-    }
-    if(!done) msg.textContent="⏱️ استغرق وقتاً أطول من المتوقع — أعد المحاولة";
-  }catch(e){
-    msg.textContent="";
-    box.innerHTML=`<div class="panel" style="color:var(--sell)">خطأ: ${e.message}</div>`;
-  }finally{ CLASSIC_STATE.running=false; }
-}
-
-function renderClassicResults(d,box,statsBox,msg){
-  const results=d.results||[];
-  const st=d.stats||{};
-  msg.textContent=`تم فحص ${d.scanned} سهم في ${d.elapsed_sec}ث · ${d.total_patterns} نموذج`;
-
-  // شريط الإحصاءات
-  statsBox.innerHTML=`
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px">
-      <div class="panel" style="flex:1;min-width:110px;text-align:center;padding:14px">
-        <div style="font-size:26px;font-weight:800;color:var(--gold2)">${d.total_patterns}</div>
-        <div style="font-size:.75rem;color:var(--muted)">نموذج مكتشف</div></div>
-      <div class="panel" style="flex:1;min-width:110px;text-align:center;padding:14px">
-        <div style="font-size:26px;font-weight:800;color:#3b82f6">${st.confirmed||0}</div>
-        <div style="font-size:.75rem;color:var(--muted)">مؤكد ✅</div></div>
-      <div class="panel" style="flex:1;min-width:110px;text-align:center;padding:14px">
-        <div style="font-size:26px;font-weight:800;color:#f59e0b">${st.near_breakout||0}</div>
-        <div style="font-size:.75rem;color:var(--muted)">قريب ⚠️</div></div>
-      <div class="panel" style="flex:1;min-width:110px;text-align:center;padding:14px">
-        <div style="font-size:26px;font-weight:800;color:var(--buy)">${st.bullish||0}</div>
-        <div style="font-size:.75rem;color:var(--muted)">إيجابي 📈</div></div>
-      <div class="panel" style="flex:1;min-width:110px;text-align:center;padding:14px">
-        <div style="font-size:26px;font-weight:800;color:var(--sell)">${st.bearish||0}</div>
-        <div style="font-size:.75rem;color:var(--muted)">سلبي 📉</div></div>
-    </div>`;
-
-  if(!results.length){
-    box.innerHTML=`<div class="panel" style="color:var(--muted)">لا أنماط بهذه الجودة. جرّب خفض عتبة الجودة.</div>`;
-    return;
-  }
-  box.innerHTML = results.map(classicCard).join("");
-}
-
-function classicCard(item){
-  const patterns=item.patterns||[];
-  if(!patterns.length) return "";
-  const bull=patterns.filter(p=>p.type==="bullish").length;
-  const bear=patterns.filter(p=>p.type==="bearish").length;
-  const bc = bull>bear?"var(--buy)":bear>bull?"var(--sell)":"var(--gold2)";
-  const dom = (bull||bear)?`${bull} إيجابي · ${bear} سلبي`:"محايد";
-
-  const typeBadge=(t)=>{
-    const m={bullish:["📈 إيجابي","var(--buy)"],bearish:["📉 سلبي","var(--sell)"],neutral:["➡️ محايد","var(--muted)"]};
-    const [l,c]=m[t]||m.neutral;
-    return `<span style="background:${c};color:#fff;padding:2px 8px;border-radius:9px;font-size:.7rem;font-weight:700;white-space:nowrap">${l}</span>`;
-  };
-  const statusBadge=(s)=>{
-    const m={confirmed:["✅ مؤكد","#3b82f6"],near_breakout:["⚠️ قريب","#f59e0b"],forming:["🔄 يتشكل","var(--muted)"]};
-    const [l,c]=m[s]||["—","var(--muted)"];
-    return `<span style="color:${c};font-weight:700;font-size:.72rem;white-space:nowrap">${l}</span>`;
-  };
-
-  const rows=patterns.map((p,i)=>{
-    const q=p.quality_score||0;
-    const qc=q>=65?"var(--buy)":q>=40?"#f59e0b":"var(--muted)";
-    const vol=p.volume_confirmed?'<span style="color:var(--buy)">🔊</span>':'<span style="color:var(--sell)">🔇</span>';
-    const aiKey=`${item.symbol}_${i}`;
-    return `
-    <tr style="border-bottom:1px solid var(--line2)">
-      <td style="padding:9px 8px;font-weight:700">${p.pattern_ar}</td>
-      <td style="padding:9px 8px;text-align:center">${typeBadge(p.type)}</td>
-      <td style="padding:9px 8px;text-align:center">${statusBadge(p.status)}</td>
-      <td style="padding:9px 8px;text-align:center;color:#3b82f6;font-weight:700">${p.breakout_level??'—'}</td>
-      <td style="padding:9px 8px;text-align:center;color:var(--buy);font-weight:700">🎯 ${p.target??'—'}</td>
-      <td style="padding:9px 8px;text-align:center;color:var(--sell)">🛑 ${p.stop_loss??'—'}</td>
-      <td style="padding:9px 8px;text-align:center;color:${qc};font-weight:700">${q}</td>
-      <td style="padding:9px 8px;text-align:center">${vol}</td>
-      <td style="padding:9px 8px;text-align:center">
-        <button onclick='aiReviewPattern("${item.symbol}",${JSON.stringify(p).replace(/'/g,"&#39;")},"${aiKey}")'
-          style="background:var(--panel2);color:var(--gold2);border:1px solid var(--line);border-radius:7px;padding:4px 9px;cursor:pointer;font-size:.7rem;font-weight:700">🤖 تقييم</button>
-      </td>
-    </tr>
-    <tr id="ai_${aiKey}"><td colspan="9" style="padding:0"></td></tr>`;
-  }).join("");
-
-  return `
-  <div class="panel" style="padding:0;overflow:hidden;margin-bottom:16px;border-right:4px solid ${bc}">
-    <div style="background:var(--bg2);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-      <div><span style="font-size:1.05rem;font-weight:800">${item.name}</span>
-        <span style="font-size:.8rem;color:var(--muted);margin-right:6px;font-family:'IBM Plex Mono'">${item.symbol}</span></div>
-      <div style="font-size:.82rem">
-        <span style="color:var(--muted)">السعر:</span>
-        <span style="font-weight:800">${item.price??'—'}</span>
-        <span style="color:var(--line);margin:0 8px">|</span>
-        <span style="color:${bc};font-weight:700">${dom}</span></div>
-    </div>
-    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.8rem">
-      <thead><tr style="background:var(--panel2);color:var(--gold2);font-size:.72rem">
-        <th style="padding:8px;text-align:right">النموذج</th>
-        <th style="padding:8px">النوع</th><th style="padding:8px">الحالة</th>
-        <th style="padding:8px">الاختراق</th><th style="padding:8px">الهدف</th>
-        <th style="padding:8px">الوقف</th><th style="padding:8px">الجودة</th>
-        <th style="padding:8px">الحجم</th><th style="padding:8px">AI</th>
-      </tr></thead><tbody>${rows}</tbody></table></div>
-  </div>`;
-}
-
-async function aiReviewPattern(symbol,pattern,aiKey){
-  const row=document.getElementById("ai_"+aiKey);
-  if(!row) return;
-  const cell=row.querySelector("td");
-  if(CLASSIC_STATE.aiCache[aiKey]){
-    cell.innerHTML = cell.innerHTML ? "" : CLASSIC_STATE.aiCache[aiKey];
-    return;
-  }
-  cell.innerHTML=`<div style="padding:12px;color:var(--muted);font-size:.82rem">⏳ كلود يحلل النموذج...</div>`;
-  try{
-    const d=await api("/api/classic-patterns/ai-review",{
-      method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({symbol:symbol,pattern:pattern})
-    });
-    if(d.ok){
-      const html=`<div style="padding:14px 16px;background:var(--panel2);border-right:3px solid #7c3aed;margin:4px 8px;border-radius:8px;font-size:.85rem;line-height:1.9">
-        <strong style="color:#a78bfa">🤖 تقييم كلود:</strong><br>${(d.review||"").replace(/\n/g,"<br>")}</div>`;
-      CLASSIC_STATE.aiCache[aiKey]=html;
-      cell.innerHTML=html;
-    } else {
-      cell.innerHTML=`<div style="padding:12px 16px;color:var(--sell);font-size:.82rem">تعذّر: ${d.error||"خطأ"}</div>`;
-    }
-  }catch(e){
-    cell.innerHTML=`<div style="padding:12px 16px;color:var(--sell);font-size:.82rem">خطأ: ${e.message}</div>`;
-  }
-}
-
-async function loadWeeklyClassicReport(){
-  const box=document.getElementById("classicResults");
-  const statsBox=document.getElementById("classicStats");
-  const msg=document.getElementById("classicMsg");
-  msg.textContent="⏳ جاري إعداد التقرير الأسبوعي (فحص كامل + تحليل كلود)... قد يستغرق 2-3 دقائق";
-  box.innerHTML=""; statsBox.innerHTML="";
-  try{
-    await api("/api/classic-patterns/weekly-report");
-    let done=false, tries=0;
-    while(!done && tries<120){
-      await new Promise(r=>setTimeout(r,3000));
-      tries++;
-      const st=await api("/api/bg-status/weekly_patterns");
-      if(st.status==="done"){
-        done=true;
-        const res=st.result;
-        msg.textContent=`✅ التقرير جاهز · ${res.total_patterns} نموذج · أُرسل للإيميل: ${res.email?.sent?'نعم':'لا'}`;
-        // عرض HTML التقرير مباشرة بالموقع
-        if(res.html){
-          box.innerHTML=`<div class="panel" style="padding:0;overflow:hidden">
-            <iframe srcdoc="${res.html.replace(/"/g,'&quot;')}" style="width:100%;height:1200px;border:none;border-radius:12px"></iframe></div>`;
-        }
-      }
-      else if(st.status==="error"){ done=true; msg.textContent="خطأ: "+(st.error||""); }
-      else { msg.textContent=`⏳ جاري الإعداد... (${tries*3} ثانية)`; }
-    }
-    if(!done) msg.textContent="⏱️ استغرق وقتاً أطول من المتوقع";
-  }catch(e){
-    msg.textContent="";
-    box.innerHTML=`<div class="panel" style="color:var(--sell)">خطأ: ${e.message}</div>`;
-  }
-}
-
-
-async function loadPreviousReports(){
-  const box=document.getElementById("classicResults");
-  const statsBox=document.getElementById("classicStats");
-  const msg=document.getElementById("classicMsg");
-  msg.textContent="⏳ جاري تحميل التقارير المحفوظة...";
-  box.innerHTML=""; statsBox.innerHTML="";
-  try{
-    const d=await api("/api/classic-patterns/reports");
-    const reports=d.reports||[];
-    msg.textContent=`${reports.length} تقرير محفوظ`;
-    if(!reports.length){
-      box.innerHTML=`<div class="panel" style="color:var(--muted)">لا توجد تقارير محفوظة بعد. شغّل "التقرير الأسبوعي" أول مرة.</div>`;
-      return;
-    }
-    // قائمة التقارير + أداة المقارنة
-    const opts=reports.map(r=>`<option value="${r.report_date}">${r.report_date} (${r.total_patterns} نموذج)</option>`).join("");
-    let html=`
-      <div class="panel" style="margin-bottom:16px">
-        <div style="font-weight:800;margin-bottom:12px;color:var(--gold2)">📊 مقارنة تقريرين — تابع تطور الأنماط</div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-          <span style="font-size:.82rem;color:var(--muted)">من:</span>
-          <select id="cmpOld" style="padding:8px 12px;border-radius:8px;background:var(--bg2);color:var(--ink);border:1px solid var(--line)">${opts}</select>
-          <span style="font-size:.82rem;color:var(--muted)">إلى:</span>
-          <select id="cmpNew" style="padding:8px 12px;border-radius:8px;background:var(--bg2);color:var(--ink);border:1px solid var(--line)">${opts}</select>
-          <button class="btn-gold" onclick="runCompare()" style="padding:8px 16px">قارن</button>
-        </div>
-        <div id="cmpResult" style="margin-top:14px"></div>
-      </div>
-      <div style="font-weight:800;margin-bottom:12px">📚 كل التقارير</div>`;
-
-    // بطاقات التقارير
-    html+=reports.map(r=>{
-      const st=r.stats||{};
-      return `
-      <div class="panel" style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;cursor:pointer"
-           onclick="openSavedReport('${r.report_date}')">
-        <div>
-          <span style="font-weight:800;font-size:1.05rem">${r.report_date}</span>
-          <span style="font-size:.78rem;color:var(--muted);margin-right:8px">${r.scanned} سهم مفحوص</span>
-        </div>
-        <div style="display:flex;gap:14px;font-size:.82rem;flex-wrap:wrap">
-          <span style="color:var(--gold2);font-weight:700">${r.total_patterns} نموذج</span>
-          <span style="color:#3b82f6">✅ ${st.confirmed||0}</span>
-          <span style="color:#f59e0b">⚠️ ${st.near_breakout||0}</span>
-          <span style="color:var(--buy)">📈 ${st.bullish||0}</span>
-          <span style="color:var(--sell)">📉 ${st.bearish||0}</span>
-          <span style="color:var(--gold2)">فتح ←</span>
-        </div>
-      </div>`;
-    }).join("");
-    box.innerHTML=html;
-  }catch(e){
-    msg.textContent="";
-    box.innerHTML=`<div class="panel" style="color:var(--sell)">خطأ: ${e.message}</div>`;
-  }
-}
-
-async function openSavedReport(rdate){
-  const box=document.getElementById("classicResults");
-  const msg=document.getElementById("classicMsg");
-  msg.textContent="⏳ جاري فتح التقرير...";
-  try{
-    const d=await api("/api/classic-patterns/reports/"+rdate);
-    if(d.ok && d.report && d.report.html){
-      msg.textContent=`تقرير ${rdate}`;
-      box.innerHTML=`
-        <div style="margin-bottom:12px"><button class="tab" onclick="loadPreviousReports()" style="padding:8px 16px;flex:none">← رجوع للقائمة</button></div>
-        <div class="panel" style="padding:0;overflow:hidden">
-          <iframe srcdoc="${d.report.html.replace(/"/g,'&quot;')}" style="width:100%;height:1200px;border:none;border-radius:12px"></iframe></div>`;
-    } else {
-      box.innerHTML=`<div class="panel" style="color:var(--sell)">تعذّر فتح التقرير</div>`;
-    }
-  }catch(e){
-    box.innerHTML=`<div class="panel" style="color:var(--sell)">خطأ: ${e.message}</div>`;
-  }
-}
-
-async function runCompare(){
-  const d1=document.getElementById("cmpOld").value;
-  const d2=document.getElementById("cmpNew").value;
-  const out=document.getElementById("cmpResult");
-  if(d1===d2){ out.innerHTML=`<div style="color:var(--muted);font-size:.85rem">اختر تاريخين مختلفين</div>`; return; }
-  out.innerHTML=`<div style="color:var(--muted);font-size:.85rem">⏳ جاري المقارنة...</div>`;
-  try{
-    const d=await api(`/api/classic-patterns/compare?date1=${d1}&date2=${d2}`);
-    if(!d.ok){ out.innerHTML=`<div style="color:var(--sell)">${d.error||'خطأ'}</div>`; return; }
-    const s=d.summary;
-    const mkList=(arr,color,icon)=>arr.slice(0,15).map(p=>
-      `<div style="padding:5px 0;border-bottom:1px solid var(--line2);font-size:.82rem">
-        ${icon} <strong>${p.name}</strong> <span style="color:var(--muted)">(${p.symbol})</span> — ${p.pattern}
-        ${p.old_status?`<span style="color:var(--muted)">[${p.old_status} ← ${p.status}]</span>`:''}
-      </div>`).join("")||`<div style="color:var(--muted);font-size:.8rem;padding:6px 0">لا شيء</div>`;
-
-    out.innerHTML=`
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-        <div style="flex:1;min-width:90px;text-align:center;background:var(--bg2);padding:10px;border-radius:8px">
-          <div style="font-size:22px;font-weight:800;color:var(--buy)">${s.new}</div>
-          <div style="font-size:.72rem;color:var(--muted)">أنماط جديدة</div></div>
-        <div style="flex:1;min-width:90px;text-align:center;background:var(--bg2);padding:10px;border-radius:8px">
-          <div style="font-size:22px;font-weight:800;color:var(--gold2)">${s.persisted}</div>
-          <div style="font-size:.72rem;color:var(--muted)">مستمرة</div></div>
-        <div style="flex:1;min-width:90px;text-align:center;background:var(--bg2);padding:10px;border-radius:8px">
-          <div style="font-size:22px;font-weight:800;color:var(--muted)">${s.disappeared}</div>
-          <div style="font-size:.72rem;color:var(--muted)">اختفت</div></div>
-      </div>
-      <div style="margin-bottom:10px"><strong style="color:var(--buy)">🆕 أنماط جديدة ظهرت</strong>${mkList(d.new_patterns,'buy','🆕')}</div>
-      <div style="margin-bottom:10px"><strong style="color:var(--gold2)">🔄 أنماط مستمرة</strong>${mkList(d.persisted,'gold','🔄')}</div>
-      <div><strong style="color:var(--muted)">✔️ أنماط اختفت (تحققت أو ألغيت)</strong>${mkList(d.disappeared,'muted','✔️')}</div>`;
-  }catch(e){
-    out.innerHTML=`<div style="color:var(--sell)">خطأ: ${e.message}</div>`;
-  }
-}
-
-
-async function loadTrackingSummary(){
-  const box=document.getElementById("classicResults");
-  const statsBox=document.getElementById("classicStats");
-  const msg=document.getElementById("classicMsg");
-  msg.textContent="⏳ جاري تحميل بيانات المراقبة...";
-  box.innerHTML=""; statsBox.innerHTML="";
-  try{
-    const d=await api("/api/classic-patterns/tracking");
-    if(!d.ok){ box.innerHTML=`<div class="panel" style="color:var(--muted)">لا توجد بيانات تتبّع بعد. تُبنى تلقائياً كل أسبوع.</div>`; msg.textContent=""; return; }
-    const oc=d.by_outcome||{};
-    const sr=d.overall_success_rate;
-    msg.textContent=`${d.total_tracked} نموذج متتبَّع`;
-
-    statsBox.innerHTML=`
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px">
-        <div class="panel" style="flex:1;min-width:110px;text-align:center;padding:14px">
-          <div style="font-size:26px;font-weight:800;color:var(--gold2)">${d.total_tracked}</div>
-          <div style="font-size:.75rem;color:var(--muted)">متتبَّع</div></div>
-        <div class="panel" style="flex:1;min-width:110px;text-align:center;padding:14px">
-          <div style="font-size:26px;font-weight:800;color:var(--buy)">${oc.target_hit||0}</div>
-          <div style="font-size:.75rem;color:var(--muted)">تحقق الهدف ✅</div></div>
-        <div class="panel" style="flex:1;min-width:110px;text-align:center;padding:14px">
-          <div style="font-size:26px;font-weight:800;color:var(--sell)">${oc.stopped||0}</div>
-          <div style="font-size:.75rem;color:var(--muted)">وقف الخسارة ❌</div></div>
-        <div class="panel" style="flex:1;min-width:110px;text-align:center;padding:14px">
-          <div style="font-size:26px;font-weight:800;color:#3b82f6">${oc.active||0}</div>
-          <div style="font-size:.75rem;color:var(--muted)">نشط 🔄</div></div>
-        <div class="panel" style="flex:1;min-width:110px;text-align:center;padding:14px;background:${sr>=50?'rgba(46,204,113,.1)':'rgba(231,76,60,.1)'}">
-          <div style="font-size:26px;font-weight:800;color:${sr>=50?'var(--buy)':sr==null?'var(--muted)':'var(--sell)'}">${sr!=null?sr+'%':'—'}</div>
-          <div style="font-size:.75rem;color:var(--muted)">نسبة النجاح</div></div>
-      </div>`;
-
-    const rates=d.pattern_success_rates||{};
-    const keys=Object.keys(rates);
-    if(!keys.length){
-      box.innerHTML=`<div class="panel" style="color:var(--muted)">
-        النماذج تُتابَع الآن. نسب النجاح تظهر بعد أن تُحسم 3+ نتائج لكل نوع (خلال أسابيع).</div>`;
-      return;
-    }
-    keys.sort((a,b)=>rates[b].success_rate-rates[a].success_rate);
-    let html=`<div class="panel"><div style="font-weight:800;margin-bottom:14px;color:var(--gold2)">📊 نسبة نجاح كل نموذج (من المتابعة الفعلية)</div>`;
-    html+=keys.map(k=>{
-      const r=rates[k]; const pct=r.success_rate;
-      const col=pct>=60?'var(--buy)':pct>=45?'#f59e0b':'var(--sell)';
-      return `<div style="margin-bottom:12px">
-        <div style="display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:4px">
-          <span style="font-weight:700">${k}</span>
-          <span style="color:${col};font-weight:800">${pct}% <span style="color:var(--muted);font-weight:400">(${r.total_resolved} نتيجة · ${r.active} نشط)</span></span>
-        </div>
-        <div style="background:var(--bg2);border-radius:6px;height:8px;overflow:hidden">
-          <div style="background:${col};height:100%;width:${pct}%"></div></div>
-      </div>`;
-    }).join("");
-    html+=`</div>`;
-    box.innerHTML=html;
-  }catch(e){ msg.textContent=""; box.innerHTML=`<div class="panel" style="color:var(--sell)">خطأ: ${e.message}</div>`; }
-}
-
-async function loadBacktest(){
-  const box=document.getElementById("classicResults");
-  const statsBox=document.getElementById("classicStats");
-  const msg=document.getElementById("classicMsg");
-  box.innerHTML=`<div class="panel">
-    <div style="font-weight:800;margin-bottom:12px;color:var(--gold2)">🔬 قياس الدقة — الاختبار الرجعي</div>
-    <div style="font-size:.85rem;color:var(--muted);line-height:1.9;margin-bottom:14px">
-      يرجع بالزمن ويطبّق المحرك على بيانات تاريخية، ثم يتحقق كم نموذج حقق هدفه فعلاً.<br>
-      النتيجة: نسبة نجاح حقيقية لكل نوع نموذج. (يستغرق 1-3 دقائق)
-    </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-      <span style="font-size:.82rem;color:var(--muted)">عدد الأسهم:</span>
-      <select id="btSample" style="padding:8px 12px;border-radius:8px;background:var(--bg2);color:var(--ink);border:1px solid var(--line)">
-        <option value="30">30 سهم (سريع)</option>
-        <option value="50" selected>50 سهم (موصى)</option>
-        <option value="100">100 سهم (دقيق)</option>
-        <option value="270">كل السوق (بطيء)</option>
-      </select>
-      <button class="btn-gold" onclick="runBacktest()" style="padding:9px 18px">🚀 ابدأ القياس</button>
-    </div>
-  </div>`;
-  statsBox.innerHTML=""; msg.textContent="";
-}
-
-async function runBacktest(){
-  const sample=document.getElementById("btSample").value;
-  const box=document.getElementById("classicResults");
-  const msg=document.getElementById("classicMsg");
-  msg.textContent="⏳ جاري الاختبار الرجعي...";
-  try{
-    await api(`/api/classic-patterns/backtest?sample=${sample}&strict=true`);
-    let done=false,tries=0;
-    while(!done && tries<120){
-      await new Promise(r=>setTimeout(r,3000)); tries++;
-      const st=await api("/api/bg-status/backtest");
-      if(st.status==="done"){ done=true; renderBacktest(st.result,box,msg); }
-      else if(st.status==="error"){ done=true; msg.textContent="خطأ: "+(st.error||""); }
-      else msg.textContent=`⏳ جاري القياس... (${tries*3} ثانية)`;
-    }
-    if(!done) msg.textContent="⏱️ استغرق وقتاً أطول من المتوقع";
-  }catch(e){ msg.textContent=""; box.innerHTML=`<div class="panel" style="color:var(--sell)">خطأ: ${e.message}</div>`; }
-}
-
-function renderBacktest(d,box,msg){
-  msg.textContent=`اختُبر ${d.symbols_tested} سهم · ${d.total_signals} إشارة`;
-  const sr=d.overall_success_rate;
-  const stats=d.pattern_stats||{};
-  const keys=Object.keys(stats);
-  let html=`
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px">
-      <div class="panel" style="flex:1;min-width:120px;text-align:center;padding:16px">
-        <div style="font-size:28px;font-weight:800;color:var(--gold2)">${d.total_signals}</div>
-        <div style="font-size:.75rem;color:var(--muted)">إشارة مختبَرة</div></div>
-      <div class="panel" style="flex:1;min-width:120px;text-align:center;padding:16px">
-        <div style="font-size:28px;font-weight:800;color:var(--buy)">${d.total_win}</div>
-        <div style="font-size:.75rem;color:var(--muted)">نجحت ✅</div></div>
-      <div class="panel" style="flex:1;min-width:120px;text-align:center;padding:16px">
-        <div style="font-size:28px;font-weight:800;color:var(--sell)">${d.total_loss}</div>
-        <div style="font-size:.75rem;color:var(--muted)">فشلت ❌</div></div>
-      <div class="panel" style="flex:1;min-width:120px;text-align:center;padding:16px;background:${sr>=50?'rgba(46,204,113,.12)':'rgba(231,76,60,.12)'}">
-        <div style="font-size:28px;font-weight:800;color:${sr>=50?'var(--buy)':'var(--sell)'}">${sr!=null?sr+'%':'—'}</div>
-        <div style="font-size:.75rem;color:var(--muted)">الدقة الإجمالية</div></div>
-    </div>`;
-  if(keys.length){
-    html+=`<div class="panel"><div style="font-weight:800;margin-bottom:14px;color:var(--gold2)">📊 دقة كل نموذج (مرتبة)</div>`;
-    html+=keys.map(k=>{
-      const r=stats[k]; const pct=r.success_rate;
-      const col=pct>=60?'var(--buy)':pct>=45?'#f59e0b':'var(--sell)';
-      return `<div style="margin-bottom:12px">
-        <div style="display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:4px">
-          <span style="font-weight:700">${r.pattern_ar||k}</span>
-          <span style="color:${col};font-weight:800">${pct}% <span style="color:var(--muted);font-weight:400">(${r.win}✅ / ${r.loss}❌)</span></span>
-        </div>
-        <div style="background:var(--bg2);border-radius:6px;height:8px;overflow:hidden">
-          <div style="background:${col};height:100%;width:${pct}%"></div></div>
-      </div>`;
-    }).join("");
-    html+=`</div>`;
-  }
-  box.innerHTML=html;
-}
-
-
-async function loadDailyRecos(selectedDay){
-  const box=document.getElementById("dailyRecoResults");
-  const statsBox=document.getElementById("dailyRecoStats");
-  if(!box||!statsBox) return;
-  box.innerHTML=`<div class="panel" style="color:var(--muted)">⏳ جاري تحميل التوصيات اليومية...</div>`;
-  statsBox.innerHTML="";
-  try{
-    // أولاً نجيب قائمة التواريخ المتاحة
-    const datesRes=await api("/api/daily-recommendations/dates");
-    const dates=datesRes.dates||[];
-    if(!dates.length){
-      box.innerHTML=`<div class="panel" style="color:var(--muted)">لا توجد توصيات محفوظة بعد. تُحفظ تلقائياً كل يوم تداول بعد فحص الساعة 4:00.</div>`;
-      return;
-    }
-    const day=selectedDay||dates[0];
-    const d=await api("/api/daily-recommendations?day="+day);
-    const recos=d.recommendations||[];
-    const st=d.stats||{};
-
-    // قائمة اختيار اليوم
-    const opts=dates.map(dt=>`<option value="${dt}" ${dt===day?'selected':''}>${dt}</option>`).join("");
-    statsBox.innerHTML=`
-      <div class="panel" style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <span style="font-weight:800;color:var(--gold2)">📅 اختر اليوم:</span>
-          <select id="recoDay" onchange="loadDailyRecos(this.value)" style="padding:8px 14px;border-radius:8px;background:var(--bg2);color:var(--ink);border:1px solid var(--line);font-size:.9rem">${opts}</select>
-          <span style="font-size:.82rem;color:var(--muted)">${d.count} توصية</span>
-        </div>
-        <div style="display:flex;gap:14px;font-size:.85rem;flex-wrap:wrap">
-          <span style="color:#3b82f6">🔄 نشط: ${st.active||0}</span>
-          <span style="color:var(--buy)">✅ حقق: ${st.target_hit||0}</span>
-          <span style="color:var(--muted)">⏱️ منتهي: ${st.expired||0}</span>
-        </div>
-      </div>`;
-
-    if(!recos.length){
-      box.innerHTML=`<div class="panel" style="color:var(--muted)">لا توصيات في ${day}</div>`;
-      return;
-    }
-
-    // جدول التوصيات
-    const rows=recos.map(r=>{
-      const stColor=r.status==="target_hit"?"var(--buy)":r.status==="expired"?"var(--muted)":"#3b82f6";
-      const stLabel=r.status==="target_hit"?"✅ حقق الهدف":r.status==="expired"?"⏱️ منتهي":"🔄 نشط";
-      const pct=r.pct_to_target;
-      const pctColor=pct>0?"var(--buy)":"var(--sell)";
-      return `
-      <tr style="border-bottom:1px solid var(--line2)">
-        <td style="padding:10px 8px;font-weight:800;font-family:'IBM Plex Mono'">${r.symbol}</td>
-        <td style="padding:10px 8px">${r.name||''}</td>
-        <td style="padding:10px 8px;text-align:center;font-size:.78rem;color:var(--muted)">${r.interval||''}</td>
-        <td style="padding:10px 8px;text-align:center">${r.entry_price}</td>
-        <td style="padding:10px 8px;text-align:center;color:var(--buy);font-weight:700">🎯 ${r.target_price}</td>
-        <td style="padding:10px 8px;text-align:center;color:${pctColor};font-weight:700">${pct>0?'+':''}${pct}%</td>
-        <td style="padding:10px 8px;text-align:center;font-size:.82rem">${r.highest_price||'-'}</td>
-        <td style="padding:10px 8px;text-align:center;color:${stColor};font-weight:700;font-size:.8rem;white-space:nowrap">${stLabel}</td>
-        <td style="padding:10px 8px;text-align:center;font-size:.75rem;color:var(--muted)">${r.expiry_date||''}</td>
-      </tr>`;
-    }).join("");
-
-    box.innerHTML=`
-      <div class="panel" style="padding:0;overflow:hidden">
-        <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.82rem">
-          <thead><tr style="background:var(--panel2);color:var(--cyan);font-size:.72rem;border-bottom:.5px solid var(--cyan)">
-            <th style="padding:10px 8px;text-align:right">الرمز</th>
-            <th style="padding:10px 8px;text-align:right">الاسم</th>
-            <th style="padding:10px 8px;text-align:center">الفاصل</th>
-            <th style="padding:10px 8px;text-align:center">الدخول</th>
-            <th style="padding:10px 8px;text-align:center">الهدف</th>
-            <th style="padding:10px 8px;text-align:center">للهدف</th>
-            <th style="padding:10px 8px;text-align:center">أعلى سعر</th>
-            <th style="padding:10px 8px;text-align:center">الحالة</th>
-            <th style="padding:10px 8px;text-align:center">الانتهاء</th>
-          </tr></thead><tbody>${rows}</tbody></table></div>
-      </div>`;
-  }catch(e){
-    box.innerHTML=`<div class="panel" style="color:var(--sell)">خطأ: ${e.message}</div>`;
-  }
-}
-
-
-(async function init(){ await loadGroups(); shell(); setInterval(refreshMarketStatus, 60000); })();
-</script>
-</body>
-</html>
+const S={tab:"analyze",result:null,busy:false,sortMode:"strength"};
+function setSort(m){S.sortMode=m;loadLatest()}
+async function api(p,o){const r=await fetch(p,o);if(!r.ok){let m="";try{const e=await r.json();m=e.detail||JSON.stringify(e)}catch(_){m=r.statusText}throw new Error(m||"خطأ "+r.status)}return r.json()}
+function toast(m){const e=document.createElement("div");e.className="toast";e.textContent=m;document.body.appendChild(e);setTimeout(()=>e.remove(),2500)}
+
+function shell(){document.getElementById("root").innerHTML=`
+<div class="bar"><div class="br"><div class="lg">📡</div><div class="nm">راصد بلس<small>RASID PLUS</small></div></div><div id="hp" style="font-size:.72rem;color:var(--mt)">…</div></div>
+<div class="w"><div class="tabs">
+<button class="tb ${S.tab==='analyze'?'on':''}" onclick="go('analyze')">🎯 التحليل</button>
+<button class="tb ${S.tab==='settings'?'on':''}" onclick="go('settings')">⚙️ الإعدادات</button>
+</div><div id="ct" class="fade">${S.tab==='settings'?pgSettings():pgAnalyze()}</div></div>`;loadH();if(S.tab==='analyze'){loadSync();loadAccuracy();loadLatest();loadLongterm()}if(S.tab==='settings'){loadCfg();loadTg()}}
+function go(t){S.tab=t;shell()}
+async function loadH(){try{const h=await api("/api/health");const p=document.getElementById("hp");if(!p)return;const ms=h.market_status;const mc=ms==='live'?'var(--g)':ms==='weekend'?'var(--r)':'var(--ac2)';p.innerHTML=`<span style="color:${mc}">${ms==='live'?'🟢 مفتوح':ms==='post_close'?'🔴 مغلق':ms==='pre_open'?'🟡 قبل الافتتاح':'⚪ عطلة'}</span> ${h.time_riyadh||''}`}catch(e){}}
+
+// ═══════ التحليل (زر واحد) ═══════
+function pgAnalyze(){return `
+<div class="pn" id="syncPanel" style="border:1px solid rgba(0,212,255,.15)">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+<div><span style="font-weight:700;color:var(--ac2)">⏰ السحب التلقائي</span><span id="syncTimes" style="font-size:.72rem;color:var(--mt);margin-right:8px"></span></div>
+<div style="display:flex;gap:6px"><button class="bs" onclick="togglePause()" id="pauseBtn">⏸️ إيقاف مؤقت</button></div>
+</div><div id="syncStatus" style="font-size:.78rem;color:var(--mt);margin-top:6px">…</div></div>
+
+<div id="accuracyCard"></div>
+<div class="pn" style="text-align:center">
+<button class="bt btbig" onclick="runFull()" id="mainBtn">🚀 حلّل الآن — Claude + Gemini</button>
+<div style="font-size:.75rem;color:var(--mt);margin-top:8px">يسحب البيانات · يحدّث النتائج السابقة · يقيّم · يطلع أفضل التوصيات</div>
+</div>
+<div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:8px">
+<button class="bs" onclick="updateTracking()">💹 تحديث الأسعار</button>
+<button class="bs" onclick="toggleHistory()" id="histBtn">📜 السجل الكامل</button></div>
+<div id="analyzeNotes"></div>
+<div id="resultBox"></div>
+<div id="ltBox"></div>
+<div id="trackBox" style="margin-top:8px;display:none"></div>`}
+function toggleHistory(){const b=document.getElementById("trackBox");const btn=document.getElementById("histBtn");if(b.style.display==='none'){b.style.display='block';btn.textContent='✖ إخفاء السجل';loadTracking()}else{b.style.display='none';btn.textContent='📜 السجل الكامل'}}
+
+async function loadAccuracy(){const c=document.getElementById("accuracyCard");if(!c)return;try{const d=await api("/api/recommendations/performance");if(d.error||d.total===0||d.total===undefined){c.innerHTML='';return}const rate=d.success_rate||0;const rc=rate>=70?"var(--g)":rate>=50?"var(--ac2)":"var(--r)";const cats=d.by_category||{};const cl={short_term:"قريبة",long_term:"طويلة",speculative:"مضاربة"};
+let h=`<div class="pn" style="background:linear-gradient(165deg,var(--p),var(--bg2));border:1px solid ${rate>=50?'rgba(0,230,118,.25)':'rgba(255,82,82,.2)'}">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+<div style="display:flex;align-items:center;gap:14px">
+<div style="text-align:center"><div style="font-size:2.2rem;font-weight:900;color:${rc};line-height:1">${rate}%</div><div style="font-size:.68rem;color:var(--mt)">دقة التوصيات</div></div>
+<div style="height:44px;width:1px;background:var(--ln2)"></div>
+<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:.82rem">
+<span style="color:var(--g)" title="ناجحة">✅ ${d.success||0}</span>
+<span style="color:var(--r)" title="فاشلة">❌ ${d.failed||0}</span>
+<span style="color:var(--mt)" title="بلا حركة">⚪ ${d.flat||0}</span>
+<span style="color:#5aafff" title="كل الجارية">🔵 ${d.active||0} جارية (الكل)</span>
+${d.late_success>0?`<span style="color:var(--ac2)">🔄 ${d.late_success}</span>`:''}</div></div>
+<div style="text-align:left;font-size:.72rem;color:var(--mt)">${d.avg_peak?`متوسط الذروة ${d.avg_peak}%`:''}</div></div>`;
+// دقة كل فئة
+const catRows=Object.entries(cats).filter(([k,v])=>v.total>0);
+if(catRows.length){h+=`<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--ln2)">`;
+for(const[k,v]of catRows){const vc=v.rate>=50?"var(--g)":"var(--r)";h+=`<div style="font-size:.78rem"><span style="color:var(--mt)">${cl[k]||k}:</span> <b style="color:${vc}">${v.rate}%</b> <span style="color:var(--mt);font-size:.7rem">(${v.success}/${v.total})</span></div>`}h+=`</div>`}
+if(!d.mature)h+=`<div style="font-size:.68rem;color:var(--mt);margin-top:8px">⚠️ العينة ${d.closed}/20 — الدقة تتحسّن مع تراكم النتائج</div>`;
+h+=`</div>`;c.innerHTML=h}catch(e){c.innerHTML=''}}
+async function loadLongterm(){const box=document.getElementById("ltBox");if(!box)return;try{const d=await api("/api/recommendations/longterm");const picks=d.picks||[];
+let h=`<div class="sh"><div class="d" style="background:#9c6ade;box-shadow:0 0 14px #9c6ade"></div><h2>🌱 أسهم المدى البعيد النوعية</h2><span class="tg">${picks.length} · أسبوعي/شهري · منتقاة</span></div>`;
+h+=`<div style="font-size:.75rem;color:var(--mt);margin-bottom:8px">أسهم قوية على المدى الطويل، لم ترتفع كثيراً مؤخراً — فرص تجميع بعيدة المدى. محدودة ونادرة (تشكّلها بطيء).</div>`;
+if(!picks.length){h+=`<div class="pn" style="text-align:center;color:var(--mt);padding:20px;border:1px dashed rgba(156,106,222,.3)">لا توجد أسهم مدى بعيد نوعية حالياً — المعايير صارمة (إشارات طويلة قوية + لم ترتفع كثيراً + ليست فخاً). قد تظهر عند تشكّل الفرص.</div>`;box.innerHTML=h;return}
+for(const p of picks){const cc=p.bet_score>=50?"var(--g)":"var(--ac2)";const wc=p.weekly_change>0?"var(--g)":p.weekly_change<0?"var(--r)":"var(--mt)";
+h+=`<div class="rc" style="border-color:rgba(156,106,222,.3)">
+<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:center">
+<div><b style="font-size:1.05rem">${p.name||''}</b> <span style="font-family:'IBM Plex Mono';color:var(--mt);font-size:.8rem">${p.symbol}</span></div>
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+<span style="font-family:'IBM Plex Mono';font-weight:700">${p.price||''}</span>
+<span style="font-size:.75rem;color:var(--mt)">إشارات طويلة ${p.long_pct}%</span>
+<span style="background:${cc}22;color:${cc};padding:2px 8px;border-radius:6px;font-weight:700;font-size:.78rem">${(p.bet_score||0).toFixed(0)}</span></div></div>
+<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;font-size:.75rem">
+<span style="color:${wc}">أسبوعي ${p.weekly_change>0?'+':''}${p.weekly_change}%</span>
+<span style="color:var(--mt)">شهري ${p.monthly_change>0?'+':''}${p.monthly_change}%</span>
+<span style="color:var(--ac2)">RSI ${(p.rsi||0).toFixed(0)} · ${p.rsi_state||''}</span>
+${p.signals?.length?`<span style="color:var(--g)">🔑 ${p.signals.join(' · ')}</span>`:''}</div></div>`}
+box.innerHTML=h}catch(e){box.innerHTML=''}}
+async function loadLatest(){const box=document.getElementById("resultBox");if(!box)return;try{const d=await api("/api/recommendations/latest");let picks=d.picks||[];if(!picks.length){box.innerHTML='';return}
+// الترتيب حسب اختيار المستخدم
+if(S.sortMode==='newest'){picks=picks.slice().sort((a,b)=>(b.created_at||b.appeared_date||'').localeCompare(a.created_at||a.appeared_date||''))}
+else if(S.sortMode==='oldest'){picks=picks.slice().sort((a,b)=>(a.created_at||a.appeared_date||'').localeCompare(b.created_at||b.appeared_date||''))}
+else if(S.sortMode==='gain'){picks=picks.slice().sort((a,b)=>(b.current_pct||0)-(a.current_pct||0))}
+else{picks=picks.slice().sort((a,b)=>(b.confidence||0)-(a.confidence||0))}
+const byStrength=(!S.sortMode||S.sortMode==='strength');
+let h=`<div class="sh"><div class="d" style="background:var(--o);box-shadow:0 0 14px var(--o)"></div><h2>🎯 التوصيات النشطة</h2><span class="tg">${picks.length} سهم تحت المتابعة</span></div>`;
+h+=`<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center"><button class="bs${byStrength?' on':''}" onclick="setSort('strength')">💪 الأقوى</button><button class="bs${S.sortMode==='newest'?' on':''}" onclick="setSort('newest')">🕐 الأحدث</button><button class="bs${S.sortMode==='oldest'?' on':''}" onclick="setSort('oldest')">📅 الأقدم</button><button class="bs${S.sortMode==='gain'?' on':''}" onclick="setSort('gain')">📈 الأداء</button></div>`;
+h+=`<div style="font-size:.68rem;color:var(--mt);margin-bottom:8px;background:var(--bg2);padding:7px 12px;border-radius:8px">${byStrength?'🥇🥈🥉 = أقوى 3 حسب الثقة · ':''}اضغط أي سهم لعرض سبب الترشيح · النسبة = الفرق عن الدخول</div>`;
+h+=`<div class="pn" style="padding:0;overflow:hidden"><div class="tblwrap"><table style="width:100%;border-collapse:collapse;font-size:.82rem">
+<thead><tr style="background:var(--bg);color:var(--ac2);font-size:.72rem"><th style="padding:9px 6px">#</th><th style="padding:9px 6px;text-align:right">السهم</th><th style="padding:9px 6px">الثقة</th><th style="padding:9px 6px">الظهور</th><th style="padding:9px 6px">الدخول</th><th style="padding:9px 6px">الحالي</th><th style="padding:9px 6px">النسبة</th><th style="padding:9px 6px">الهدف</th><th style="padding:9px 6px">متبقّي</th></tr></thead><tbody>`;
+let rank=0;for(const p of picks){rank++;const cc=p.confidence>=9?"var(--g)":p.confidence>=8?"var(--ac2)":"var(--mt)";const cp=p.current_pct||0;const cpc=cp>0?"var(--g)":cp<0?"var(--r)":"var(--mt)";const medal=byStrength?(rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`${rank}`):`${rank}`;
+const appDate=p.created_at?p.created_at.slice(0,16).replace('T',' '):(p.appeared_date||'-');const appShort=p.appeared_date||(p.created_at?p.created_at.slice(0,10):'-');
+let remTxt='-',remColor='var(--mt)';const exp=p.max_expiry_date||p.expiry_date;if(exp){const today=new Date();today.setHours(0,0,0,0);const ed=new Date(exp);const diff=Math.ceil((ed-today)/(1000*60*60*24));if(diff>1){remTxt=`${diff} أيام`;remColor='var(--g)'}else if(diff===1){remTxt='يوم واحد';remColor='var(--o)'}else if(diff===0){remTxt='ينتهي اليوم';remColor='var(--o)'}else{remTxt='منتهية';remColor='var(--r)'}}
+const pctBadge=p.current_price?`<span style="background:${cpc}18;color:${cpc};padding:2px 7px;border-radius:6px;font-weight:800;font-size:.74rem;white-space:nowrap">${cp>0?'▲+':cp<0?'▼':''}${cp}%</span>`:'<span style="color:var(--mt)">-</span>';
+h+=`<tr onclick="toggleDetail('${p.symbol}')" style="border-bottom:1px solid var(--ln2);cursor:pointer">
+<td style="padding:9px 6px;text-align:center">${medal}</td>
+<td style="padding:9px 6px"><b>${p.name||''}</b> <span style="font-family:'IBM Plex Mono';color:var(--mt);font-size:.72rem">${p.symbol}</span></td>
+<td style="padding:9px 6px;text-align:center"><span style="background:${cc}22;color:${cc};padding:2px 9px;border-radius:6px;font-weight:800">${p.confidence}</span></td>
+<td style="padding:9px 6px;text-align:center;font-size:.7rem;color:var(--mt);white-space:nowrap">${appShort}</td>
+<td style="padding:9px 6px;text-align:center">${p.entry_price||'-'}</td>
+<td style="padding:9px 6px;text-align:center"><b>${p.current_price||'-'}</b></td>
+<td style="padding:9px 6px;text-align:center">${pctBadge}</td>
+<td style="padding:9px 6px;text-align:center">${p.target_price||'-'}</td>
+<td style="padding:9px 6px;text-align:center;font-size:.72rem;color:${remColor};font-weight:700">${remTxt}</td></tr>
+<tr id="detail_${p.symbol}" style="display:none;background:var(--bg2)"><td colspan="9" style="padding:12px 14px">
+<div style="font-size:.72rem;color:var(--mt);margin-bottom:6px">📅 ظهرت ${appDate} · تنتهي ${p.max_expiry_date||p.expiry_date||''} · الأفق ${p.category==='long_term'?'مدى بعيد':'1-5 أيام'}</div>
+<div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--mt);margin-bottom:4px"><span>درجة الإيجابية</span><span style="color:${cc};font-weight:700">${p.confidence>=9?'عالية جداً':p.confidence>=8?'عالية':'جيدة'}</span></div>
+<div class="sb" style="margin-bottom:8px"><div class="sf" style="width:${Math.round((p.confidence||0)*10)}%;background:linear-gradient(90deg,${cc},var(--g))"></div></div>
+<div style="font-size:.85rem;line-height:1.6">${p.reasoning||'لا تفاصيل'}</div></td></tr>`}
+h+=`</tbody></table></div></div>`;
+h+=`<div style="font-size:.68rem;color:var(--mt);margin-top:8px;text-align:center">اضغط أي سهم للتفاصيل · ⚠️ تحليل فني مساعد وليس توصية مالية</div>`;
+box.innerHTML=h}catch(e){}}
+function toggleDetail(sym){const r=document.getElementById('detail_'+sym);if(r)r.style.display=r.style.display==='none'?'table-row':'none'}
+async function loadTracking(){const b=document.getElementById("trackBox");b.innerHTML='<div style="color:var(--mt);font-size:.82rem"><span class="spin"></span> جاري التحميل...</div>';try{const d=await api("/api/recommendations/tracking");const c=d.counts||{};
+// آخر تحديث
+let lastUpd='';try{const sh=await api("/api/sync/history");const ls=sh.last_sync||{};if(ls.time){const t=ls.time.slice(0,16).replace('T',' ');lastUpd=`🕐 آخر تحديث للبيانات: <b>${t}</b> · ${ls.tab||''}`}}catch(e){}
+let h=`${lastUpd?`<div style="font-size:.78rem;color:var(--ac2);margin-bottom:8px;background:rgba(0,212,255,.06);padding:6px 12px;border-radius:8px">${lastUpd}</div>`:''}
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+<span style="background:rgba(90,175,255,.12);color:#5aafff;padding:4px 12px;border-radius:8px;font-size:.82rem;font-weight:700">🔵 ${c.active||0} جارية</span>
+<span style="background:rgba(0,230,118,.12);color:var(--g);padding:4px 12px;border-radius:8px;font-size:.82rem;font-weight:700">✅ ${c.success||0} ناجحة</span>
+<span style="background:rgba(255,82,82,.12);color:var(--r);padding:4px 12px;border-radius:8px;font-size:.82rem;font-weight:700">❌ ${c.failed||0} فاشلة</span>
+<span style="background:rgba(144,164,174,.12);color:var(--mt);padding:4px 12px;border-radius:8px;font-size:.82rem;font-weight:700">⚪ ${c.flat||0} بلا حركة</span>
+${c.late>0?`<span style="background:rgba(0,212,255,.12);color:var(--ac2);padding:4px 12px;border-radius:8px;font-size:.82rem;font-weight:700">🔄 ${c.late} حققت لاحقاً</span>`:''}</div>`;
+const active=(d.all||[]).filter(r=>r.status==='active');
+const succ=(d.success||[]);
+const others=(d.all||[]).filter(r=>r.status!=='active'&&r.outcome!=='success');
+if(!active.length&&!succ.length&&!others.length){h+='<div style="color:var(--mt);font-size:.82rem;text-align:center;padding:15px">لا توجد توصيات محفوظة بعد — اضغط "حلّل الآن"</div>';b.innerHTML=h;return}
+// جدول الجارية + غير الناجحة
+const mainRows=active.concat(others);
+if(mainRows.length){h+=trackTable(mainRows,false)}
+// جدول الناجحة المستقل
+if(succ.length){h+=`<div style="margin-top:16px;font-weight:700;color:var(--g);margin-bottom:6px">✅ حققت الهدف (${succ.length}) <span style="font-size:.7rem;color:var(--mt);font-weight:400">· المعيار: بلوغ +1.5% ذروة خلال 3-5 أيام</span></div>`;h+=trackTable(succ,true)}
+b.innerHTML=h}catch(e){b.innerHTML=`<div style="color:var(--r);font-size:.82rem">❌ ${e.message}</div>`}}
+
+function trackTable(rows,isSuccess){const lastCol=isSuccess?'تاريخ التحقق':'ينتهي';let h=`<div class="tblwrap"><table style="width:100%;border-collapse:collapse;font-size:.8rem">
+<thead><tr style="background:var(--bg);color:var(--ac2);font-size:.7rem"><th style="padding:7px 5px;text-align:right">السهم</th><th style="padding:7px 5px">تاريخ ووقت التوصية</th><th style="padding:7px 5px">الثقة</th><th style="padding:7px 5px">الحالة</th><th style="padding:7px 5px">الدخول</th><th style="padding:7px 5px">الحالي</th><th style="padding:7px 5px">الهدف</th><th style="padding:7px 5px">${isSuccess?'أعلى بعد الهدف':'أعلى'}</th><th style="padding:7px 5px">الذروة</th><th style="padding:7px 5px">${lastCol}</th></tr></thead><tbody>`;
+for(const r of rows){const pk=r.peak_pct||0;const pc=pk>=1.5?"var(--g)":pk<=-2?"var(--r)":"var(--mt)";const cp=r.current_pct||0;const cpc=cp>0?"var(--g)":cp<0?"var(--r)":"var(--mt)";const bg=r.status==='active'?'<span style="color:#5aafff">🔵</span>':r.outcome==='success'?'<span style="color:var(--g)">✅</span>':r.outcome==='flat'?'<span style="color:var(--mt)">⚪</span>':'<span style="color:var(--r)">❌</span>';const lt=r.post_watch_hit?' 🔄':'';
+const dt=r.created_at?r.created_at.slice(0,16).replace('T',' '):(r.appeared_date||'');const cf=r.confidence||0;const cfc=cf>=9?"var(--g)":cf>=8?"var(--ac2)":"var(--mt)";
+const highCol=isSuccess?(r.post_target_high?`${r.post_target_high} <span style="font-size:.65rem;color:var(--g)">+${(r.post_target_pct||0).toFixed(1)}%</span>`:(r.highest_price||'-')):(r.highest_price||'-');
+const lastVal=isSuccess?(r.closed_date||'-'):(r.expiry_date||'');
+h+=`<tr style="border-bottom:1px solid var(--ln2)${r.status==='active'?';background:rgba(90,175,255,.04)':isSuccess?';background:rgba(0,230,118,.04)':''}"><td style="padding:6px 5px"><b>${r.symbol}</b> <span style="color:var(--mt);font-size:.7rem">${r.name||''}</span>${lt}</td><td style="padding:6px 5px;text-align:center;font-size:.72rem;color:var(--mt);white-space:nowrap">${dt}</td><td style="padding:6px 5px;text-align:center"><span style="color:${cfc};font-weight:700">${cf}</span></td><td style="padding:6px 5px;text-align:center">${bg}</td><td style="padding:6px 5px;text-align:center">${r.entry_price||'-'}</td><td style="padding:6px 5px;text-align:center">${r.current_price?`<b>${r.current_price}</b> <span style="font-size:.65rem;color:${cpc}">${cp>0?'+':''}${cp}%</span>`:'<span style="color:var(--mt)">-</span>'}</td><td style="padding:6px 5px;text-align:center">${r.target_price||'-'}</td><td style="padding:6px 5px;text-align:center;${isSuccess?'color:var(--g);font-weight:700':''}">${highCol}</td><td style="padding:6px 5px;text-align:center;color:${pc};font-weight:700">${pk.toFixed(1)}%</td><td style="padding:6px 5px;text-align:center;font-size:.7rem;color:${isSuccess?'var(--g)':'var(--mt)'};white-space:nowrap">${lastVal}</td></tr>`}
+return h+`</tbody></table></div>`}
+async function updateTracking(){const b=document.getElementById("trackBox");b.innerHTML='<div style="color:var(--mt);font-size:.82rem"><span class="spin"></span> جاري تحديث الأسعار...</div>';try{const d=await api("/api/recommendations/update",{method:"POST"});const a=d.active||{};toast(`✅ نجاح:${a.success||0} فشل:${a.failed||0} جارية:${a.still_active||0} · المصدر: ${d.price_source||''}`);loadTracking()}catch(e){b.innerHTML=`<div style="color:var(--r);font-size:.82rem">❌ ${e.message}</div>`}}
+
+async function runFull(){if(S.busy)return;S.busy=true;const btn=document.getElementById("mainBtn");btn.disabled=true;btn.innerHTML=`<span class="spin"></span> جاري التحليل والتقييم... (~20 ثانية)`;const box=document.getElementById("resultBox");box.innerHTML="";
+try{const d=await api("/api/analyze-full",{method:"POST"});S.result=d;shell();
+// عرض ملاحظات التحليل فوق الجدول
+setTimeout(()=>{const nb=document.getElementById("analyzeNotes");if(nb){let n='';if(d.market_note)n+=`<div style="font-size:.85rem;margin-top:6px">📊 ${d.market_note}</div>`;if(d.consensus_note)n+=`<div style="font-size:.8rem;color:var(--ac2);margin-top:4px">🤝 ${d.consensus_note}</div>`;if(d.learn_note)n+=`<div style="font-size:.8rem;color:var(--g);margin-top:4px">📚 ${d.learn_note}</div>`;if(d.movers_note)n+=`<div style="font-size:.78rem;color:var(--ac2);margin-top:4px">🔍 ${d.movers_note}</div>`;if(d.missed_pattern&&d.missed_pattern!=='فراغ')n+=`<div style="font-size:.78rem;color:var(--o);margin-top:4px;background:rgba(255,152,0,.08);padding:6px 10px;border-radius:8px">💡 نمط الفرص الفائتة: ${d.missed_pattern}</div>`;if(!d.saved&&!d.picks?.length)n+=`<div style="font-size:.82rem;color:var(--mt);margin-top:6px">👍 لا توصية جديدة — التوصيات النشطة تستمر تحت المتابعة</div>`;if(n)nb.innerHTML=`<div class="pn">${n}</div>`}},200)}catch(e){let msg=e.message;if(msg.includes('529')||msg.includes('مزحوم')||msg.includes('Overloaded')||msg.includes('overloaded'))msg='⏳ خوادم Claude مزحومة حالياً. النظام حاول تلقائياً — انتظر دقيقة وجرّب مرة ثانية.';box.innerHTML=`<div class="pn" style="color:var(--r)">${msg}</div>`;btn.disabled=false;btn.innerHTML="🚀 حلّل الآن — Claude + Gemini"}S.busy=false}
+
+function summaryTable(picks){let h=`<div class="pn" style="padding:0;overflow:hidden;margin-bottom:14px"><div class="tblwrap"><table style="width:100%;border-collapse:collapse;font-size:.82rem">
+<thead><tr style="background:var(--bg);color:var(--ac2);font-size:.72rem"><th style="padding:9px 6px">#</th><th style="padding:9px 6px;text-align:right">السهم</th><th style="padding:9px 6px">الثقة</th><th style="padding:9px 6px">الدخول</th><th style="padding:9px 6px">الحالي</th><th style="padding:9px 6px">الهدف</th><th style="padding:9px 6px">الأفق</th></tr></thead><tbody>`;
+let rank=0;for(const p of picks){rank++;const cc=p.confidence>=9?"var(--g)":p.confidence>=7?"var(--ac2)":"var(--mt)";const medal=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`${rank}`;const cp=p.current_pct||0;const cpc=cp>0?"var(--g)":cp<0?"var(--r)":"var(--mt)";
+h+=`<tr style="border-bottom:1px solid var(--ln2);cursor:pointer" onclick="document.getElementById('card_${p.symbol}')?.scrollIntoView({behavior:'smooth',block:'center'})">
+<td style="padding:8px 6px;text-align:center">${medal}</td>
+<td style="padding:8px 6px"><b>${p.name||''}</b> <span style="font-family:'IBM Plex Mono';color:var(--mt);font-size:.72rem">${p.symbol}</span></td>
+<td style="padding:8px 6px;text-align:center"><span style="background:${cc}22;color:${cc};padding:2px 8px;border-radius:6px;font-weight:800">${p.confidence}</span></td>
+<td style="padding:8px 6px;text-align:center">${p.entry_price||p.price||'-'}</td>
+<td style="padding:8px 6px;text-align:center">${p.current_price?`${p.current_price} <span style="color:${cpc};font-size:.72rem">${cp>0?'+':''}${cp}%</span>`:'<span style="color:var(--mt)">-</span>'}</td>
+<td style="padding:8px 6px;text-align:center">${p.target_price||'-'}</td>
+<td style="padding:8px 6px;text-align:center;font-size:.75rem;color:var(--mt)">${p.horizon||(p.category==='long_term'?'مدى بعيد':'1-5 أيام')}</td></tr>`}
+return h+`</tbody></table></div></div>`}
+
+function renderResult(){const d=S.result;if(!d)return'';const md=d.market_mood||{};const mc=md.state==="صاعد"?"var(--g)":md.state==="هابط"?"var(--r)":"var(--ac2)";const picks=d.picks||[];
+let h=`<div class="pn"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center">
+<div><b style="color:var(--ac2)">السوق:</b> <span style="background:${mc}22;color:${mc};padding:4px 10px;border-radius:99px;font-size:.85rem;font-weight:700">${md.state||''}</span>
+<span style="color:var(--mt);font-size:.8rem;margin-right:6px">${md.positive_count||0}↑ ${md.negative_count||0}↓ · ${d.total_stocks} سهم · ${d.tab||''}</span></div>
+${d.saved?`<span style="color:var(--g);font-size:.8rem">💾 حُفظت ${d.saved}</span>`:''}</div>
+${d.market_note?`<div style="font-size:.85rem;color:var(--ink);margin-top:8px">📊 ${d.market_note}</div>`:''}
+${d.consensus_note?`<div style="font-size:.8rem;color:var(--ac2);margin-top:4px">🤝 ${d.consensus_note}</div>`:''}
+${d.learn_note?`<div style="font-size:.8rem;color:var(--g);margin-top:4px;padding-top:4px;border-top:1px solid var(--ln2)">📚 تعلّم: ${d.learn_note}</div>`:''}
+${d.movers_note?`<div style="font-size:.78rem;color:var(--ac2);margin-top:4px">🔍 ${d.movers_note}</div>`:''}
+${d.missed_pattern&&d.missed_pattern!=='فراغ'?`<div style="font-size:.78rem;color:var(--o);margin-top:4px;background:rgba(255,152,0,.08);padding:6px 10px;border-radius:8px">💡 نمط الفرص الفائتة: ${d.missed_pattern}</div>`:''}
+${(d.rejection_review&&d.rejection_review.length)?`<div style="margin-top:6px;font-size:.75rem"><div style="color:var(--mt);font-weight:700;margin-bottom:3px">🔍 مراجعة قرارات الرفض السابقة:</div>${d.rejection_review.map(r=>`<div style="color:${r.verdict.includes('خاطئ')?'var(--r)':r.verdict.includes('سليم')?'var(--g)':'var(--mt)'}">${r.symbol}: ${r.verdict} (${r.change_now>0?'+':''}${r.change_now}% الآن)</div>`).join('')}</div>`:''}</div>`;
+
+h+=`<div class="sh"><div class="d" style="background:var(--o);box-shadow:0 0 14px var(--o)"></div><h2>🏆 التوصيات النهائية</h2><span class="tg">${picks.length} سهم · ${(d.models||[]).join(' + ')}</span></div>`;
+picks.sort((a,b)=>(b.confidence||0)-(a.confidence||0));
+if(!picks.length){h+=`<div class="pn" style="text-align:center;padding:22px;border:1px dashed rgba(0,212,255,.2)"><div style="font-size:1.3rem;margin-bottom:6px">👍</div><div style="color:var(--ink);font-weight:700">لا توصية جديدة هذه المرة</div><div style="color:var(--mt);font-size:.82rem;margin-top:5px">لم يظهر سهم يستحق ثقة عالية — والتوصيات الجارية تستمر تحت المتابعة.<br>عدم إصدار توصية ضعيفة قرار صحّي. الجودة أهم من الكثرة.</div></div>`}
+else{h+=summaryTable(picks)}
+let rrank=0;for(const p of picks){rrank++;const cc=p.confidence>=9?"var(--g)":p.confidence>=7?"var(--ac2)":"var(--mt)";const chg=p.change_pct>0?"var(--g)":p.change_pct<0?"var(--r)":"var(--mt)";const posW=Math.round((p.confidence||0)*10);const posLbl=p.confidence>=9?"إيجابية عالية جداً":p.confidence>=8?"إيجابية عالية":p.confidence>=7?"إيجابية جيدة":"إيجابية معتدلة";const rmedal=rrank===1?'🥇':rrank===2?'🥈':rrank===3?'🥉':`#${rrank}`;
+h+=`<div class="rc" id="card_${p.symbol}" style="border-color:rgba(255,152,0,.3)">
+<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:center">
+<div><span style="font-size:1rem;margin-left:4px">${rmedal}</span><b style="font-size:1.12rem">${p.name||''}</b> <span style="font-family:'IBM Plex Mono';color:var(--mt);font-size:.82rem">${p.symbol}</span>
+<span style="color:${chg};font-weight:700;font-size:.85rem">${p.change_pct>0?'+':''}${p.change_pct||0}%</span></div>
+<div style="display:flex;gap:8px;align-items:center"><span style="font-family:'IBM Plex Mono';font-weight:700">${p.price||''}</span>
+<span style="background:${cc}22;color:${cc};padding:4px 12px;border-radius:8px;font-weight:800">ثقة ${p.confidence}/10</span></div></div>
+<div style="margin-top:8px"><div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--mt);margin-bottom:3px"><span>درجة الإيجابية</span><span style="color:${cc};font-weight:700">${posLbl}</span></div><div class="sb"><div class="sf" style="width:${posW}%;background:linear-gradient(90deg,${cc},var(--g))"></div></div></div>
+<div style="margin-top:8px;font-size:.88rem;line-height:1.7">${p.reasoning||''}</div>
+<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+<div style="flex:1;min-width:180px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.2);border-radius:8px;padding:8px 10px">
+<div style="font-size:.68rem;color:var(--g);font-weight:700;margin-bottom:2px">✓ سبب الترشيح</div>
+<div style="font-size:.8rem">${p.key_signal||''}</div></div>
+<div style="flex:1;min-width:180px;background:rgba(255,82,82,.07);border:1px solid rgba(255,82,82,.18);border-radius:8px;padding:8px 10px">
+<div style="font-size:.68rem;color:var(--r);font-weight:700;margin-bottom:2px">⚠ نقطة الحذر</div>
+<div style="font-size:.8rem">${p.risk||''}</div></div></div>
+<div style="font-size:.72rem;color:var(--mt);margin-top:6px">⏱️ الأفق: ${p.horizon||''}</div></div>`}
+
+const perf=d.performance;if(perf&&perf.closed>0){h+=`<div class="pn" style="margin-top:10px"><b style="color:var(--ac2)">📊 دقة النظام حتى الآن</b>
+<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:.85rem">
+<span>نسبة النجاح: <b style="color:${perf.success_rate>=50?'var(--g)':'var(--r)'}">${perf.success_rate}%</b></span>
+<span style="color:var(--g)">✅ ${perf.success}</span><span style="color:var(--r)">❌ ${perf.failed}</span>
+<span style="color:#5aafff">🔵 ${perf.active} جارية</span>
+${perf.late_success>0?`<span style="color:var(--ac2)">🔄 ${perf.late_success} حققت لاحقاً</span>`:''}</div>
+${!perf.mature?`<div style="font-size:.72rem;color:var(--mt);margin-top:5px">⚠️ العينة ${perf.closed}/20 — الدقة تتحسّن مع تراكم النتائج</div>`:''}</div>`}
+
+const rej=d.rejected||[];if(rej.length){h+=`<div style="margin-top:8px"><div style="font-size:.78rem;font-weight:700;color:var(--mt);margin-bottom:4px">🚫 مرفوضون:</div>`;for(const r of rej)h+=`<div style="font-size:.75rem;color:var(--mt);margin-bottom:2px"><b>${r.symbol}</b> — ${r.reason}</div>`;h+=`</div>`}
+h+=`<div style="font-size:.68rem;color:var(--mt);margin-top:12px;text-align:center">⚠️ تحليل فني مساعد وليس توصية مالية</div>`;
+return h}
+
+// ═══════ المزامنة ═══════
+async function loadSync(){try{const d=await api("/api/sync/status");const st=document.getElementById("syncStatus");const tm=document.getElementById("syncTimes");const pb=document.getElementById("pauseBtn");if(!st)return;if(tm)tm.textContent="· "+(d.schedule||[]).join(" · ")+" أيام التداول";if(pb){pb.innerHTML=d.paused?"▶️ استئناف":"⏸️ إيقاف مؤقت";pb.className=`bs${d.paused?' on':''}`}const ls=d.last_sync||{};let m=d.paused?'🔴 موقوف حتى إشعار آخر':d.scheduler_active?'🟢 نشط':'⚪ متوقف';
+if(ls.status==='success'){const dt=ls.time?ls.time.slice(0,16).replace('T',' '):'';m+=` · 🕐 آخر تحليل: <b style="color:var(--ac2)">${dt}</b> · ${ls.tab||''} (${ls.stocks} سهم)`;const lg=(d.log||[]).slice(-1)[0];if(lg&&lg.saved!==undefined)m+=` · 🏆 ${lg.picks_count||0} توصية`}else if(ls.status==='no_update'){const dt=ls.time?ls.time.slice(0,16).replace('T',' '):'';m+=` · 🕐 آخر تحليل: <b style="color:var(--ac2)">${dt}</b> · ⚠️ لا تحديث جديد`}else if(ls.status==='error')m+=` · ❌ ${ls.error||''}`;
+if(!d.paused)m+=` · القادم: ${d.next_sync||''}`;st.innerHTML=m}catch(e){}}
+async function togglePause(){try{const d=await api("/api/sync/status");if(d.paused)await api("/api/sync/resume",{method:"POST"});else await api("/api/sync/pause",{method:"POST"});loadSync()}catch(e){toast("❌ "+e.message)}}
+
+// ═══════ الإعدادات ═══════
+function pgSettings(){return `
+<div class="sh"><div class="d" style="background:var(--o);box-shadow:0 0 10px var(--o)"></div><h2>الإعدادات</h2></div>
+<div class="pn">
+<label style="font-weight:700;font-size:.88rem;display:block;margin-bottom:5px">📋 رابط Google Sheets / Drive</label>
+<input type="url" id="cs" placeholder="https://docs.google.com/spreadsheets/d/...">
+<div style="font-size:.72rem;color:var(--mt);margin-bottom:14px">عام · كل تبويب = لقطة باسم <code style="color:var(--ac2)">2026-07-25_15-43</code></div>
+<label style="font-weight:700;font-size:.88rem;display:block;margin-bottom:5px">🔑 مفتاح Claude</label><input type="password" id="ck" placeholder="sk-ant-...">
+<label style="font-weight:700;font-size:.88rem;display:block;margin-bottom:5px;margin-top:6px">✨ مفتاح Gemini</label><input type="password" id="cg" placeholder="AIza...">
+<label style="font-weight:700;font-size:.88rem;display:block;margin-bottom:5px;margin-top:6px">📊 مفتاح سهمك</label><input type="password" id="csh" placeholder="مفتاح سهمك">
+<label style="font-weight:700;font-size:.88rem;display:block;margin-bottom:5px;margin-top:6px">🗄️ Supabase URL</label><input type="url" id="su" placeholder="https://xxx.supabase.co">
+<label style="font-weight:700;font-size:.88rem;display:block;margin-bottom:5px">🔐 Supabase Key</label><input type="password" id="sk" placeholder="sb_secret_...">
+<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px">
+<button class="bt" onclick="saveCfg()">💾 حفظ</button><button class="bs" onclick="setupTb()">🗄️ إنشاء الجداول</button><button class="bs" onclick="testKeys()">🔌 اختبار المفاتيح</button><button class="bs" onclick="fixCats()">🔧 تصحيح التصنيف</button><button class="bs" onclick="cleanDups()">🧹 تنظيف المكررات</button>
+<span id="cm" style="font-size:.82rem;color:var(--mt)"></span></div>
+<div id="keyTest" style="margin-top:10px"></div></div>
+
+<div class="pn">
+<div style="font-weight:700;color:var(--ac2);margin-bottom:10px">⏰ أوقات السحب التلقائي</div>
+<div id="timesList" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"></div>
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+<input type="time" id="newTime" style="width:auto;margin-bottom:0">
+<button class="bs" onclick="addTime()">➕ إضافة وقت</button>
+<button class="bs" onclick="saveTimes()">💾 حفظ الأوقات</button>
+<span id="tmsg" style="font-size:.8rem;color:var(--mt)"></span></div>
+<div style="font-size:.72rem;color:var(--mt);margin-top:8px">أيام التداول فقط (أحد–خميس) · بتوقيت الرياض</div></div>
+
+<div class="pn"><div style="font-weight:700;color:var(--ac2);margin-bottom:8px">ℹ️ ساعات السوق</div>
+<div style="font-size:.82rem;color:var(--mt);line-height:1.8">أحد–خميس · 9:30ص–3:20م · الجمعة والسبت عطلة</div></div>
+
+<div class="pn" style="border:1px solid rgba(0,212,255,.15)">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+<span style="font-weight:700;color:#29b6f6">✈️ تنبيهات Telegram</span>
+<button class="bs" onclick="toggleTg()" id="tgToggle">⏳</button></div>
+<div id="tgStatus" style="font-size:.78rem;color:var(--mt);margin-bottom:10px">…</div>
+<label style="font-weight:700;font-size:.85rem;display:block;margin-bottom:5px">🤖 Bot Token</label>
+<input type="password" id="tgToken" placeholder="123456:ABC-DEF...">
+<label style="font-weight:700;font-size:.85rem;display:block;margin-bottom:5px;margin-top:6px">💬 Chat ID</label>
+<input type="text" id="tgChat" placeholder="123456789">
+<label style="font-weight:700;font-size:.85rem;display:block;margin-bottom:5px;margin-top:6px">🔑 الرقم السري (للزملاء)</label>
+<input type="text" id="tgCode" placeholder="2234">
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+<button class="bt" onclick="saveTg()">💾 حفظ</button>
+<button class="bs" onclick="testTg()">🔌 اختبار الاتصال</button>
+<button class="bs" onclick="setupWebhook()">🔗 تفعيل البوت</button>
+<span id="tgMsg" style="font-size:.8rem;color:var(--mt)"></span></div>
+<div style="font-size:.7rem;color:var(--mt);margin-top:10px;line-height:1.7">
+① أنشئ بوت عبر <b>@BotFather</b> واحصل على التوكن<br>
+② أرسل رسالة لبوتك ثم احصل على Chat ID من <b>@userinfobot</b><br>
+③ احفظ ثم اضغط "اختبار الاتصال" ثم "تفعيل البوت"<br>
+④ الأوامر: <code>/active</code> لعرض التوصيات الجارية</div></div>`}
+
+async function loadTg(){try{const s=await api("/api/telegram/settings");const st=document.getElementById("tgStatus");const btn=document.getElementById("tgToggle");if(!st)return;const tk=document.getElementById("tgToken");const ch=document.getElementById("tgChat");const cd=document.getElementById("tgCode");if(tk&&s.bot_token)tk.placeholder=s.bot_token;if(ch)ch.value=s.chat_id||"";if(cd)cd.value=s.access_code||"";btn.innerHTML=s.enabled?"🟢 مفعّل":"🔴 متوقف";btn.className=`bs${s.enabled?' on':''}`;st.innerHTML=s.enabled?'🟢 الخدمة مفعّلة — تصلك التوصيات الجديدة فوراً':'🔴 الخدمة متوقفة';}catch(e){}}
+async function toggleTg(){try{await api("/api/telegram/toggle",{method:"POST"});loadTg()}catch(e){toast("❌ "+e.message)}}
+async function saveTg(){const m=document.getElementById("tgMsg");m.textContent="⏳";try{await api("/api/telegram/settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({bot_token:v("tgToken"),chat_id:v("tgChat"),access_code:v("tgCode")})});m.innerHTML='<span style="color:var(--g)">✅ حُفظ</span>';loadTg()}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
+async function testTg(){const m=document.getElementById("tgMsg");m.textContent="⏳ جاري الاختبار...";try{const r=await api("/api/telegram/test",{method:"POST"});m.innerHTML=r.ok?`<span style="color:var(--g)">✅ متصل بـ @${r.bot} — تحقق من رسالة تيليجرام</span>`:`<span style="color:var(--r)">❌ ${r.error}</span>`}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
+async function setupWebhook(){const m=document.getElementById("tgMsg");m.textContent="⏳ جاري التفعيل...";try{const r=await api("/api/telegram/set-webhook",{method:"POST"});const sr=r.set_result||{};if(sr.ok){let extra=r.last_error?` · ⚠️ آخر خطأ: ${r.last_error}`:'';m.innerHTML=`<span style="color:var(--g)">✅ البوت مفعّل — جرّب /active الآن${extra}</span>`}else{m.innerHTML=`<span style="color:var(--r)">❌ ${sr.description||sr.error||'فشل التفعيل'}</span>`}}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
+
+let CFG_TIMES=[];
+async function loadCfg(){try{const c=await api("/api/config");const f=(i,v)=>{const e=document.getElementById(i);if(e)e.value=v||""};f("cs",c.sheet_url);f("ck",c.claude_key);f("cg",c.gemini_key);f("csh",c.sahmk_api_key);f("su",c.supabase_url);f("sk",c.supabase_key)}catch(e){}try{const d=await api("/api/sync/status");CFG_TIMES=d.schedule||[];renderTimes()}catch(e){}}
+function renderTimes(){const el=document.getElementById("timesList");if(!el)return;el.innerHTML=CFG_TIMES.map((t,i)=>`<span style="background:var(--p2);border:1px solid var(--ln);padding:5px 10px;border-radius:8px;font-size:.85rem">${t} <span onclick="rmTime(${i})" style="cursor:pointer;color:var(--r);margin-right:4px">✕</span></span>`).join('')}
+function addTime(){const t=document.getElementById("newTime").value;if(t&&!CFG_TIMES.includes(t)){CFG_TIMES.push(t);CFG_TIMES.sort();renderTimes()}}
+function rmTime(i){CFG_TIMES.splice(i,1);renderTimes()}
+async function saveTimes(){const m=document.getElementById("tmsg");m.textContent="⏳";try{await api("/api/sync/times",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(CFG_TIMES)});m.innerHTML='<span style="color:var(--g)">✅ حُفظت</span>'}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
+async function saveCfg(){const m=document.getElementById("cm");m.textContent="⏳";try{await api("/api/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sheet_url:v("cs"),claude_key:v("ck"),gemini_key:v("cg"),sahmk_api_key:v("csh"),supabase_url:v("su"),supabase_key:v("sk")})});m.innerHTML='<span style="color:var(--g)">✅ تم</span>'}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
+function v(i){return document.getElementById(i)?.value||""}
+async function setupTb(){const m=document.getElementById("cm");m.textContent="⏳";try{const r=await api("/api/setup/tables",{method:"POST"});m.innerHTML=r.sql?'<span style="color:var(--o)">⚠️ أنشئ يدوياً من SQL Editor</span>':`<span style="color:var(--g)">✅ ${r.message}</span>`}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
+async function testKeys(){const b=document.getElementById("keyTest");b.innerHTML='<div style="color:var(--mt);font-size:.85rem"><span class="spin"></span> جاري اختبار المفاتيح...</div>';try{const d=await api("/api/test/keys");const names={sahmk:"📊 سهمك",claude:"🔑 Claude",gemini:"✨ Gemini",supabase:"🗄️ Supabase",sheet:"📋 Google Sheets"};let h='';for(const[k,v]of Object.entries(d)){const c=v.ok?"var(--g)":"var(--r)";const ic=v.ok?"✅":"❌";h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg2);border:1px solid ${v.ok?'rgba(0,230,118,.2)':'rgba(255,82,82,.2)'};border-radius:8px;margin-bottom:6px"><span style="font-weight:700">${names[k]||k}</span><span style="color:${c};font-size:.82rem">${ic} ${v.msg}</span></div>`}b.innerHTML=h}catch(e){b.innerHTML=`<div style="color:var(--r);font-size:.85rem">❌ ${e.message}</div>`}}
+async function fixCats(){const m=document.getElementById("cm");m.textContent="⏳ جاري التصحيح...";try{const r=await api("/api/recommendations/fix-categories",{method:"POST"});m.innerHTML=`<span style="color:var(--g)">✅ ${r.message}</span>`}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
+async function cleanDups(){const m=document.getElementById("cm");m.textContent="⏳ جاري تنظيف المكررات...";try{const r=await api("/api/recommendations/dedup",{method:"POST"});m.innerHTML=`<span style="color:var(--g)">✅ ${r.message}</span>`}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
+
+shell();
+</script></body></html>
