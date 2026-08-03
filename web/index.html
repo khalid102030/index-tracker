@@ -380,5 +380,34 @@ async function fixCats(){const m=document.getElementById("cm");m.textContent="�
 async function cleanDups(){const m=document.getElementById("cm");m.textContent="⏳ جاري تنظيف المكررات...";try{const r=await api("/api/recommendations/dedup",{method:"POST"});m.innerHTML=`<span style="color:var(--g)">✅ ${r.message}</span>`}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
 async function reopenEarly(){const m=document.getElementById("cm");m.textContent="⏳ جاري إصلاح المحسومة مبكراً...";try{const r=await api("/api/recommendations/reopen-early-closed",{method:"POST"});m.innerHTML=`<span style="color:var(--g)">✅ ${r.message}</span>`}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
 
+// ═══ تحديث تلقائي بعد كل توقيت سحب مجدول ═══
+// يقرأ الأوقات من الإعدادات (متغيّرة)، ويحدّث مرة بعد كل توقيت بـ 3 دقائق
+let _refreshedSlots={};
+async function _autoRefreshCheck(){
+  try{
+    if(S.tab!=='analyze')return;
+    const d=await api("/api/sync/status");
+    if(d.paused)return;
+    const times=d.schedule||[];
+    const now=new Date();
+    const nowMin=now.getHours()*60+now.getMinutes();
+    const key=now.toISOString().slice(0,10);// اليوم
+    for(const t of times){
+      const [hh,mm]=t.split(':').map(Number);
+      const slotMin=hh*60+mm+3;// بعد التوقيت بـ 3 دقائق (وقت انتهاء التحليل)
+      const slotKey=`${key}_${t}`;
+      // إذا مرّت 3 دقائق على التوقيت ولم نحدّث بعده اليوم
+      if(nowMin>=slotMin && nowMin<slotMin+5 && !_refreshedSlots[slotKey]){
+        _refreshedSlots[slotKey]=true;
+        toast(`🔄 تحديث تلقائي بعد سحب ${t}`);
+        loadAccuracy();loadLatest();loadLongterm();loadSync();
+      }
+    }
+    // تنظيف مفاتيح الأمس
+    for(const k in _refreshedSlots){if(!k.startsWith(key))delete _refreshedSlots[k]}
+  }catch(e){}
+}
+setInterval(_autoRefreshCheck,60000);// فحص كل دقيقة
+
 shell();
 </script></body></html>
