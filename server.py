@@ -777,6 +777,36 @@ def dedupe_recommendations():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/recommendations/reopen-early-closed")
+def reopen_early_closed():
+    """
+    يعيد فتح التوصيات التي حُسمت (فاشلة/بلا حركة) قبل انتهاء مدتها الفعلية.
+    بمفهوم 'نهاية التداول' — لو مدتها لم تنتهِ بعد، ترجع نشطة.
+    لا يلمس الناجحة.
+    """
+    sb = _get_supabase()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase غير متصل")
+    try:
+        from tracker import _is_past_expiry
+        closed = sb.table("idx_recommendations").select("*") \
+            .eq("status", "closed").neq("outcome", "success").execute().data or []
+        reopened = 0
+        for r in closed:
+            # لو مدتها لم تنتهِ فعلياً → ترجع نشطة
+            if not _is_past_expiry(r.get("max_expiry_date", "9999")):
+                sb.table("idx_recommendations").update({
+                    "status": "active", "outcome": None,
+                    "closed_date": None, "post_watch": False,
+                }).eq("id", r["id"]).execute()
+                reopened += 1
+        return {"ok": True, "reopened": reopened,
+                "message": f"أُعيد فتح {reopened} توصية حُسمت قبل انتهاء مدتها"}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/recommendations/dedup")
 def dedup_recommendations():
     """
