@@ -5,13 +5,37 @@
 ما بعد الحسم: 14 يوم تداول إضافية لقياس الدقة
 """
 from datetime import date, datetime, timedelta
-from market_clock import add_trading_days
+from market_clock import add_trading_days, now_riyadh, MARKET_CLOSE
 
 TARGET_PCT       = 1.5
 VALIDITY_DAYS    = 3
 MAX_DAYS         = 5
 FLAT_BAND        = 1.0
 POST_WATCH_DAYS  = 14
+
+
+def _is_past_expiry(max_expiry: str) -> bool:
+    """
+    هل انتهت مدة التوصية فعلياً؟
+    التوصية تبقى سارية طوال يوم الانتهاء حتى إغلاق التداول (3:20).
+    لا تُحسم خلال التداول — فقط بعد إغلاق يوم الانتهاء أو الأيام التالية.
+    """
+    if not max_expiry or max_expiry == "9999":
+        return False
+    try:
+        exp = datetime.strptime(max_expiry[:10], "%Y-%m-%d").date()
+    except Exception:
+        return False
+    now = now_riyadh()
+    today = now.date()
+    # لسه ما وصلنا يوم الانتهاء → سارية
+    if today < exp:
+        return False
+    # بعد يوم الانتهاء → منتهية
+    if today > exp:
+        return True
+    # نفس يوم الانتهاء → تبقى سارية حتى إغلاق التداول
+    return now.time() > MARKET_CLOSE
 
 def create_recommendation(stock, category, supabase=None):
     today = date.today()
@@ -95,7 +119,7 @@ def update_active(prices, supabase=None):
             upd["post_target_high"] = highest
             upd["post_target_pct"] = peak
             stats["success"]+=1
-        elif str(today) > rec.get("max_expiry_date","9999"):
+        elif _is_past_expiry(rec.get("max_expiry_date", "9999")):
             chg = round((cur-entry)/entry*100,2)
             upd["outcome"] = "flat" if abs(chg)<=FLAT_BAND else "failed"
             upd.update(status="closed",closed_date=today.isoformat(),post_watch=True)
