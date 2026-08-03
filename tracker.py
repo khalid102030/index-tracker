@@ -174,6 +174,22 @@ def performance_report(supabase=None):
     if not supabase: return {"error":"Supabase غير متاح"}
     try: all_r = supabase.table("idx_recommendations").select("*").order("appeared_date",desc=True).limit(2000).execute().data or []
     except Exception as e: return {"error":str(e)[:150]}
+    # حماية: إزالة التكرار (نفس السهم+الدخول) — تُحسب مرة واحدة
+    # الأولوية: نشطة > ناجحة > غيرها
+    _uniq = {}
+    for r in all_r:
+        key = (r["symbol"], r.get("entry_price"))
+        if key not in _uniq:
+            _uniq[key] = r
+        else:
+            ex = _uniq[key]
+            # فضّل النشطة، ثم الناجحة
+            if r["status"] == "active" and ex["status"] != "active":
+                _uniq[key] = r
+            elif r.get("outcome") == "success" and ex.get("outcome") != "success" and ex["status"] != "active":
+                _uniq[key] = r
+    all_r = list(_uniq.values())
+
     active = [r for r in all_r if r["status"]=="active"]
     closed = [r for r in all_r if r["status"]=="closed"]
     success = [r for r in closed if r["outcome"]=="success"]

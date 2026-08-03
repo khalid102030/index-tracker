@@ -779,34 +779,56 @@ def dedupe_recommendations():
 
 @app.post("/api/recommendations/dedup")
 def dedup_recommendations():
-    """ينظّف التوصيات المكررة — يبقي أقدم توصية جارية لكل سهم ويحدّثها."""
+    """
+    ينظّف التوصيات المكررة لكل سهم:
+    - لو فيه نشطة + منتهية لنفس السهم (تداخل)، يبقي النشطة ويحذف المنتهية المكررة
+    - لو عدة نشطة، يبقي الأقدم بأعلى ذروة
+    يمنع احتساب نفس التوصية مرتين في النسب.
+    """
     sb = _get_supabase()
     if not sb:
         raise HTTPException(status_code=500, detail="Supabase غير متصل")
     try:
-        active = sb.table("idx_recommendations").select("*") \
-            .eq("status", "active").order("appeared_date").execute().data or []
-        seen = {}
+        allr = sb.table("idx_recommendations").select("*") \
+            .order("appeared_date").execute().data or []
+
+        # تجميع حسب (السهم + تاريخ الدخول) — نفس التوصية بالضبط
+        groups = {}
+        for r in allr:
+            key = (r["symbol"], r.get("entry_price"))
+            groups.setdefault(key, []).append(r)
+
         removed = 0
-        for r in active:
-            sym = r["symbol"]
-            if sym not in seen:
-                seen[sym] = r  # أول ظهور (الأقدم) نبقيه
+        for key, rows in groups.items():
+            if len(rows) <= 1:
+                continue
+            # نفس السهم ونفس سعر الدخول = نفس التوصية مكررة
+            active = [r for r in rows if r["status"] == "active"]
+            closed = [r for r in rows if r["status"] == "closed"]
+
+            # الأولوية: نبقي النشطة إن وُجدت، وإلا الناجحة، وإلا الأحدث
+            if active:
+                keep = active[0]
+                drop = active[1:] + closed
             else:
-                # مكرر — احتفظ بأعلى ذروة ثم احذف
-                keep = seen[sym]
-                # لو المكرر ذروته أعلى، انقل القيم المهمة للأصل
-                if (r.get("peak_pct", 0) or 0) > (keep.get("peak_pct", 0) or 0):
-                    sb.table("idx_recommendations").update({
-                        "highest_price": r.get("highest_price"),
-                        "peak_pct": r.get("peak_pct"),
-                        "current_price": r.get("current_price"),
-                        "current_pct": r.get("current_pct"),
-                    }).eq("id", keep["id"]).execute()
+                success = [r for r in closed if r.get("outcome") == "success"]
+                keep = success[0] if success else closed[-1]
+                drop = [r for r in rows if r["id"] != keep["id"]]
+
+            # انقل أعلى ذروة للمُبقى
+            max_peak = max((r.get("peak_pct", 0) or 0) for r in rows)
+            max_high = max((r.get("highest_price", 0) or 0) for r in rows)
+            if max_peak > (keep.get("peak_pct", 0) or 0):
+                sb.table("idx_recommendations").update({
+                    "peak_pct": max_peak, "highest_price": max_high,
+                }).eq("id", keep["id"]).execute()
+
+            for r in drop:
                 sb.table("idx_recommendations").delete().eq("id", r["id"]).execute()
                 removed += 1
-        return {"ok": True, "removed": removed, "kept": len(seen),
-                "message": f"حُذف {removed} مكرر · بقي {len(seen)} سهم فريد"}
+
+        return {"ok": True, "removed": removed,
+                "message": f"حُذف {removed} توصية مكررة — النسب الآن دقيقة"}
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
