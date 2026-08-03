@@ -127,7 +127,7 @@ function pgAnalyze(){return `
 <div style="font-size:.75rem;color:var(--mt);margin-top:8px">يسحب البيانات · يحدّث النتائج السابقة · يقيّم · يطلع أفضل التوصيات</div>
 </div>
 <div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:8px">
-<button class="bs" onclick="updateTracking()">💹 تحديث الأسعار</button>
+<button class="bs" onclick="updateTracking(this)">💹 تحديث الأسعار</button>
 <button class="bs" onclick="toggleHistory()" id="histBtn">📜 السجل الكامل</button></div>
 <div id="analyzeNotes"></div>
 <div id="resultBox"></div>
@@ -236,7 +236,7 @@ const highCol=isSuccess?(r.post_target_high?`${r.post_target_high} <span style="
 const lastVal=isSuccess?(r.closed_date||'-'):(r.expiry_date||'');
 h+=`<tr style="border-bottom:1px solid var(--ln2)${r.status==='active'?';background:rgba(90,175,255,.04)':isSuccess?';background:rgba(0,230,118,.04)':''}"><td style="padding:6px 5px"><b>${r.symbol}</b> <span style="color:var(--mt);font-size:.7rem">${r.name||''}</span>${lt}</td><td style="padding:6px 5px;text-align:center;font-size:.72rem;color:var(--mt);white-space:nowrap">${dt}</td><td style="padding:6px 5px;text-align:center"><span style="color:${cfc};font-weight:700">${cf}</span></td><td style="padding:6px 5px;text-align:center">${bg}</td><td style="padding:6px 5px;text-align:center">${r.entry_price||'-'}</td><td style="padding:6px 5px;text-align:center">${r.current_price?`<b>${r.current_price}</b> <span style="font-size:.65rem;color:${cpc}">${cp>0?'+':''}${cp}%</span>`:'<span style="color:var(--mt)">-</span>'}</td><td style="padding:6px 5px;text-align:center">${r.target_price||'-'}</td><td style="padding:6px 5px;text-align:center;${isSuccess?'color:var(--g);font-weight:700':''}">${highCol}</td><td style="padding:6px 5px;text-align:center;color:${pc};font-weight:700">${pk.toFixed(1)}%</td><td style="padding:6px 5px;text-align:center;font-size:.7rem;color:${isSuccess?'var(--g)':'var(--mt)'};white-space:nowrap">${lastVal}</td></tr>`}
 return h+`</tbody></table></div>`}
-async function updateTracking(){const b=document.getElementById("trackBox");b.innerHTML='<div style="color:var(--mt);font-size:.82rem"><span class="spin"></span> جاري تحديث الأسعار...</div>';try{const d=await api("/api/recommendations/update",{method:"POST"});const a=d.active||{};toast(`✅ نجاح:${a.success||0} فشل:${a.failed||0} جارية:${a.still_active||0} · المصدر: ${d.price_source||''}`);loadTracking()}catch(e){b.innerHTML=`<div style="color:var(--r);font-size:.82rem">❌ ${e.message}</div>`}}
+async function updateTracking(btn){const orig=btn?btn.innerHTML:'';if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> جاري التحديث...'}toast('⏳ جاري تحديث الأسعار من سهمك... (قد يأخذ ثوانٍ)');try{const d=await api("/api/recommendations/update",{method:"POST"});const a=d.active||{};toast(`✅ نجاح:${a.success||0} فشل:${a.failed||0} جارية:${a.still_active||0}`);loadLatest();const tb=document.getElementById("trackBox");if(tb&&tb.style.display!=='none')loadTracking()}catch(e){toast(`❌ ${e.message}`)}finally{if(btn){btn.disabled=false;btn.innerHTML=orig}}}
 
 async function runFull(){if(S.busy)return;S.busy=true;const btn=document.getElementById("mainBtn");btn.disabled=true;btn.innerHTML=`<span class="spin"></span> جاري التحليل والتقييم... (~20 ثانية)`;const box=document.getElementById("resultBox");box.innerHTML="";
 try{const d=await api("/api/analyze-full",{method:"POST"});S.result=d;shell();
