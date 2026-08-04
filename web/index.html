@@ -321,7 +321,7 @@ function pgSettings(){return `
 <label style="font-weight:700;font-size:.88rem;display:block;margin-bottom:5px;margin-top:6px">🗄️ Supabase URL</label><input type="url" id="su" placeholder="https://xxx.supabase.co">
 <label style="font-weight:700;font-size:.88rem;display:block;margin-bottom:5px">🔐 Supabase Key</label><input type="password" id="sk" placeholder="sb_secret_...">
 <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px">
-<button class="bt" onclick="saveCfg()">💾 حفظ</button><button class="bs" onclick="setupTb()">🗄️ إنشاء الجداول</button><button class="bs" onclick="testKeys()">🔌 اختبار المفاتيح</button><button class="bs" onclick="fixCats()">🔧 تصحيح التصنيف</button><button class="bs" onclick="cleanDups()">🧹 تنظيف المكررات</button><button class="bs" onclick="reopenEarly()">🔄 إصلاح المحسومة مبكراً</button><button class="bs" onclick="exportLog()">📥 تصدير السجل (CSV)</button><button class="bs" onclick="showAnalysis()">🔬 تحليل المؤشرات</button>
+<button class="bt" onclick="saveCfg()">💾 حفظ</button><button class="bs" onclick="setupTb()">🗄️ إنشاء الجداول</button><button class="bs" onclick="testKeys()">🔌 اختبار المفاتيح</button><button class="bs" onclick="fixCats()">🔧 تصحيح التصنيف</button><button class="bs" onclick="cleanDups()">🧹 تنظيف المكررات</button><button class="bs" onclick="reopenEarly()">🔄 إصلاح المحسومة مبكراً</button><button class="bs" onclick="exportLog()">📥 تصدير السجل (CSV)</button><button class="bs" onclick="showAnalysis()">🔬 تحليل المؤشرات</button><button class="bs" onclick="showCriteria()">📐 المعايير والأوزان</button>
 <span id="cm" style="font-size:.82rem;color:var(--mt)"></span></div>
 <div id="keyTest" style="margin-top:10px"></div></div>
 
@@ -380,6 +380,25 @@ async function fixCats(){const m=document.getElementById("cm");m.textContent="�
 async function cleanDups(){const m=document.getElementById("cm");m.textContent="⏳ جاري تنظيف المكررات...";try{const r=await api("/api/recommendations/dedup",{method:"POST"});m.innerHTML=`<span style="color:var(--g)">✅ ${r.message}</span>`}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
 async function reopenEarly(){const m=document.getElementById("cm");m.textContent="⏳ جاري إصلاح المحسومة مبكراً...";try{const r=await api("/api/recommendations/reopen-early-closed",{method:"POST"});m.innerHTML=`<span style="color:var(--g)">✅ ${r.message}</span>`}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
 function exportLog(){window.open("/api/recommendations/export?fmt=csv","_blank")}
+async function showCriteria(){const m=document.getElementById("cm");m.innerHTML='<span class="spin"></span> جاري جلب المعايير...';try{const c=await api("/api/strategy/criteria");let perf={};try{perf=await api("/api/recommendations/analysis")}catch(e){}
+const sigRates={};(perf.signal_success_rates||[]).forEach(s=>sigRates[s.signal]=s);const rsiRates={};(perf.rsi_state_success_rates||[]).forEach(s=>rsiRates[s.state]=s);
+let h=`<div style="background:var(--bg2);padding:14px;border-radius:10px;margin-top:10px;font-size:.8rem;line-height:1.7">`;
+h+=`<div style="font-weight:700;color:var(--ac2);margin-bottom:8px">📐 المعايير والأوزان المرجعية</div>`;
+h+=`<div style="color:var(--mt);font-size:.72rem;margin-bottom:10px">الوزن = تأثير الإشارة على النقاط · الأداء = نسبة نجاحها الفعلية (لو متوفرة)</div>`;
+h+=`<div style="font-weight:700;margin:6px 0">⚙️ الأساسية:</div>`;
+h+=`<div>الهدف +${c.core.target_pct}% · صلاحية ${c.core.validity_days} أيام · أقصى ${c.core.max_days} · متابعة ${c.core.post_watch_days} يوم</div>`;
+h+=`<div style="font-weight:700;margin:10px 0 4px">🎯 المكافآت (الوزن · الأداء):</div>`;
+for(const b of c.bonuses){const r=sigRates[b.signal];const rt=r?` · <span style="color:${r.rate>=60?'var(--g)':r.rate>=40?'var(--ac2)':'var(--r)'}">${r.rate}% (${r.count})</span>`:'';h+=`<div>• ${b.signal}: <b style="color:var(--g)">+${b.weight}</b>${rt}</div>`}
+h+=`<div style="font-weight:700;margin:10px 0 4px">🚫 العقوبات:</div>`;
+for(const p of c.penalties){h+=`<div>• ${p.penalty}: <b style="color:var(--r)">${p.weight}</b></div>`}
+h+=`<div style="font-weight:700;margin:10px 0 4px">📊 طبقة RSI (الوزن · الأداء):</div>`;
+for(const s of c.rsi_layer){const r=rsiRates[s.state];const rt=r?` · <span style="color:${r.rate>=60?'var(--g)':r.rate>=40?'var(--ac2)':'var(--r)'}">${r.rate}% (${r.count})</span>`:'';const wc=s.weight>0?"var(--g)":"var(--r)";h+=`<div>• ${s.state} <span style="color:var(--mt);font-size:.68rem">(${s.condition})</span>: <b style="color:${wc}">${s.weight>0?'+':''}${s.weight}</b>${rt}</div>`}
+h+=`<div style="font-weight:700;margin:10px 0 4px">📅 الأطر الزمنية:</div>`;
+for(const t of c.timeframe){const wc=t.weight>0?"var(--g)":"var(--r)";h+=`<div>• ${t.range}: <b style="color:${wc}">${t.weight>0?'+':''}${t.weight}</b>${t.measured_rate?` <span style="color:var(--ac2)">(${t.measured_rate})</span>`:''}</div>`}
+h+=`<div style="font-weight:700;margin:10px 0 4px">🚪 حدود القرار:</div>`;
+h+=`<div>أقصى مرشحين ${c.gates.max_candidates} · أقصى توصيات ${c.gates.max_final} · أدنى ثقة ${c.gates.min_confidence}/10 · أدنى نقاط ${c.gates.min_bet_score}</div>`;
+h+=`<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--ln2);color:var(--mt);font-size:.7rem">💡 قارن الوزن بالأداء: إشارة وزنها عالي وأداؤها ضعيف = تحتاج مراجعة</div>`;
+h+=`</div>`;m.innerHTML=h}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
 async function showAnalysis(){const m=document.getElementById("cm");m.innerHTML='<span class="spin"></span> جاري تحليل المؤشرات...';try{const d=await api("/api/recommendations/analysis");if(d.closed_total===0){m.innerHTML='<span style="color:var(--mt)">لا نتائج محسومة بعد للتحليل</span>';return}
 let h=`<div style="background:var(--bg2);padding:14px;border-radius:10px;margin-top:10px;font-size:.82rem;line-height:1.8">`;
 h+=`<div style="font-weight:700;color:var(--ac2);margin-bottom:8px">🔬 تحليل ${d.closed_total} نتيجة (✅${d.success} ❌${d.failed})</div>`;

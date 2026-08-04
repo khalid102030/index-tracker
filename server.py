@@ -777,6 +777,52 @@ def dedupe_recommendations():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/strategy/criteria")
+def strategy_criteria():
+    """المعايير والأوزان المرجعية — للمراجعة مقابل الأداء."""
+    return {
+        "core": {
+            "target_pct": 1.5, "validity_days": 3, "max_days": 5,
+            "flat_band": 1.0, "post_watch_days": 14,
+        },
+        "rsi_layer": [
+            {"state": "زخم مؤكد", "condition": "RSI≥60 + سيولة", "weight": 22},
+            {"state": "مرتفع بلا دعم", "condition": "RSI≥60 بلا سيولة", "weight": -10},
+            {"state": "صاعد صحّي", "condition": "RSI 50-60 + سيولة", "weight": 12},
+            {"state": "حيادي", "condition": "RSI 45-50", "weight": -3},
+            {"state": "تجميع مبكر", "condition": "RSI<45 + سيولة + هدوء", "weight": 10},
+            {"state": "خمول ميّت", "condition": "RSI<45 بلا سيولة", "weight": -22},
+        ],
+        "bonuses": [
+            {"signal": "زخم مؤكد (RSI+سيولة)", "weight": 32},
+            {"signal": "تتابع صحّي", "weight": 30},
+            {"signal": "سيولة متراكمة", "weight": 28},
+            {"signal": "تجميع صامت", "weight": 25},
+            {"signal": "بوادر مبكرة", "weight": 22},
+            {"signal": "تجميع مبكر", "weight": 20},
+            {"signal": "قرب من المتوسط", "weight": 15},
+            {"signal": "قصيرة نشطة", "weight": 14},
+        ],
+        "penalties": [
+            {"penalty": "فخ كلاسيكي", "weight": -45},
+            {"penalty": "اشتعال كامل", "weight": -30},
+            {"penalty": "صعود متأخر", "weight": -25},
+            {"penalty": "خمول ميّت", "weight": -22},
+            {"penalty": "اشتعال مفرط", "weight": -20},
+            {"penalty": "RSI مرتفع بلا دعم", "weight": -10},
+        ],
+        "timeframe": [
+            {"range": "الربع الذهبي (0.7-1.6%)", "weight": 30, "measured_rate": "80%"},
+            {"range": "صاعد قوي (≥1.61%)", "weight": 20},
+            {"range": "المنطقة الميتة (-0.53-0.7%)", "weight": -25, "measured_rate": "51%"},
+        ],
+        "gates": {
+            "max_candidates": 12, "max_final": 3,
+            "min_confidence": 8, "min_bet_score": 30,
+        },
+    }
+
+
 @app.get("/api/recommendations/export")
 def export_recommendations(fmt: str = "csv"):
     """
