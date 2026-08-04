@@ -321,7 +321,7 @@ function pgSettings(){return `
 <label style="font-weight:700;font-size:.88rem;display:block;margin-bottom:5px;margin-top:6px">🗄️ Supabase URL</label><input type="url" id="su" placeholder="https://xxx.supabase.co">
 <label style="font-weight:700;font-size:.88rem;display:block;margin-bottom:5px">🔐 Supabase Key</label><input type="password" id="sk" placeholder="sb_secret_...">
 <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px">
-<button class="bt" onclick="saveCfg()">💾 حفظ</button><button class="bs" onclick="setupTb()">🗄️ إنشاء الجداول</button><button class="bs" onclick="testKeys()">🔌 اختبار المفاتيح</button><button class="bs" onclick="fixCats()">🔧 تصحيح التصنيف</button><button class="bs" onclick="cleanDups()">🧹 تنظيف المكررات</button><button class="bs" onclick="reopenEarly()">🔄 إصلاح المحسومة مبكراً</button>
+<button class="bt" onclick="saveCfg()">💾 حفظ</button><button class="bs" onclick="setupTb()">🗄️ إنشاء الجداول</button><button class="bs" onclick="testKeys()">🔌 اختبار المفاتيح</button><button class="bs" onclick="fixCats()">🔧 تصحيح التصنيف</button><button class="bs" onclick="cleanDups()">🧹 تنظيف المكررات</button><button class="bs" onclick="reopenEarly()">🔄 إصلاح المحسومة مبكراً</button><button class="bs" onclick="exportLog()">📥 تصدير السجل (CSV)</button><button class="bs" onclick="showAnalysis()">🔬 تحليل المؤشرات</button>
 <span id="cm" style="font-size:.82rem;color:var(--mt)"></span></div>
 <div id="keyTest" style="margin-top:10px"></div></div>
 
@@ -379,6 +379,17 @@ async function testKeys(){const b=document.getElementById("keyTest");b.innerHTML
 async function fixCats(){const m=document.getElementById("cm");m.textContent="⏳ جاري التصحيح...";try{const r=await api("/api/recommendations/fix-categories",{method:"POST"});m.innerHTML=`<span style="color:var(--g)">✅ ${r.message}</span>`}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
 async function cleanDups(){const m=document.getElementById("cm");m.textContent="⏳ جاري تنظيف المكررات...";try{const r=await api("/api/recommendations/dedup",{method:"POST"});m.innerHTML=`<span style="color:var(--g)">✅ ${r.message}</span>`}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
 async function reopenEarly(){const m=document.getElementById("cm");m.textContent="⏳ جاري إصلاح المحسومة مبكراً...";try{const r=await api("/api/recommendations/reopen-early-closed",{method:"POST"});m.innerHTML=`<span style="color:var(--g)">✅ ${r.message}</span>`}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
+function exportLog(){window.open("/api/recommendations/export?fmt=csv","_blank")}
+async function showAnalysis(){const m=document.getElementById("cm");m.innerHTML='<span class="spin"></span> جاري تحليل المؤشرات...';try{const d=await api("/api/recommendations/analysis");if(d.closed_total===0){m.innerHTML='<span style="color:var(--mt)">لا نتائج محسومة بعد للتحليل</span>';return}
+let h=`<div style="background:var(--bg2);padding:14px;border-radius:10px;margin-top:10px;font-size:.82rem;line-height:1.8">`;
+h+=`<div style="font-weight:700;color:var(--ac2);margin-bottom:8px">🔬 تحليل ${d.closed_total} نتيجة (✅${d.success} ❌${d.failed})</div>`;
+if(d.signal_success_rates?.length){h+=`<div style="font-weight:700;margin:8px 0 4px">📊 نسبة نجاح كل إشارة:</div>`;for(const s of d.signal_success_rates){const c=s.rate>=60?"var(--g)":s.rate>=40?"var(--ac2)":"var(--r)";h+=`<div>• ${s.signal}: <b style="color:${c}">${s.rate}%</b> <span style="color:var(--mt);font-size:.7rem">(${s.count} مرة)</span></div>`}}
+if(d.rsi_state_success_rates?.length){h+=`<div style="font-weight:700;margin:10px 0 4px">🎯 نسبة نجاح حالات RSI:</div>`;for(const s of d.rsi_state_success_rates){const c=s.rate>=60?"var(--g)":s.rate>=40?"var(--ac2)":"var(--r)";h+=`<div>• ${s.state}: <b style="color:${c}">${s.rate}%</b> <span style="color:var(--mt);font-size:.7rem">(${s.count})</span></div>`}}
+const si=d.avg_indicators?.success||{},fi=d.avg_indicators?.failed||{};
+h+=`<div style="font-weight:700;margin:10px 0 4px">📈 متوسط المؤشرات (ناجحة مقابل فاشلة):</div>`;
+const lbls={rsi:"RSI",weekly_change:"أسبوعي",monthly_change:"شهري",net_liquidity:"سيولة",pre_launch:"قوة الانطلاق",total_active:"عدد النشطة"};
+for(const k in lbls){if(si[k]!=null||fi[k]!=null)h+=`<div>• ${lbls[k]}: ناجحة <b style="color:var(--g)">${si[k]??'-'}</b> · فاشلة <b style="color:var(--r)">${fi[k]??'-'}</b></div>`}
+h+=`</div>`;m.innerHTML=h}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
 
 // ═══ تحديث تلقائي بعد كل توقيت سحب مجدول ═══
 // يقرأ الأوقات من الإعدادات (متغيّرة)، ويحدّث مرة بعد كل توقيت بـ 3 دقائق

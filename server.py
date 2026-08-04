@@ -777,6 +777,152 @@ def dedupe_recommendations():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/recommendations/export")
+def export_recommendations(fmt: str = "csv"):
+    """
+    تصدير سجل تحليلي كامل: المؤشرات + الأوزان + الإشارات + النتيجة.
+    للدراسة وتقييم أي المؤشرات لها تأثير على النجاح.
+    """
+    sb = _get_supabase()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase غير متصل")
+    try:
+        rows = sb.table("idx_recommendations").select("*") \
+            .order("appeared_date", desc=True).limit(5000).execute().data or []
+
+        if fmt == "json":
+            return {"count": len(rows), "data": rows}
+
+        # CSV تحليلي
+        import io, csv
+        buf = io.StringIO()
+        buf.write("\ufeff")  # BOM للعربي في Excel
+        w = csv.writer(buf)
+        # العناوين
+        w.writerow([
+            "الرمز", "الاسم", "التصنيف", "تاريخ الظهور", "وقت الظهور",
+            "سعر الدخول", "الهدف", "الثقة", "النقاط(bet_score)",
+            "الاتجاه", "RSI", "حالة_RSI", "MFI", "صافي_السيولة",
+            "التغير_الأسبوعي", "التغير_الشهري", "قوة_الانطلاق", "عدد_النشطة",
+            "الإشارات_الثلاث", "العقوبات",
+            "قصير_%", "متوسط_%", "طويل_%",
+            "الحالة", "النتيجة", "الذروة%", "أعلى_سعر",
+            "أعلى_بعد_الهدف", "%بعد_الهدف", "تاريخ_الإغلاق", "حقق_لاحقاً",
+        ])
+        for r in rows:
+            ind = r.get("indicators") or {}
+            if isinstance(ind, str):
+                try: ind = json.loads(ind)
+                except: ind = {}
+            ss = r.get("signals_summary") or {}
+            if isinstance(ss, str):
+                try: ss = json.loads(ss)
+                except: ss = {}
+            created = r.get("created_at", "") or ""
+            w.writerow([
+                r.get("symbol",""), r.get("name",""), r.get("category",""),
+                r.get("appeared_date",""), created[11:16] if len(created) > 16 else "",
+                r.get("entry_price",""), r.get("target_price",""),
+                r.get("confidence",""), r.get("score",""),
+                r.get("trend",""),
+                ind.get("rsi",""), ind.get("rsi_state",""), ind.get("mfi",""),
+                ind.get("net_liquidity",""), ind.get("weekly_change",""),
+                ind.get("monthly_change",""), ind.get("pre_launch",""),
+                ind.get("total_active",""),
+                " | ".join(r.get("top3_signals") or []),
+                " | ".join(ind.get("penalties") or []),
+                ss.get("short",{}).get("pct",""), ss.get("mid",{}).get("pct",""),
+                ss.get("long",{}).get("pct",""),
+                r.get("status",""), r.get("outcome",""),
+                r.get("peak_pct",""), r.get("highest_price",""),
+                r.get("post_target_high",""), r.get("post_target_pct",""),
+                r.get("closed_date",""), "نعم" if r.get("post_watch_hit") else "",
+            ])
+        csv_data = buf.getvalue()
+        from fastapi.responses import Response as FastResponse
+        return FastResponse(
+            content=csv_data,
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f"attachment; filename=rasid_export_{date.today().isoformat()}.csv"}
+        )
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/recommendations/analysis")
+def indicator_analysis():
+    """
+    تحليل: أي المؤشرات/الإشارات لها أعلى تأثير على النجاح.
+    يقارن الناجحة بالفاشلة عبر متوسطات المؤشرات.
+    """
+    sb = _get_supabase()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase غير متصل")
+    try:
+        rows = sb.table("idx_recommendations").select("*") \
+            .eq("status", "closed").limit(5000).execute().data or []
+        succ = [r for r in rows if r.get("outcome") == "success"]
+        fail = [r for r in rows if r.get("outcome") == "failed"]
+
+        def _avg_ind(recs, field):
+            vals = []
+            for r in recs:
+                ind = r.get("indicators") or {}
+                if isinstance(ind, str):
+                    try: ind = json.loads(ind)
+                    except: ind = {}
+                v = ind.get(field)
+                if isinstance(v, (int, float)):
+                    vals.append(v)
+            return round(sum(vals)/len(vals), 2) if vals else None
+
+        # تأثير الإشارات: نسبة نجاح كل إشارة
+        sig_impact = {}
+        for r in rows:
+            for sig in (r.get("top3_signals") or []):
+                sig_impact.setdefault(sig, {"success": 0, "total": 0})
+                sig_impact[sig]["total"] += 1
+                if r.get("outcome") == "success":
+                    sig_impact[sig]["success"] += 1
+        sig_rates = sorted([
+            {"signal": s, "rate": round(v["success"]/v["total"]*100, 1), "count": v["total"]}
+            for s, v in sig_impact.items() if v["total"] >= 2
+        ], key=lambda x: x["rate"], reverse=True)
+
+        # تأثير حالة RSI
+        rsi_impact = {}
+        for r in rows:
+            ind = r.get("indicators") or {}
+            if isinstance(ind, str):
+                try: ind = json.loads(ind)
+                except: ind = {}
+            st = ind.get("rsi_state", "")
+            if st:
+                rsi_impact.setdefault(st, {"success": 0, "total": 0})
+                rsi_impact[st]["total"] += 1
+                if r.get("outcome") == "success":
+                    rsi_impact[st]["success"] += 1
+        rsi_rates = sorted([
+            {"state": s, "rate": round(v["success"]/v["total"]*100, 1), "count": v["total"]}
+            for s, v in rsi_impact.items()
+        ], key=lambda x: x["rate"], reverse=True)
+
+        return {
+            "closed_total": len(rows),
+            "success": len(succ), "failed": len(fail),
+            "avg_indicators": {
+                "success": {f: _avg_ind(succ, f) for f in ["rsi", "weekly_change", "monthly_change", "net_liquidity", "pre_launch", "total_active"]},
+                "failed": {f: _avg_ind(fail, f) for f in ["rsi", "weekly_change", "monthly_change", "net_liquidity", "pre_launch", "total_active"]},
+            },
+            "signal_success_rates": sig_rates,
+            "rsi_state_success_rates": rsi_rates,
+        }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/recommendations/reopen-early-closed")
 def reopen_early_closed():
     """
