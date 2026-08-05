@@ -350,16 +350,19 @@ function pgSettings(){return `
 
 <!-- ① التحكم بالحالة -->
 <div style="background:var(--bg2);padding:10px 12px;border-radius:10px;margin-bottom:10px">
-<div style="font-weight:700;font-size:.8rem;color:var(--ac2);margin-bottom:8px">🎛️ التحكم</div>
-<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0">
-<span style="font-size:.82rem">🔔 إرسال التوصيات الجديدة</span>
-<button class="bs" onclick="toggleTg()" id="tgToggle2">⏳</button></div>
-<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--ln2)">
-<span style="font-size:.82rem">🔧 وضع التطوير (قفل عن الجميع عداك)</span>
-<button class="bs" onclick="togglePrivate()" id="privBtn">⏳</button></div>
-<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--ln2)">
-<span style="font-size:.82rem">👥 إرسال للمشتركين</span>
-<button class="bs" onclick="toggleSubs()" id="subsToggle">⏳</button></div>
+<div style="font-weight:700;font-size:.8rem;color:var(--ac2);margin-bottom:10px">🎛️ التحكم</div>
+
+<div style="margin-bottom:12px">
+<div style="font-size:.82rem;margin-bottom:6px">🔔 إرسال التوصيات الجديدة</div>
+<div style="display:flex;gap:6px" id="tgSwitch"></div></div>
+
+<div style="margin-bottom:12px">
+<div style="font-size:.82rem;margin-bottom:6px">🔧 وضع التطوير <span style="color:var(--mt);font-size:.7rem">(قفل عن الجميع عداك)</span></div>
+<div style="display:flex;gap:6px" id="privSwitch"></div></div>
+
+<div>
+<div style="font-size:.82rem;margin-bottom:6px">👥 إرسال للمشتركين</div>
+<div style="display:flex;gap:6px" id="subsSwitch"></div></div>
 </div>
 
 <!-- ② الإعداد -->
@@ -395,13 +398,21 @@ function pgSettings(){return `
 <b>الأوامر (لك):</b> /report /active /today /success /stats</div>
 </details></div>`}
 
-async function loadSubs(){try{const d=await api("/api/telegram/subscribers");const btn=document.getElementById("subsToggle");const list=document.getElementById("subsList");if(!btn)return;btn.innerHTML=d.subs_enabled?"🟢 الإرسال مفعّل":"🔴 الإرسال موقوف";btn.className=`bs${d.subs_enabled?' on':''}`;const subs=d.subscribers||[];if(!subs.length){list.innerHTML='<span style="color:var(--mt)">لا مشتركين بعد</span>';return}let h=`<div style="margin-bottom:4px">${subs.length} مشترك:</div>`;for(const s of subs){h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:var(--bg2);border-radius:6px;margin-bottom:3px"><span style="font-family:'IBM Plex Mono'">${s}</span><button onclick="removeSub('${s}')" style="background:none;border:none;color:var(--r);cursor:pointer;font-size:.9rem">✖</button></div>`}list.innerHTML=h}catch(e){}}
+async function loadSubs(){try{const d=await api("/api/telegram/subscribers");const list=document.getElementById("subsList");renderSwitch("subsSwitch",!!d.subs_enabled,"🟢 مفعّل","🔴 موقوف","setSubs");if(!list)return;const subs=d.subscribers||[];if(!subs.length){list.innerHTML='<span style="color:var(--mt)">لا مشتركين بعد</span>';return}let h=`<div style="margin-bottom:4px">${subs.length} مشترك:</div>`;for(const s of subs){h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:var(--bg);border-radius:6px;margin-bottom:3px"><span style="font-family:'IBM Plex Mono'">${s}</span><button onclick="removeSub('${s}')" style="background:none;border:none;color:var(--r);cursor:pointer;font-size:.9rem">✖</button></div>`}list.innerHTML=h}catch(e){}}
 async function toggleSubs(){try{await api("/api/telegram/subs-toggle",{method:"POST"});loadSubs()}catch(e){toast("❌ "+e.message)}}
 async function removeSub(cid){if(!confirm('حذف هذا المشترك؟'))return;try{await api("/api/telegram/subs-remove",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:cid})});toast("✅ حُذف");loadSubs()}catch(e){toast("❌ "+e.message)}}
 
-async function loadTg(){try{const s=await api("/api/telegram/settings");const st=document.getElementById("tgStatus");const btn=document.getElementById("tgToggle");if(!st)return;const tk=document.getElementById("tgToken");const ch=document.getElementById("tgChat");const cd=document.getElementById("tgCode");if(tk&&s.bot_token)tk.placeholder=s.bot_token;if(ch)ch.value=s.chat_id||"";if(cd)cd.value=s.access_code||"";const pv=document.getElementById("privBtn");if(pv){pv.innerHTML=s.private_mode?"🔧 مفعّل":"🔓 متاح";pv.className=`bs${s.private_mode?' on':''}`}btn.innerHTML=s.enabled?"🟢 مفعّل":"🔴 متوقف";btn.className=`bs${s.enabled?' on':''}`;const btn2=document.getElementById("tgToggle2");if(btn2){btn2.innerHTML=s.enabled?"🟢 مفعّل":"🔴 متوقف";btn2.className=`bs${s.enabled?' on':''}`}st.innerHTML=s.enabled?'🟢 الخدمة مفعّلة — تصلك التوصيات الجديدة فوراً':'🔴 الخدمة متوقفة';}catch(e){}}
+async function loadTg(){try{const s=await api("/api/telegram/settings");const st=document.getElementById("tgStatus");if(!st)return;const tk=document.getElementById("tgToken");const ch=document.getElementById("tgChat");const cd=document.getElementById("tgCode");if(tk&&s.bot_token)tk.placeholder=s.bot_token;if(ch)ch.value=s.chat_id||"";if(cd)cd.value=s.access_code||"";
+renderSwitch("tgSwitch",!!s.enabled,"🟢 مفعّل","🔴 موقوف","setTg");
+renderSwitch("privSwitch",!!s.private_mode,"🔧 مفعّل","🔓 متاح للكل","setPrivate");
+const tgBtn=document.getElementById("tgToggle");if(tgBtn){tgBtn.innerHTML=s.enabled?"🟢 مفعّل":"🔴 متوقف";tgBtn.className=`bs${s.enabled?' on':''}`}
+st.innerHTML=s.private_mode?'🔧 وضع التطوير مفعّل — البوت مقفل عن الجميع عداك':s.enabled?'🟢 الخدمة مفعّلة — تصلك التوصيات الجديدة فوراً':'🔴 الخدمة متوقفة';}catch(e){}}
 async function toggleTg(){try{await api("/api/telegram/toggle",{method:"POST"});loadTg()}catch(e){toast("❌ "+e.message)}}
-async function togglePrivate(){try{const r=await api("/api/telegram/private-toggle",{method:"POST"});toast(r.private_mode?"🔧 البوت الآن تحت التطوير — مقفل عن الجميع عداك":"🟢 البوت متاح للمشتركين");loadTg()}catch(e){toast("❌ "+e.message)}}
+// يرسم زرّين (مفعّل/موقوف) — المختار مميّز
+function renderSwitch(containerId,isOn,onLabel,offLabel,fnName){const c=document.getElementById(containerId);if(!c)return;c.innerHTML=`<button class="bs${isOn?' on':''}" style="${isOn?'':'opacity:.55'}" onclick="${fnName}(true)">${onLabel}</button><button class="bs${!isOn?' on':''}" style="${!isOn?'background:var(--r)22;color:var(--r);border-color:var(--r)':'opacity:.55'}" onclick="${fnName}(false)">${offLabel}</button>`}
+async function setTg(on){try{const s=await api("/api/telegram/settings");if(!!s.enabled===on){loadTg();return}await api("/api/telegram/toggle",{method:"POST"});toast(on?"🟢 تم تفعيل الإرسال":"🔴 تم إيقاف الإرسال");loadTg()}catch(e){toast("❌ "+e.message)}}
+async function setPrivate(on){try{const s=await api("/api/telegram/settings");if(!!s.private_mode===on){loadTg();return}await api("/api/telegram/private-toggle",{method:"POST"});toast(on?"🔧 وضع التطوير مفعّل — مقفل عن الجميع عداك":"🔓 البوت متاح للمشتركين");loadTg()}catch(e){toast("❌ "+e.message)}}
+async function setSubs(on){try{const d=await api("/api/telegram/subscribers");if(!!d.subs_enabled===on){loadSubs();return}await api("/api/telegram/subs-toggle",{method:"POST"});toast(on?"🟢 الإرسال للمشتركين مفعّل":"🔴 توقف الإرسال للمشتركين");loadSubs()}catch(e){toast("❌ "+e.message)}}
 async function saveTg(){const m=document.getElementById("tgMsg");m.textContent="⏳";try{await api("/api/telegram/settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({bot_token:v("tgToken"),chat_id:v("tgChat"),access_code:v("tgCode")})});m.innerHTML='<span style="color:var(--g)">✅ حُفظ</span>';loadTg()}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
 async function testTg(){const m=document.getElementById("tgMsg");m.textContent="⏳ جاري الاختبار...";try{const r=await api("/api/telegram/test",{method:"POST"});m.innerHTML=r.ok?`<span style="color:var(--g)">✅ متصل بـ @${r.bot} — تحقق من رسالة تيليجرام</span>`:`<span style="color:var(--r)">❌ ${r.error}</span>`}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
 async function setupWebhook(){const m=document.getElementById("tgMsg");m.textContent="⏳ جاري التفعيل...";try{const r=await api("/api/telegram/set-webhook",{method:"POST"});const sr=r.set_result||{};if(sr.ok){let extra=r.last_error?` · ⚠️ آخر خطأ: ${r.last_error}`:'';m.innerHTML=`<span style="color:var(--g)">✅ البوت مفعّل — جرّب /active الآن${extra}</span>`}else{m.innerHTML=`<span style="color:var(--r)">❌ ${sr.description||sr.error||'فشل التفعيل'}</span>`}}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
