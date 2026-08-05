@@ -37,10 +37,51 @@ def _is_past_expiry(max_expiry: str) -> bool:
     # نفس يوم الانتهاء → تبقى سارية حتى إغلاق التداول
     return now.time() > MARKET_CLOSE
 
+def tick_size(price: float) -> float:
+    """
+    الخطوة السعرية (tick) في السوق السعودي حسب الفئة السعرية:
+    < 25 ريال    → 0.01 (هللة)
+    25–50 ريال   → 0.02
+    50–100 ريال  → 0.05 (5 هللات)
+    ≥ 100 ريال   → 0.10
+    """
+    if price < 25:
+        return 0.01
+    elif price < 50:
+        return 0.02
+    elif price < 100:
+        return 0.05
+    else:
+        return 0.10
+
+
+def round_to_tick(price: float, direction: str = "nearest") -> float:
+    """
+    يقرّب السعر لأقرب خطوة سعرية صحيحة قابلة للتداول.
+    direction: nearest (الأقرب) · up (لأعلى) · down (لأسفل)
+    """
+    if not price or price <= 0:
+        return price
+    tk = tick_size(price)
+    steps = price / tk
+    if direction == "up":
+        import math
+        steps = math.ceil(steps)
+    elif direction == "down":
+        import math
+        steps = math.floor(steps)
+    else:
+        steps = round(steps)
+    # تقريب لتفادي أخطاء الفاصلة العائمة
+    result = round(steps * tk, 2)
+    return result
+
+
 def create_recommendation(stock, category, supabase=None):
     today = date.today()
     entry = float(stock["price"])
-    target = round(entry * (1 + TARGET_PCT/100), 3)
+    # الهدف = +1.5% مقرّب لأقرب خطوة سعرية صحيحة (لأعلى ليضمن تحقيق الحد الأدنى)
+    target = round_to_tick(entry * (1 + TARGET_PCT/100), "up")
     expiry = add_trading_days(datetime.combine(today, datetime.min.time()), VALIDITY_DAYS).date()
     max_exp = add_trading_days(datetime.combine(today, datetime.min.time()), MAX_DAYS).date()
 
