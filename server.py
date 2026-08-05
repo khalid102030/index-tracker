@@ -1157,10 +1157,10 @@ def recommendations_latest():
     if not sb:
         return {"picks": [], "note": "Supabase غير متصل"}
     try:
-        # الجارية فقط — تبقى ظاهرة حتى تُحسم
+        # الجارية فقط — تبقى ظاهرة حتى تُحسم (كلها، بدون حد فعلي)
         rows = sb.table("idx_recommendations").select("*") \
             .eq("status", "active") \
-            .order("created_at", desc=True).limit(30).execute().data or []
+            .order("created_at", desc=True).limit(500).execute().data or []
         if not rows:
             return {"picks": [], "date": None}
 
