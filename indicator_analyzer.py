@@ -232,6 +232,11 @@ def analyze_dataframe(df: pd.DataFrame) -> dict:
         # هل فخ؟
         is_trap = len(penalties) > 0 and total_active >= 8
 
+        # هل السهم مؤهّل كـ "مدى بعيد نوعي"؟
+        _long_pct = frame_data["long"].get("pct", 0)
+        _is_lt_quality = (_long_pct >= 40 and -3 <= wkly <= 3 and mnth <= 12
+                          and not is_trap and rsi_state not in ("خمول ميّت", "مرتفع بلا دعم")
+                          and bet_score >= 35)
         stocks.append({
             "symbol":sym, "name":name, "price":price, "change_pct":chg,
             "bet_score":bet_score, "pre_launch":pre_launch,
@@ -242,6 +247,7 @@ def analyze_dataframe(df: pd.DataFrame) -> dict:
             "penalties":[p[0] for p in penalties],
             "weekly_change":wkly, "monthly_change":mnth,
             "rsi":rsi, "rsi_state":rsi_state, "mfi":mfi, "net_liquidity":net_l,
+            "long_term_quality":_is_lt_quality,
             "pe":_safe(row.get(col_idx["pe"] or "",0)),
             "eps":_safe(row.get(col_idx["eps"] or "",0)),
         })

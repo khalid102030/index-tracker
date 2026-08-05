@@ -127,6 +127,7 @@ def create_recommendation(stock, category, supabase=None):
             "pre_launch":stock.get("pre_launch",0),
             "total_active":stock.get("total_active",0),
             "penalties":stock.get("penalties",[]),
+            "long_term_quality":stock.get("long_term_quality",False),
             "pe":stock.get("pe",0),
         },
         "appeared_date":today.isoformat(),

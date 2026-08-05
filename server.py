@@ -639,6 +639,7 @@ def recommendations_tracking():
                 "post_watch_peak": r.get("post_watch_peak", 0),
                 "post_target_high": r.get("post_target_high"),
                 "post_target_pct": r.get("post_target_pct", 0),
+                "long_term_quality": (r.get("indicators") or {}).get("long_term_quality", False) if isinstance(r.get("indicators"), dict) else False,
             }
 
         all_recs = [_slim_rec(r) for r in rows]
