@@ -338,18 +338,26 @@ def analyze_full(url: str = None, skip_duplicate: bool = False):
             except Exception:
                 pass
 
-        # حفظ أسهم المدى البعيد النوعية للتتبع (بعلامة 🌱، هدف +5% خلال ~شهر)
+        # حفظ أسهم المدى البعيد النوعية للتتبع (إذا مفعّلة)
         if sb:
             try:
-                from tracker import create_recommendation
-                lt_stocks = [s for s in analysis["stocks"]
-                             if s.get("long_term_quality")]
-                # الأعلى 3 فقط
-                lt_stocks.sort(key=lambda x: x.get("bet_score", 0), reverse=True)
-                for s in lt_stocks[:3]:
-                    merged = {**s, "reason": "مدى بعيد نوعي",
-                              "confidence": min(10, round(s.get("bet_score", 0)/14, 1))}
-                    create_recommendation(merged, "long_term", sb)
+                # هل التوصيات البعيدة مفعّلة؟
+                lt_on = True
+                try:
+                    srow = sb.table("idx_settings").select("*").eq("key", "longterm").limit(1).execute().data
+                    if srow:
+                        lt_on = (srow[0].get("value") or {}).get("enabled", True)
+                except Exception:
+                    pass
+                if lt_on:
+                    from tracker import create_recommendation
+                    lt_stocks = [s for s in analysis["stocks"]
+                                 if s.get("long_term_quality")]
+                    lt_stocks.sort(key=lambda x: x.get("bet_score", 0), reverse=True)
+                    for s in lt_stocks[:3]:
+                        merged = {**s, "reason": "مدى بعيد نوعي",
+                                  "confidence": min(10, round(s.get("bet_score", 0)/14, 1))}
+                        create_recommendation(merged, "long_term", sb)
             except Exception:
                 pass
 
@@ -1104,6 +1112,40 @@ def fix_categories():
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/longterm/status")
+def longterm_status():
+    """حالة تفعيل التوصيات البعيدة."""
+    sb = _get_supabase()
+    enabled = True
+    if sb:
+        try:
+            srow = sb.table("idx_settings").select("*").eq("key", "longterm").limit(1).execute().data
+            if srow:
+                enabled = (srow[0].get("value") or {}).get("enabled", True)
+        except Exception:
+            pass
+    return {"enabled": enabled}
+
+
+@app.post("/api/longterm/toggle")
+def longterm_toggle():
+    """تشغيل/إيقاف التوصيات البعيدة."""
+    sb = _get_supabase()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase غير متصل")
+    cur = True
+    try:
+        srow = sb.table("idx_settings").select("*").eq("key", "longterm").limit(1).execute().data
+        if srow:
+            cur = (srow[0].get("value") or {}).get("enabled", True)
+    except Exception:
+        pass
+    new_state = not cur
+    sb.table("idx_settings").upsert(
+        {"key": "longterm", "value": {"enabled": new_state}}, on_conflict="key").execute()
+    return {"enabled": new_state}
 
 
 @app.get("/api/recommendations/longterm")

@@ -157,8 +157,11 @@ if(catRows.length){h+=`<div style="display:flex;gap:16px;flex-wrap:wrap;margin-t
 for(const[k,v]of catRows){const vc=v.rate>=50?"var(--g)":"var(--r)";h+=`<div style="font-size:.78rem"><span style="color:var(--mt)">${cl[k]||k}:</span> <b style="color:${vc}">${v.rate}%</b> <span style="color:var(--mt);font-size:.7rem">(${v.success}/${v.total})</span></div>`}h+=`</div>`}
 if(!d.mature)h+=`<div style="font-size:.68rem;color:var(--mt);margin-top:8px">⚠️ العينة ${d.closed}/20 — الدقة تتحسّن مع تراكم النتائج</div>`;
 h+=`</div>`;c.innerHTML=h}catch(e){c.innerHTML=''}}
-async function loadLongterm(){const box=document.getElementById("ltBox");if(!box)return;try{const d=await api("/api/recommendations/longterm");const picks=d.picks||[];
-let h=`<div class="sh"><div class="d" style="background:#9c6ade;box-shadow:0 0 14px #9c6ade"></div><h2>🌱 أسهم المدى البعيد النوعية</h2><span class="tg">${picks.length} · أسبوعي/شهري · منتقاة</span></div>`;
+async function toggleLongterm(){try{const r=await api("/api/longterm/toggle",{method:"POST"});toast(r.enabled?"🟢 التوصيات البعيدة مفعّلة":"🔴 التوصيات البعيدة موقوفة");loadLongterm()}catch(e){toast("❌ "+e.message)}}
+async function loadLongterm(){const box=document.getElementById("ltBox");if(!box)return;try{let ltOn=true;try{const st=await api("/api/longterm/status");ltOn=st.enabled}catch(e){}
+const d=await api("/api/recommendations/longterm");const picks=d.picks||[];
+let h=`<div class="sh"><div class="d" style="background:#9c6ade;box-shadow:0 0 14px #9c6ade"></div><h2>🌱 أسهم المدى البعيد النوعية</h2><span class="tg">${picks.length} · أسبوعي/شهري · منتقاة</span><button class="bs${ltOn?' on':''}" style="margin-inline-start:auto" onclick="toggleLongterm()">${ltOn?'🟢 مفعّلة':'🔴 موقوفة'}</button></div>`;
+if(!ltOn){h+=`<div class="pn" style="text-align:center;color:var(--mt);padding:16px;border:1px dashed rgba(156,106,222,.3)">التوصيات البعيدة موقوفة — فعّلها لتتبعها</div>`;box.innerHTML=h;return}
 h+=`<div style="font-size:.75rem;color:var(--mt);margin-bottom:8px">أسهم قوية على المدى الطويل، لم ترتفع كثيراً مؤخراً — فرص تجميع بعيدة المدى. محدودة ونادرة (تشكّلها بطيء).</div>`;
 if(!picks.length){h+=`<div class="pn" style="text-align:center;color:var(--mt);padding:20px;border:1px dashed rgba(156,106,222,.3)">لا توجد أسهم مدى بعيد نوعية حالياً — المعايير صارمة (إشارات طويلة قوية + لم ترتفع كثيراً + ليست فخاً). قد تظهر عند تشكّل الفرص.</div>`;box.innerHTML=h;return}
 for(const p of picks){const cc=p.bet_score>=50?"var(--g)":"var(--ac2)";const wc=p.weekly_change>0?"var(--g)":p.weekly_change<0?"var(--r)":"var(--mt)";

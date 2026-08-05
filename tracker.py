@@ -94,11 +94,12 @@ def create_recommendation(stock, category, supabase=None):
     expiry = add_trading_days(datetime.combine(today, datetime.min.time()), val_d).date()
     max_exp = add_trading_days(datetime.combine(today, datetime.min.time()), max_d).date()
 
-    # ── منع التكرار: لو فيه توصية جارية لنفس السهم، حدّث قوتها فقط ──
+    # ── منع التكرار: نفس السهم + نفس النوع فقط (يُسمح بنفس السهم في نوعين) ──
     if supabase:
         try:
             existing = supabase.table("idx_recommendations").select("*") \
                 .eq("symbol", stock["symbol"]).eq("status", "active") \
+                .eq("category", category) \
                 .limit(1).execute().data
             if existing:
                 ex = existing[0]
@@ -243,7 +244,7 @@ def performance_report(supabase=None):
     # الأولوية: نشطة > ناجحة > غيرها
     _uniq = {}
     for r in all_r:
-        key = (r["symbol"], r.get("entry_price"))
+        key = (r["symbol"], r.get("entry_price"), r.get("category"))
         if key not in _uniq:
             _uniq[key] = r
         else:
