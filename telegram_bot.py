@@ -239,13 +239,15 @@ def notify_batch(picks: list) -> dict:
         return {"skipped": True}
     s = get_settings()
     owner = s.get("chat_id", "")
-    subs_on = s.get("subs_enabled", True)  # إرسال للمشتركين مفعّل افتراضياً
-    # المستقبِلون: المالك دائماً + المشتركون (إذا مفعّل)
+    private = s.get("private_mode", False)
+    subs_on = s.get("subs_enabled", True) and not private  # الوضع الخاص يوقف المشتركين
+    # المستقبِلون: المالك دائماً + المشتركون (إذا مفعّل وليس وضع خاص)
     recipients = set()
     if owner:
         recipients.add(str(owner))
-    for u in _get_authorized():
-        recipients.add(str(u))
+    if not private:
+        for u in _get_authorized():
+            recipients.add(str(u))
     if subs_on:
         for u in _get_subscribers():
             recipients.add(str(u))
@@ -333,6 +335,14 @@ def handle_update(update: dict) -> dict:
         text_l = text.lower()
         chat_id = str(msg.get("chat", {}).get("id", ""))
 
+        # ── الوضع الخاص: البوت مقفل عن الجميع عدا المالك ──
+        s = get_settings()
+        if s.get("private_mode") and not _is_owner(chat_id):
+            return send_message(
+                "🔧 <b>البوت تحت التطوير حالياً</b>\n\n"
+                "الخدمة غير متاحة مؤقتاً. شكراً لتفهّمك 🙏",
+                chat_id=chat_id)
+
         # ── المالك فقط يستخدم الأوامر ──
         if not _is_owner(chat_id):
             # هل أرسل الرقم السري؟ → يصير مشترك (توصيات فقط)
@@ -408,6 +418,9 @@ def handle_update(update: dict) -> dict:
         chat_id = str(cb.get("message", {}).get("chat", {}).get("id", ""))
         cb_id = cb.get("id")
         _send("answerCallbackQuery", {"callback_query_id": cb_id})
+        # الوضع الخاص
+        if get_settings().get("private_mode") and not _is_owner(chat_id):
+            return send_message("🔧 البوت تحت التطوير حالياً.", chat_id=chat_id)
         # الأزرار للمالك فقط
         if not _is_owner(chat_id):
             return send_message("🔔 أنت مشترك — تصلك التوصيات الجديدة تلقائياً.", chat_id=chat_id)

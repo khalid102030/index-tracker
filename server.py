@@ -1456,6 +1456,7 @@ def telegram_get_settings():
         "bot_token": "•••" + s.get("bot_token", "")[-6:] if s.get("bot_token") else "",
         "chat_id": s.get("chat_id", ""),
         "access_code": get_access_code(),
+        "private_mode": s.get("private_mode", False),
     }
 
 
@@ -1515,6 +1516,24 @@ def telegram_disable_get():
     from telegram_bot import save_settings
     save_settings(enabled=False)
     return {"enabled": False, "message": "🔴 تم إيقاف خدمة تيليجرام"}
+
+
+@app.post("/api/telegram/private-toggle")
+def telegram_private_toggle():
+    """تشغيل/إيقاف الوضع الخاص (البوت تحت التطوير — للمالك فقط)."""
+    from telegram_bot import get_settings
+    s = get_settings()
+    new_state = not s.get("private_mode", False)
+    cur = get_settings()
+    cur["private_mode"] = new_state
+    sb = _get_supabase()
+    if sb:
+        try:
+            sb.table("idx_settings").upsert(
+                {"key": "telegram", "value": cur}, on_conflict="key").execute()
+        except Exception:
+            pass
+    return {"private_mode": new_state}
 
 
 @app.get("/api/telegram/subscribers")
