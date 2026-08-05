@@ -162,6 +162,19 @@ def _add_subscriber(chat_id: str):
     return subs
 
 
+def _remove_subscriber(chat_id: str) -> list:
+    """يحذف مشترك."""
+    subs = [u for u in _get_subscribers() if str(u) != str(chat_id)]
+    sb = _get_sb()
+    if sb:
+        try:
+            sb.table("idx_settings").upsert(
+                {"key": _SUBS_KEY, "value": {"users": subs}}, on_conflict="key").execute()
+        except Exception:
+            pass
+    return subs
+
+
 def _is_owner(chat_id: str) -> bool:
     """المالك فقط (chat_id بالإعدادات أو ضمن المصرّح لهم بأوامر كاملة)."""
     s = get_settings()
@@ -226,14 +239,16 @@ def notify_batch(picks: list) -> dict:
         return {"skipped": True}
     s = get_settings()
     owner = s.get("chat_id", "")
-    # المستقبِلون: المالك + المصرّح لهم + المشتركون
+    subs_on = s.get("subs_enabled", True)  # إرسال للمشتركين مفعّل افتراضياً
+    # المستقبِلون: المالك دائماً + المشتركون (إذا مفعّل)
     recipients = set()
     if owner:
         recipients.add(str(owner))
     for u in _get_authorized():
         recipients.add(str(u))
-    for u in _get_subscribers():
-        recipients.add(str(u))
+    if subs_on:
+        for u in _get_subscribers():
+            recipients.add(str(u))
 
     sent = 0
     for p in picks:
@@ -322,6 +337,11 @@ def handle_update(update: dict) -> dict:
         if not _is_owner(chat_id):
             # هل أرسل الرقم السري؟ → يصير مشترك (توصيات فقط)
             if text.strip() == get_access_code():
+                # هل استقبال المشتركين مفعّل؟
+                if not get_settings().get("subs_enabled", True):
+                    return send_message(
+                        "🔴 الاشتراك مغلق حالياً. تواصل مع مالك البوت.",
+                        chat_id=chat_id)
                 _add_subscriber(chat_id)
                 welcome = (
                     "✅ <b>تم اشتراكك بنجاح في راصد بلس</b>\n"

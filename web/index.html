@@ -109,7 +109,7 @@ function shell(){document.getElementById("root").innerHTML=`
 <div class="w"><div class="tabs">
 <button class="tb ${S.tab==='analyze'?'on':''}" onclick="go('analyze')">🎯 التحليل</button>
 <button class="tb ${S.tab==='settings'?'on':''}" onclick="go('settings')">⚙️ الإعدادات</button>
-</div><div id="ct" class="fade">${S.tab==='settings'?pgSettings():pgAnalyze()}</div></div>`;loadH();if(S.tab==='analyze'){loadSync();loadAccuracy();loadLatest();loadLongterm()}if(S.tab==='settings'){loadCfg();loadTg()}}
+</div><div id="ct" class="fade">${S.tab==='settings'?pgSettings():pgAnalyze()}</div></div>`;loadH();if(S.tab==='analyze'){loadSync();loadAccuracy();loadLatest();loadLongterm()}if(S.tab==='settings'){loadCfg();loadTg();loadSubs()}}
 function go(t){S.tab=t;shell()}
 async function loadH(){try{const h=await api("/api/health");const p=document.getElementById("hp");if(!p)return;const ms=h.market_status;const mc=ms==='live'?'var(--g)':ms==='weekend'?'var(--r)':'var(--ac2)';p.innerHTML=`<span style="color:${mc}">${ms==='live'?'🟢 مفتوح':ms==='post_close'?'🔴 مغلق':ms==='pre_open'?'🟡 قبل الافتتاح':'⚪ عطلة'}</span> ${h.time_riyadh||''}`}catch(e){}}
 
@@ -358,7 +358,16 @@ function pgSettings(){return `
 ① أنشئ بوت عبر <b>@BotFather</b> واحصل على التوكن<br>
 ② أرسل رسالة لبوتك ثم احصل على Chat ID من <b>@userinfobot</b><br>
 ③ احفظ ثم اضغط "اختبار الاتصال" ثم "تفعيل البوت"<br>
-④ الأوامر: <code>/active</code> لعرض التوصيات الجارية</div></div>`}
+④ الأوامر: <code>/active</code> لعرض التوصيات الجارية</div>
+<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--ln2)">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+<span style="font-weight:700;color:var(--ac2)">👥 المشتركون (توصيات فقط)</span>
+<button class="bs" onclick="toggleSubs()" id="subsToggle">⏳</button></div>
+<div id="subsList" style="font-size:.78rem;color:var(--mt)">…</div></div></div>`}
+
+async function loadSubs(){try{const d=await api("/api/telegram/subscribers");const btn=document.getElementById("subsToggle");const list=document.getElementById("subsList");if(!btn)return;btn.innerHTML=d.subs_enabled?"🟢 الإرسال مفعّل":"🔴 الإرسال موقوف";btn.className=`bs${d.subs_enabled?' on':''}`;const subs=d.subscribers||[];if(!subs.length){list.innerHTML='<span style="color:var(--mt)">لا مشتركين بعد</span>';return}let h=`<div style="margin-bottom:4px">${subs.length} مشترك:</div>`;for(const s of subs){h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:var(--bg2);border-radius:6px;margin-bottom:3px"><span style="font-family:'IBM Plex Mono'">${s}</span><button onclick="removeSub('${s}')" style="background:none;border:none;color:var(--r);cursor:pointer;font-size:.9rem">✖</button></div>`}list.innerHTML=h}catch(e){}}
+async function toggleSubs(){try{await api("/api/telegram/subs-toggle",{method:"POST"});loadSubs()}catch(e){toast("❌ "+e.message)}}
+async function removeSub(cid){if(!confirm('حذف هذا المشترك؟'))return;try{await api("/api/telegram/subs-remove",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:cid})});toast("✅ حُذف");loadSubs()}catch(e){toast("❌ "+e.message)}}
 
 async function loadTg(){try{const s=await api("/api/telegram/settings");const st=document.getElementById("tgStatus");const btn=document.getElementById("tgToggle");if(!st)return;const tk=document.getElementById("tgToken");const ch=document.getElementById("tgChat");const cd=document.getElementById("tgCode");if(tk&&s.bot_token)tk.placeholder=s.bot_token;if(ch)ch.value=s.chat_id||"";if(cd)cd.value=s.access_code||"";btn.innerHTML=s.enabled?"🟢 مفعّل":"🔴 متوقف";btn.className=`bs${s.enabled?' on':''}`;st.innerHTML=s.enabled?'🟢 الخدمة مفعّلة — تصلك التوصيات الجديدة فوراً':'🔴 الخدمة متوقفة';}catch(e){}}
 async function toggleTg(){try{await api("/api/telegram/toggle",{method:"POST"});loadTg()}catch(e){toast("❌ "+e.message)}}

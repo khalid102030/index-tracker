@@ -1483,9 +1483,39 @@ def telegram_disable_get():
 
 @app.get("/api/telegram/subscribers")
 def telegram_subscribers():
-    """قائمة المشتركين (يستقبلون التوصيات فقط)."""
-    from telegram_bot import _get_subscribers, _get_authorized
-    return {"subscribers": _get_subscribers(), "full_access": _get_authorized()}
+    """قائمة المشتركين + حالة التفعيل."""
+    from telegram_bot import _get_subscribers, _get_authorized, get_settings
+    s = get_settings()
+    return {"subscribers": _get_subscribers(), "full_access": _get_authorized(),
+            "subs_enabled": s.get("subs_enabled", True)}
+
+
+@app.post("/api/telegram/subs-toggle")
+def telegram_subs_toggle():
+    """تشغيل/إيقاف إرسال التوصيات للمشتركين."""
+    from telegram_bot import get_settings, save_settings
+    s = get_settings()
+    new_state = not s.get("subs_enabled", True)
+    # حفظ عبر save_settings مع تمرير الحقل
+    cur = get_settings()
+    cur["subs_enabled"] = new_state
+    sb = _get_supabase()
+    if sb:
+        try:
+            sb.table("idx_settings").upsert(
+                {"key": "telegram", "value": cur}, on_conflict="key").execute()
+        except Exception:
+            pass
+    return {"subs_enabled": new_state}
+
+
+@app.post("/api/telegram/subs-remove")
+def telegram_subs_remove(cfg: dict):
+    """يحذف مشترك محدد."""
+    from telegram_bot import _remove_subscriber
+    cid = cfg.get("chat_id", "")
+    remaining = _remove_subscriber(cid)
+    return {"ok": True, "remaining": len(remaining)}
 
 
 @app.get("/api/telegram/webhook-info")
