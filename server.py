@@ -235,7 +235,7 @@ def _analyze_movers(analysis: dict, sb) -> dict:
 
 
 @app.post("/api/analyze-full")
-def analyze_full(url: str = None):
+def analyze_full(url: str = None, skip_duplicate: bool = False):
     """
     الزر الواحد: يسحب البيانات → يحدّث النتائج السابقة →
     Claude + Gemini يقيّمون مع مراعاة الأداء → يحفظ التوصيات.
@@ -257,6 +257,20 @@ def analyze_full(url: str = None):
     try:
         # ① سحب وتحليل
         snap = fetch_latest_snapshot(sheet_url)
+
+        # ── كشف التكرار: لو نفس البيانات (نفس التبويب)، توقّف ──
+        if skip_duplicate:
+            try:
+                import scheduler as _sch
+                if _sch._last_sync.get("tab") == snap["tab_name"]:
+                    return {
+                        "ok": True, "skipped": True, "no_update": True,
+                        "message": f"⚠️ البيانات لم تتغير — نفس التبويب ({snap['tab_name']}). لم يُجرَ تحليل جديد.",
+                        "tab": snap["tab_name"],
+                    }
+            except Exception:
+                pass
+
         analysis = analyze_dataframe(snap["df"])
         analysis["source"] = {"tab": snap["tab_name"],
                               "market_status": classify_snapshot_time()}
@@ -1381,11 +1395,18 @@ def wake():
 
 @app.get("/api/cron/sync")
 def cron_sync():
-    """نقطة وصول لخدمات cron خارجية — يسحب ويحلّل كامل."""
+    """
+    نقطة cron الذكية — استخدم هذا الرابط في cron job.
+    يتحقق تلقائياً:
+    ① يوم تداول؟ (يتخطى العطل)
+    ② بيانات جديدة؟ (يتوقف لو نفس التبويب)
+    ثم يحلّل وينشر فقط عند وجود جديد.
+    """
     from scheduler import run_sync
     from market_clock import is_trading_day
     if not is_trading_day():
-        return {"skipped": True, "reason": "عطلة"}
+        return {"skipped": True, "reason": "عطلة — لا تداول اليوم"}
+    # run_sync فيه كشف التكرار المدمج
     return run_sync(full=True)
 
 
