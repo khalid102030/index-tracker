@@ -13,6 +13,10 @@ MAX_DAYS         = 5
 FLAT_BAND        = 1.0
 POST_WATCH_DAYS  = 14
 
+# المدى البعيد — هدف أكبر ومدة أطول
+LT_TARGET_PCT    = 5.0    # هدف +5%
+LT_MAX_DAYS      = 20     # حتى 20 يوم تداول (~شهر)
+
 
 def _is_past_expiry(max_expiry: str) -> bool:
     """
@@ -80,10 +84,15 @@ def round_to_tick(price: float, direction: str = "nearest") -> float:
 def create_recommendation(stock, category, supabase=None):
     today = date.today()
     entry = float(stock["price"])
-    # الهدف = +1.5% مقرّب لأقرب خطوة سعرية صحيحة (لأعلى ليضمن تحقيق الحد الأدنى)
-    target = round_to_tick(entry * (1 + TARGET_PCT/100), "up")
-    expiry = add_trading_days(datetime.combine(today, datetime.min.time()), VALIDITY_DAYS).date()
-    max_exp = add_trading_days(datetime.combine(today, datetime.min.time()), MAX_DAYS).date()
+    is_lt = category == "long_term"
+    # الهدف والمدة حسب النوع
+    tgt_pct = LT_TARGET_PCT if is_lt else TARGET_PCT
+    max_d = LT_MAX_DAYS if is_lt else MAX_DAYS
+    val_d = LT_MAX_DAYS if is_lt else VALIDITY_DAYS
+    # الهدف مقرّب لأقرب خطوة سعرية صحيحة (لأعلى)
+    target = round_to_tick(entry * (1 + tgt_pct/100), "up")
+    expiry = add_trading_days(datetime.combine(today, datetime.min.time()), val_d).date()
+    max_exp = add_trading_days(datetime.combine(today, datetime.min.time()), max_d).date()
 
     # ── منع التكرار: لو فيه توصية جارية لنفس السهم، حدّث قوتها فقط ──
     if supabase:
@@ -109,7 +118,7 @@ def create_recommendation(stock, category, supabase=None):
 
     rec = {
         "symbol":stock["symbol"],"name":stock["name"],"category":category,
-        "entry_price":entry,"target_price":target,"target_pct":TARGET_PCT,
+        "entry_price":entry,"target_price":target,"target_pct":tgt_pct,
         "score":stock.get("bet_score",0),
         "confidence":stock.get("confidence",0),
         "trend":stock.get("trend",""),
@@ -168,7 +177,8 @@ def update_active(prices, supabase=None):
         cur_pct = round((cur-entry)/entry*100,2)
         upd = {"highest_price":highest,"lowest_price":lowest,"peak_pct":peak,
                "current_price":cur,"current_pct":cur_pct}
-        if peak >= TARGET_PCT:
+        rec_target = rec.get("target_pct", TARGET_PCT) or TARGET_PCT
+        if peak >= rec_target:
             upd.update(status="closed",outcome="success",closed_date=today.isoformat())
             # أعلى سعر عند تحقيق الهدف = يبدأ التتبع بعده
             upd["post_target_high"] = highest

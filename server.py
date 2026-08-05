@@ -338,6 +338,21 @@ def analyze_full(url: str = None, skip_duplicate: bool = False):
             except Exception:
                 pass
 
+        # حفظ أسهم المدى البعيد النوعية للتتبع (بعلامة 🌱، هدف +5% خلال ~شهر)
+        if sb:
+            try:
+                from tracker import create_recommendation
+                lt_stocks = [s for s in analysis["stocks"]
+                             if s.get("long_term_quality")]
+                # الأعلى 3 فقط
+                lt_stocks.sort(key=lambda x: x.get("bet_score", 0), reverse=True)
+                for s in lt_stocks[:3]:
+                    merged = {**s, "reason": "مدى بعيد نوعي",
+                              "confidence": min(10, round(s.get("bet_score", 0)/14, 1))}
+                    create_recommendation(merged, "long_term", sb)
+            except Exception:
+                pass
+
         # حفظ التقييم (مع المرفوضين) لمراجعة القرارات لاحقاً
         if sb:
             try:
