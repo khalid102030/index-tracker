@@ -343,40 +343,63 @@ function pgSettings(){return `
 <div style="font-size:.82rem;color:var(--mt);line-height:1.8">أحد–خميس · 9:30ص–3:20م · الجمعة والسبت عطلة</div></div>
 
 <div class="pn" style="border:1px solid rgba(0,212,255,.15)">
-<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
-<span style="font-weight:700;color:#29b6f6">✈️ تنبيهات Telegram</span>
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
+<span style="font-weight:700;color:#29b6f6;font-size:1rem">✈️ لوحة تحكم Telegram</span>
 <button class="bs" onclick="toggleTg()" id="tgToggle">⏳</button></div>
-<div id="tgStatus" style="font-size:.78rem;color:var(--mt);margin-bottom:10px">…</div>
-<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg2);padding:8px 12px;border-radius:8px;margin-bottom:10px">
-<span style="font-size:.82rem;font-weight:700">🔧 وضع التطوير (قفل عن الجميع عداك)</span>
+<div id="tgStatus" style="font-size:.78rem;color:var(--mt);margin-bottom:12px">…</div>
+
+<!-- ① التحكم بالحالة -->
+<div style="background:var(--bg2);padding:10px 12px;border-radius:10px;margin-bottom:10px">
+<div style="font-weight:700;font-size:.8rem;color:var(--ac2);margin-bottom:8px">🎛️ التحكم</div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0">
+<span style="font-size:.82rem">🔔 إرسال التوصيات الجديدة</span>
+<button class="bs" onclick="toggleTg()" id="tgToggle2">⏳</button></div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--ln2)">
+<span style="font-size:.82rem">🔧 وضع التطوير (قفل عن الجميع عداك)</span>
 <button class="bs" onclick="togglePrivate()" id="privBtn">⏳</button></div>
-<label style="font-weight:700;font-size:.85rem;display:block;margin-bottom:5px">🤖 Bot Token</label>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--ln2)">
+<span style="font-size:.82rem">👥 إرسال للمشتركين</span>
+<button class="bs" onclick="toggleSubs()" id="subsToggle">⏳</button></div>
+</div>
+
+<!-- ② الإعداد -->
+<div style="background:var(--bg2);padding:10px 12px;border-radius:10px;margin-bottom:10px">
+<div style="font-weight:700;font-size:.8rem;color:var(--ac2);margin-bottom:8px">⚙️ الإعداد</div>
+<label style="font-weight:700;font-size:.8rem;display:block;margin-bottom:4px">🤖 Bot Token</label>
 <input type="password" id="tgToken" placeholder="123456:ABC-DEF...">
-<label style="font-weight:700;font-size:.85rem;display:block;margin-bottom:5px;margin-top:6px">💬 Chat ID</label>
+<label style="font-weight:700;font-size:.8rem;display:block;margin-bottom:4px;margin-top:6px">💬 Chat ID (رقمك أنت)</label>
 <input type="text" id="tgChat" placeholder="123456789">
-<label style="font-weight:700;font-size:.85rem;display:block;margin-bottom:5px;margin-top:6px">🔑 الرقم السري (للزملاء)</label>
+<label style="font-weight:700;font-size:.8rem;display:block;margin-bottom:4px;margin-top:6px">🔑 الرقم السري (للزملاء)</label>
 <input type="text" id="tgCode" placeholder="2234">
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
 <button class="bt" onclick="saveTg()">💾 حفظ</button>
-<button class="bs" onclick="testTg()">🔌 اختبار الاتصال</button>
-<button class="bs" onclick="setupWebhook()">🔗 تفعيل البوت</button>
-<span id="tgMsg" style="font-size:.8rem;color:var(--mt)"></span></div>
-<div style="font-size:.7rem;color:var(--mt);margin-top:10px;line-height:1.7">
+<button class="bs" onclick="testTg()">🔌 اختبار</button>
+<button class="bs" onclick="setupWebhook()">🔗 تفعيل البوت</button></div>
+<div id="tgMsg" style="font-size:.8rem;color:var(--mt);margin-top:6px"></div>
+</div>
+
+<!-- ③ المشتركون -->
+<div style="background:var(--bg2);padding:10px 12px;border-radius:10px;margin-bottom:10px">
+<div style="font-weight:700;font-size:.8rem;color:var(--ac2);margin-bottom:8px">👥 المشتركون</div>
+<div id="subsList" style="font-size:.78rem;color:var(--mt)">…</div></div>
+
+<!-- ④ التعليمات -->
+<details style="font-size:.72rem;color:var(--mt);line-height:1.8">
+<summary style="cursor:pointer;font-weight:700;color:var(--ac2)">📖 خطوات الإعداد</summary>
+<div style="margin-top:6px">
 ① أنشئ بوت عبر <b>@BotFather</b> واحصل على التوكن<br>
 ② أرسل رسالة لبوتك ثم احصل على Chat ID من <b>@userinfobot</b><br>
-③ احفظ ثم اضغط "اختبار الاتصال" ثم "تفعيل البوت"<br>
-④ الأوامر: <code>/active</code> لعرض التوصيات الجارية</div>
-<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--ln2)">
-<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-<span style="font-weight:700;color:var(--ac2)">👥 المشتركون (توصيات فقط)</span>
-<button class="bs" onclick="toggleSubs()" id="subsToggle">⏳</button></div>
-<div id="subsList" style="font-size:.78rem;color:var(--mt)">…</div></div></div>`}
+③ الصق التوكن و Chat ID → احفظ → اختبار → تفعيل البوت<br>
+④ فعّل 🔔 إرسال التوصيات<br>
+⑤ الزملاء: أعطهم رابط البوت + الرقم السري<br><br>
+<b>الأوامر (لك):</b> /report /active /today /success /stats</div>
+</details></div>`}
 
 async function loadSubs(){try{const d=await api("/api/telegram/subscribers");const btn=document.getElementById("subsToggle");const list=document.getElementById("subsList");if(!btn)return;btn.innerHTML=d.subs_enabled?"🟢 الإرسال مفعّل":"🔴 الإرسال موقوف";btn.className=`bs${d.subs_enabled?' on':''}`;const subs=d.subscribers||[];if(!subs.length){list.innerHTML='<span style="color:var(--mt)">لا مشتركين بعد</span>';return}let h=`<div style="margin-bottom:4px">${subs.length} مشترك:</div>`;for(const s of subs){h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:var(--bg2);border-radius:6px;margin-bottom:3px"><span style="font-family:'IBM Plex Mono'">${s}</span><button onclick="removeSub('${s}')" style="background:none;border:none;color:var(--r);cursor:pointer;font-size:.9rem">✖</button></div>`}list.innerHTML=h}catch(e){}}
 async function toggleSubs(){try{await api("/api/telegram/subs-toggle",{method:"POST"});loadSubs()}catch(e){toast("❌ "+e.message)}}
 async function removeSub(cid){if(!confirm('حذف هذا المشترك؟'))return;try{await api("/api/telegram/subs-remove",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:cid})});toast("✅ حُذف");loadSubs()}catch(e){toast("❌ "+e.message)}}
 
-async function loadTg(){try{const s=await api("/api/telegram/settings");const st=document.getElementById("tgStatus");const btn=document.getElementById("tgToggle");if(!st)return;const tk=document.getElementById("tgToken");const ch=document.getElementById("tgChat");const cd=document.getElementById("tgCode");if(tk&&s.bot_token)tk.placeholder=s.bot_token;if(ch)ch.value=s.chat_id||"";if(cd)cd.value=s.access_code||"";const pv=document.getElementById("privBtn");if(pv){pv.innerHTML=s.private_mode?"🔧 مفعّل":"🔓 متاح";pv.className=`bs${s.private_mode?' on':''}`}btn.innerHTML=s.enabled?"🟢 مفعّل":"🔴 متوقف";btn.className=`bs${s.enabled?' on':''}`;st.innerHTML=s.enabled?'🟢 الخدمة مفعّلة — تصلك التوصيات الجديدة فوراً':'🔴 الخدمة متوقفة';}catch(e){}}
+async function loadTg(){try{const s=await api("/api/telegram/settings");const st=document.getElementById("tgStatus");const btn=document.getElementById("tgToggle");if(!st)return;const tk=document.getElementById("tgToken");const ch=document.getElementById("tgChat");const cd=document.getElementById("tgCode");if(tk&&s.bot_token)tk.placeholder=s.bot_token;if(ch)ch.value=s.chat_id||"";if(cd)cd.value=s.access_code||"";const pv=document.getElementById("privBtn");if(pv){pv.innerHTML=s.private_mode?"🔧 مفعّل":"🔓 متاح";pv.className=`bs${s.private_mode?' on':''}`}btn.innerHTML=s.enabled?"🟢 مفعّل":"🔴 متوقف";btn.className=`bs${s.enabled?' on':''}`;const btn2=document.getElementById("tgToggle2");if(btn2){btn2.innerHTML=s.enabled?"🟢 مفعّل":"🔴 متوقف";btn2.className=`bs${s.enabled?' on':''}`}st.innerHTML=s.enabled?'🟢 الخدمة مفعّلة — تصلك التوصيات الجديدة فوراً':'🔴 الخدمة متوقفة';}catch(e){}}
 async function toggleTg(){try{await api("/api/telegram/toggle",{method:"POST"});loadTg()}catch(e){toast("❌ "+e.message)}}
 async function togglePrivate(){try{const r=await api("/api/telegram/private-toggle",{method:"POST"});toast(r.private_mode?"🔧 البوت الآن تحت التطوير — مقفل عن الجميع عداك":"🟢 البوت متاح للمشتركين");loadTg()}catch(e){toast("❌ "+e.message)}}
 async function saveTg(){const m=document.getElementById("tgMsg");m.textContent="⏳";try{await api("/api/telegram/settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({bot_token:v("tgToken"),chat_id:v("tgChat"),access_code:v("tgCode")})});m.innerHTML='<span style="color:var(--g)">✅ حُفظ</span>';loadTg()}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
