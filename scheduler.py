@@ -126,6 +126,23 @@ def get_sync_status() -> dict:
     }
 
 
+def _data_fingerprint(df) -> str:
+    """
+    بصمة للأسعار — تكشف البيانات المطابقة حتى لو اسم التبويب مختلف.
+    تعتمد على الرمز + السعر لكل سهم.
+    """
+    import hashlib
+    try:
+        cols = [c for c in df.columns if str(c).strip() in
+                ("الرمز", "رمز", "السعر", "سعر", "آخر", "الأخير", "close")]
+        # لو ما لقينا أعمدة محددة، استخدم أول عمودين
+        sub = df[cols] if cols else df.iloc[:, :3]
+        raw = sub.to_csv(index=False)
+        return hashlib.md5(raw.encode("utf-8")).hexdigest()
+    except Exception:
+        return ""
+
+
 def _next_sync_time() -> str:
     now = now_riyadh()
     if not is_trading_day(now):
@@ -201,12 +218,19 @@ def run_sync(force: bool = False, full: bool = True) -> dict:
         snap = fetch_latest_snapshot(sheet_url)
         tab = snap["tab_name"]
         snap_time = snap["snapshot_time"]
+        df = snap["df"]
 
-        # ── كشف التكرار: لو نفس التبويب، توقّف ولا تكمّل ──
-        if not force and _last_sync.get("tab") == tab:
+        # ── بصمة البيانات: hash للأسعار (يكشف نفس البيانات حتى باسم تبويب مختلف) ──
+        data_fp = _data_fingerprint(df)
+
+        # ── كشف التكرار: نفس التبويب أو نفس بصمة الأسعار ──
+        same_tab = _last_sync.get("tab") == tab
+        same_data = data_fp and _last_sync.get("data_fp") == data_fp
+        if not force and (same_tab or same_data):
+            reason = "نفس التبويب" if same_tab else "نفس الأسعار (بيانات مطابقة للسابق)"
             result = {
                 "ok": True, "skipped": True,
-                "message": f"⚠️ آخر تحديث لا يزال ساري — البيانات لم تتغير منذ {_last_sync.get('time','?')[11:16]}. تم إيقاف التحليل.",
+                "message": f"⚠️ البيانات لم تتغير — {reason}. تم إيقاف التحليل (لا توصيات مكررة).",
                 "tab": tab, "time": now_riyadh().isoformat(),
             }
             _last_sync["status"] = "no_update"
@@ -214,7 +238,6 @@ def run_sync(force: bool = False, full: bool = True) -> dict:
             return result
 
         # ── تحليل جديد ──
-        df = snap["df"]
         analysis = analyze_dataframe(df)
         analysis["source"] = {
             "type": "auto", "tab": tab,
@@ -310,6 +333,7 @@ def run_sync(force: bool = False, full: bool = True) -> dict:
         _last_sync.update(
             time=now_riyadh().isoformat(), tab=tab, status="success",
             stocks=analysis["summary"]["total_stocks"], error=None,
+            data_fp=data_fp,
         )
         _log(result)
         return result

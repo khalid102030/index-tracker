@@ -258,14 +258,18 @@ def analyze_full(url: str = None, skip_duplicate: bool = False):
         # ① سحب وتحليل
         snap = fetch_latest_snapshot(sheet_url)
 
-        # ── كشف التكرار: لو نفس البيانات (نفس التبويب)، توقّف ──
+        # ── كشف التكرار: نفس التبويب أو نفس الأسعار ──
         if skip_duplicate:
             try:
                 import scheduler as _sch
-                if _sch._last_sync.get("tab") == snap["tab_name"]:
+                fp = _sch._data_fingerprint(snap["df"])
+                same_tab = _sch._last_sync.get("tab") == snap["tab_name"]
+                same_data = fp and _sch._last_sync.get("data_fp") == fp
+                if same_tab or same_data:
+                    reason = "نفس التبويب" if same_tab else "نفس الأسعار (مطابقة للسابق)"
                     return {
                         "ok": True, "skipped": True, "no_update": True,
-                        "message": f"⚠️ البيانات لم تتغير — نفس التبويب ({snap['tab_name']}). لم يُجرَ تحليل جديد.",
+                        "message": f"⚠️ البيانات لم تتغير — {reason}. لم يُجرَ تحليل جديد.",
                         "tab": snap["tab_name"],
                     }
             except Exception:
@@ -279,8 +283,10 @@ def analyze_full(url: str = None, skip_duplicate: bool = False):
         try:
             import scheduler as _sch
             from market_clock import now_riyadh
+            _fp = _sch._data_fingerprint(snap["df"])
             _sch._last_sync.update(time=now_riyadh().isoformat(), tab=snap["tab_name"],
-                                   status="success", stocks=analysis["summary"]["total_stocks"], error=None)
+                                   status="success", stocks=analysis["summary"]["total_stocks"],
+                                   error=None, data_fp=_fp)
         except Exception:
             pass
 
