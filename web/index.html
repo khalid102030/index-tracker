@@ -139,7 +139,7 @@ async function loadAccuracy(){const c=document.getElementById("accuracyCard");if
 let h=`<div class="pn" style="background:linear-gradient(165deg,var(--p),var(--bg2));border:1px solid ${rate>=50?'rgba(0,230,118,.25)':'rgba(255,82,82,.2)'}">
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
 <div style="display:flex;align-items:center;gap:14px">
-<div style="text-align:center"><div style="font-size:2.2rem;font-weight:900;color:${rc};line-height:1">${rate}%</div><div style="font-size:.68rem;color:var(--mt)">دقة التوصيات</div></div>
+<div style="text-align:center"><div style="font-size:2.2rem;font-weight:900;color:${rc};line-height:1">${rate}%</div><div style="font-size:.68rem;color:var(--mt)">دقة القريبة (+1.5%)</div></div>
 <div style="height:44px;width:1px;background:var(--ln2)"></div>
 <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:.82rem">
 <span style="color:var(--g)" title="ناجحة">✅ ${d.success||0}</span>
@@ -148,8 +148,11 @@ let h=`<div class="pn" style="background:linear-gradient(165deg,var(--p),var(--b
 <span style="color:#5aafff" title="كل الجارية">🔵 ${d.active||0} جارية (الكل)</span>
 ${d.late_success>0?`<span style="color:var(--ac2)">🔄 ${d.late_success}</span>`:''}</div></div>
 <div style="text-align:left;font-size:.72rem;color:var(--mt)">${d.avg_peak?`متوسط الذروة ${d.avg_peak}%`:''}</div></div>`;
+// دقة المدى البعيد منفصلة (هدف +5%)
+const lt=d.longterm||{};
+if(lt.closed>0){const ltc=lt.rate>=50?"var(--g)":"var(--r)";h+=`<div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 12px;background:rgba(156,106,222,.1);border-radius:8px;border:1px solid rgba(156,106,222,.25)"><span style="color:#9c6ade;font-weight:700">🌱 المدى البعيد (+5%):</span> <b style="color:${ltc}">${lt.rate}%</b> <span style="color:var(--mt);font-size:.72rem">(${lt.success}/${lt.closed}) · متوسط الذروة ${lt.avg_peak}%</span></div>`}
 // دقة كل فئة
-const catRows=Object.entries(cats).filter(([k,v])=>v.total>0);
+const catRows=Object.entries(cats).filter(([k,v])=>v.total>0&&k!=='long_term');
 if(catRows.length){h+=`<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--ln2)">`;
 for(const[k,v]of catRows){const vc=v.rate>=50?"var(--g)":"var(--r)";h+=`<div style="font-size:.78rem"><span style="color:var(--mt)">${cl[k]||k}:</span> <b style="color:${vc}">${v.rate}%</b> <span style="color:var(--mt);font-size:.7rem">(${v.success}/${v.total})</span></div>`}h+=`</div>`}
 if(!d.mature)h+=`<div style="font-size:.68rem;color:var(--mt);margin-top:8px">⚠️ العينة ${d.closed}/20 — الدقة تتحسّن مع تراكم النتائج</div>`;

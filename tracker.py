@@ -261,8 +261,19 @@ def performance_report(supabase=None):
     failed = [r for r in closed if r["outcome"]=="failed"]
     flat = [r for r in closed if r["outcome"]=="flat"]
     late = [r for r in closed if r.get("post_watch_hit")]
-    rate = round(len(success)/len(closed)*100,1) if closed else 0
-    avg_peak = round(sum(r.get("peak_pct",0) for r in closed)/len(closed),2) if closed else 0
+    # ═══ فصل القصير عن البعيد (أهداف مختلفة = نسب منفصلة) ═══
+    short_closed = [r for r in closed if r.get("category") != "long_term"]
+    long_closed = [r for r in closed if r.get("category") == "long_term"]
+    short_succ = [r for r in short_closed if r["outcome"]=="success"]
+    long_succ = [r for r in long_closed if r["outcome"]=="success"]
+
+    # النسبة الرئيسية = القصير فقط (الاستراتيجية الأساسية، هدف +1.5%)
+    rate = round(len(short_succ)/len(short_closed)*100,1) if short_closed else 0
+    avg_peak = round(sum(r.get("peak_pct",0) for r in short_closed)/len(short_closed),2) if short_closed else 0
+    # نسبة المدى البعيد منفصلة (هدف +5%)
+    lt_rate = round(len(long_succ)/len(long_closed)*100,1) if long_closed else 0
+    lt_avg_peak = round(sum(r.get("peak_pct",0) for r in long_closed)/len(long_closed),2) if long_closed else 0
+
     by_cat = {}
     for cat in ["short_term","long_term","speculative"]:
         cc = [r for r in closed if r.get("category")==cat]
@@ -283,7 +294,10 @@ def performance_report(supabase=None):
     return {"total":len(all_r),"active":len(active),"closed":len(closed),
             "success":len(success),"failed":len(failed),"flat":len(flat),
             "success_rate":rate,"avg_peak":avg_peak,
+            "short_closed":len(short_closed),"short_success":len(short_succ),
+            "longterm":{"closed":len(long_closed),"success":len(long_succ),
+                        "rate":lt_rate,"avg_peak":lt_avg_peak,"target":"+5%"},
             "late_success":len(late),
             "late_success_pct":round(len(late)/len(failed)*100,1) if failed else 0,
             "by_category":by_cat,"signal_stats":sig_list,
-            "mature":len(closed)>=20}
+            "mature":len(short_closed)>=20}
