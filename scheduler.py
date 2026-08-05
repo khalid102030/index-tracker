@@ -14,6 +14,7 @@ from market_clock import now_riyadh, is_trading_day, RIYADH_TZ
 SYNC_TIMES = ["10:30", "12:00", "14:00", "16:30"]
 _scheduler_running = False
 _scheduler_paused = False  # إيقاف مؤقت حتى إشعار آخر
+_skip_next = [None]  # توقيت السحب القادم المطلوب تخطّيه (مرة واحدة)
 _scheduler_thread = None
 _last_sync = {"time": None, "tab": None, "status": None, "stocks": 0, "error": None}
 _sync_log = []  # آخر 20 محاولة
@@ -120,6 +121,7 @@ def get_sync_status() -> dict:
         "last_sync": _last_sync,
         "schedule": SYNC_TIMES,
         "next_sync": _next_sync_time(),
+        "skip_next": _skip_next[0],
         "log": _sync_log[-10:],
     }
 
@@ -133,6 +135,38 @@ def _next_sync_time() -> str:
         if t > current:
             return f"اليوم الساعة {t}"
     return "غداً الساعة " + SYNC_TIMES[0]
+
+
+def _next_sync_raw() -> str:
+    """التوقيت الخام للسحب القادم (HH:MM) أو None."""
+    now = now_riyadh()
+    if not is_trading_day(now):
+        return SYNC_TIMES[0] if SYNC_TIMES else None
+    current = now.strftime("%H:%M")
+    for t in SYNC_TIMES:
+        if t > current:
+            return t
+    return SYNC_TIMES[0] if SYNC_TIMES else None
+
+
+def skip_next_sync():
+    """تخطّي السحب القادم مرة واحدة (لا يلغي الجدول)."""
+    nxt = _next_sync_raw()
+    if not nxt:
+        return {"ok": False, "message": "لا يوجد سحب قادم"}
+    _skip_next[0] = nxt
+    return {"ok": True, "skipped_time": nxt,
+            "message": f"سيتم تخطّي سحب {nxt} مرة واحدة — الجدول يستمر بعده"}
+
+
+def cancel_skip():
+    """إلغاء التخطّي (يرجع السحب القادم طبيعياً)."""
+    _skip_next[0] = None
+    return {"ok": True, "message": "أُلغي التخطّي — السحب القادم سيعمل طبيعياً"}
+
+
+def get_skip_status() -> dict:
+    return {"skip_next": _skip_next[0]}
 
 
 def run_sync(force: bool = False, full: bool = True) -> dict:
@@ -327,12 +361,16 @@ def _scheduler_loop():
                 for sync_time in SYNC_TIMES:
                     key = f"{today_key}_{sync_time}"
                     if key not in triggered_today and current_time >= sync_time:
-                        # تجاوزنا الوقت ولم نزامن بعد
-                        # لكن لا نزامن لو فات أكثر من 30 دقيقة
                         sync_h, sync_m = map(int, sync_time.split(":"))
                         diff_min = (now.hour * 60 + now.minute) - (sync_h * 60 + sync_m)
                         if 0 <= diff_min <= 30:
-                            run_sync()
+                            # هل هذا التوقيت مطلوب تخطّيه؟
+                            if _skip_next[0] == sync_time:
+                                _skip_next[0] = None  # استُهلك التخطّي
+                                _last_sync["status"] = "skipped_manual"
+                                _last_sync["skip_note"] = f"تم تخطّي سحب {sync_time} (يدوي)"
+                            else:
+                                run_sync()
                         triggered_today.add(key)
 
             # تنظيف: لو تغيّر اليوم

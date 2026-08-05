@@ -1378,6 +1378,20 @@ def sync_resume():
     return resume_scheduler()
 
 
+@app.post("/api/sync/skip-next")
+def sync_skip_next():
+    """تخطّي السحب القادم مرة واحدة (لا يلغي الجدول)."""
+    from scheduler import skip_next_sync
+    return skip_next_sync()
+
+
+@app.post("/api/sync/cancel-skip")
+def sync_cancel_skip():
+    """إلغاء تخطّي السحب القادم."""
+    from scheduler import cancel_skip
+    return cancel_skip()
+
+
 @app.post("/api/sync/times")
 def sync_set_times(times: list[str]):
     """ضبط أوقات المزامنة من الموقع."""

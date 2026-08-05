@@ -118,7 +118,7 @@ function pgAnalyze(){return `
 <div class="pn" id="syncPanel" style="border:1px solid rgba(0,212,255,.15)">
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
 <div><span style="font-weight:700;color:var(--ac2)">⏰ السحب التلقائي</span><span id="syncTimes" style="font-size:.72rem;color:var(--mt);margin-right:8px"></span></div>
-<div style="display:flex;gap:6px"><button class="bs" onclick="togglePause()" id="pauseBtn">⏸️ إيقاف مؤقت</button></div>
+<div style="display:flex;gap:6px"><button class="bs" onclick="skipNext()" id="skipBtn">⏭️ تخطّي القادم</button><button class="bs" onclick="togglePause()" id="pauseBtn">⏸️ إيقاف مؤقت</button></div>
 </div><div id="syncStatus" style="font-size:.78rem;color:var(--mt);margin-top:6px">…</div></div>
 
 <div id="accuracyCard"></div>
@@ -303,10 +303,12 @@ h+=`<div style="font-size:.68rem;color:var(--mt);margin-top:12px;text-align:cent
 return h}
 
 // ═══════ المزامنة ═══════
-async function loadSync(){try{const d=await api("/api/sync/status");const st=document.getElementById("syncStatus");const tm=document.getElementById("syncTimes");const pb=document.getElementById("pauseBtn");if(!st)return;if(tm)tm.textContent="· "+(d.schedule||[]).join(" · ")+" أيام التداول";if(pb){pb.innerHTML=d.paused?"▶️ استئناف":"⏸️ إيقاف مؤقت";pb.className=`bs${d.paused?' on':''}`}const ls=d.last_sync||{};let m=d.paused?'🔴 موقوف حتى إشعار آخر':d.scheduler_active?'🟢 نشط':'⚪ متوقف';
+async function loadSync(){try{const d=await api("/api/sync/status");const st=document.getElementById("syncStatus");const tm=document.getElementById("syncTimes");const pb=document.getElementById("pauseBtn");if(!st)return;if(tm)tm.textContent="· "+(d.schedule||[]).join(" · ")+" أيام التداول";if(pb){pb.innerHTML=d.paused?"▶️ استئناف":"⏸️ إيقاف مؤقت";pb.className=`bs${d.paused?' on':''}`}
+const skb=document.getElementById("skipBtn");if(skb){if(d.skip_next){skb.innerHTML=`↩️ إلغاء تخطّي ${d.skip_next}`;skb.className='bs on';skb.dataset.active='1'}else{skb.innerHTML='⏭️ تخطّي القادم';skb.className='bs';skb.dataset.active='0'}}const ls=d.last_sync||{};let m=d.paused?'🔴 موقوف حتى إشعار آخر':d.scheduler_active?'🟢 نشط':'⚪ متوقف';
 if(ls.status==='success'){const dt=ls.time?ls.time.slice(0,16).replace('T',' '):'';m+=` · 🕐 آخر تحليل: <b style="color:var(--ac2)">${dt}</b> · ${ls.tab||''} (${ls.stocks} سهم)`;const lg=(d.log||[]).slice(-1)[0];if(lg&&lg.saved!==undefined)m+=` · 🏆 ${lg.picks_count||0} توصية`}else if(ls.status==='no_update'){const dt=ls.time?ls.time.slice(0,16).replace('T',' '):'';m+=` · 🕐 آخر تحليل: <b style="color:var(--ac2)">${dt}</b> · ⚠️ لا تحديث جديد`}else if(ls.status==='error')m+=` · ❌ ${ls.error||''}`;
 if(!d.paused)m+=` · القادم: ${d.next_sync||''}`;st.innerHTML=m}catch(e){}}
 async function togglePause(){try{const d=await api("/api/sync/status");if(d.paused)await api("/api/sync/resume",{method:"POST"});else await api("/api/sync/pause",{method:"POST"});loadSync()}catch(e){toast("❌ "+e.message)}}
+async function skipNext(){const btn=document.getElementById("skipBtn");try{if(btn&&btn.dataset.active==='1'){const r=await api("/api/sync/cancel-skip",{method:"POST"});toast("✅ "+r.message)}else{const r=await api("/api/sync/skip-next",{method:"POST"});toast("⏭️ "+r.message)}loadSync()}catch(e){toast("❌ "+e.message)}}
 
 // ═══════ الإعدادات ═══════
 function pgSettings(){return `
