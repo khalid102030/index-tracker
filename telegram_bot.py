@@ -14,6 +14,7 @@ import os, json, requests
 TG_API = "https://api.telegram.org/bot{token}/{method}"
 _SETTINGS_KEY = "telegram"
 _AUTH_KEY = "telegram_auth"
+_SUBS_KEY = "telegram_subs"
 
 # ═══════════════════════════════════════════════════════════
 #  🔑 الرقم السري للدخول — يمكن تغييره من الموقع
@@ -127,6 +128,50 @@ def _is_authorized(chat_id: str) -> bool:
     return cid in _get_authorized()
 
 
+# ═══════ المشتركون (يستقبلون التوصيات فقط) ═══════
+
+def _get_subscribers() -> list:
+    """قائمة chat_ids المشتركين (توصيات فقط، بدون أوامر)."""
+    sb = _get_sb()
+    if sb:
+        try:
+            rows = sb.table("idx_settings").select("*").eq("key", _SUBS_KEY).limit(1).execute().data
+            if rows:
+                val = rows[0].get("value") or {}
+                if isinstance(val, str):
+                    val = json.loads(val)
+                return val.get("users", [])
+        except Exception:
+            pass
+    return []
+
+
+def _add_subscriber(chat_id: str):
+    """يضيف مشترك (يستقبل التوصيات الجديدة فقط)."""
+    subs = _get_subscribers()
+    cid = str(chat_id)
+    if cid not in subs:
+        subs.append(cid)
+        sb = _get_sb()
+        if sb:
+            try:
+                sb.table("idx_settings").upsert(
+                    {"key": _SUBS_KEY, "value": {"users": subs}}, on_conflict="key").execute()
+            except Exception:
+                pass
+    return subs
+
+
+def _is_owner(chat_id: str) -> bool:
+    """المالك فقط (chat_id بالإعدادات أو ضمن المصرّح لهم بأوامر كاملة)."""
+    s = get_settings()
+    owner = str(s.get("chat_id", ""))
+    cid = str(chat_id)
+    if cid == owner:
+        return True
+    return cid in _get_authorized()
+
+
 # ═══════ الإرسال ═══════
 
 def _send(method: str, payload: dict, token: str = None) -> dict:
@@ -176,15 +221,43 @@ def notify_new_recommendation(pick: dict) -> dict:
 
 
 def notify_batch(picks: list) -> dict:
-    """يرسل دفعة توصيات جديدة."""
+    """يرسل دفعة توصيات جديدة للمالك وكل المشتركين."""
     if not is_enabled() or not picks:
         return {"skipped": True}
+    s = get_settings()
+    owner = s.get("chat_id", "")
+    # المستقبِلون: المالك + المصرّح لهم + المشتركون
+    recipients = set()
+    if owner:
+        recipients.add(str(owner))
+    for u in _get_authorized():
+        recipients.add(str(u))
+    for u in _get_subscribers():
+        recipients.add(str(u))
+
     sent = 0
     for p in picks:
-        r = notify_new_recommendation(p)
-        if r.get("ok"):
-            sent += 1
-    return {"sent": sent}
+        for cid in recipients:
+            r = _notify_one(p, cid)
+            if r.get("ok"):
+                sent += 1
+    return {"sent": sent, "recipients": len(recipients)}
+
+
+def _notify_one(pick: dict, chat_id: str) -> dict:
+    """يرسل توصية واحدة لمستقبِل محدد."""
+    horizon = pick.get("horizon") or pick.get("category", "")
+    hz_ar = "قريبة" if ("يوم" in horizon or "ساع" in horizon or "short" in horizon) else "طويلة" if "long" in horizon else horizon or "قريبة"
+    conf = pick.get("confidence", "")
+    text = (
+        f"🚨 <b>توصية جديدة</b>\n\n"
+        f"📊 السهم: <b>{pick.get('name','')}</b> ({pick.get('symbol','')})\n"
+        f"📉 سعر الدخول: <b>{pick.get('price') or pick.get('entry_price','')}</b>\n"
+        f"🎯 الهدف: <b>{pick.get('target_price','')}</b>\n"
+        f"⏱️ نوع التوصية: {hz_ar}\n"
+        f"⭐ الثقة: {conf}/10"
+    )
+    return send_message(text, chat_id=chat_id)
 
 
 # ═══════ بوت الاستعلام ═══════
@@ -244,20 +317,27 @@ def handle_update(update: dict) -> dict:
         text_l = text.lower()
         chat_id = str(msg.get("chat", {}).get("id", ""))
 
-        # ── التحقق من الصلاحية ──
-        if not _is_authorized(chat_id):
-            # هل أرسل الرقم السري؟
+        # ── المالك فقط يستخدم الأوامر ──
+        if not _is_owner(chat_id):
+            # هل أرسل الرقم السري؟ → يصير مشترك (توصيات فقط)
             if text.strip() == get_access_code():
-                _add_authorized(chat_id)
+                _add_subscriber(chat_id)
                 return send_message(
-                    "✅ <b>تم منحك الصلاحية</b>\nأهلاً بك في راصد بلس 👇",
-                    reply_markup=_main_menu(), chat_id=chat_id)
-            # يطلب الرقم السري
+                    "✅ <b>تم اشتراكك بنجاح</b>\n\n"
+                    "ستصلك <b>التوصيات الجديدة</b> فور صدورها تلقائياً.\n"
+                    "🔔 لا حاجة لأي إجراء — فقط انتظر التوصيات.",
+                    chat_id=chat_id)
+            # مشترك بالفعل؟
+            if str(chat_id) in _get_subscribers():
+                return send_message(
+                    "🔔 أنت مشترك — تصلك التوصيات الجديدة تلقائياً عند صدورها.",
+                    chat_id=chat_id)
+            # غير مصرّح → يطلب الرقم
             return send_message(
-                "🔒 <b>هذا البوت خاص</b>\nأرسل الرقم السري للدخول:",
+                "🔒 <b>هذا البوت خاص</b>\nأرسل الرقم السري للاشتراك في التوصيات:",
                 chat_id=chat_id)
 
-        text = text_l  # بعد التصريح، نكمل بالنص الصغير
+        text = text_l  # المالك — يكمل بالأوامر
         if text in ("/start", "start", "بدء", "ابدأ", "القائمة", "menu", "/menu"):
             welcome = ("👋 أهلاً بك في <b>راصد بلس</b>\n"
                        "نظام توصيات الأسهم السعودية\n\n"
@@ -298,9 +378,9 @@ def handle_update(update: dict) -> dict:
         chat_id = str(cb.get("message", {}).get("chat", {}).get("id", ""))
         cb_id = cb.get("id")
         _send("answerCallbackQuery", {"callback_query_id": cb_id})
-        # التحقق من الصلاحية
-        if not _is_authorized(chat_id):
-            return send_message("🔒 هذا البوت خاص\nأرسل الرقم السري للدخول:", chat_id=chat_id)
+        # الأزرار للمالك فقط
+        if not _is_owner(chat_id):
+            return send_message("🔔 أنت مشترك — تصلك التوصيات الجديدة تلقائياً.", chat_id=chat_id)
         if data == "active":
             rows = get_active_recommendations()
             return send_message(_format_active(rows), reply_markup=_main_menu(), chat_id=chat_id)

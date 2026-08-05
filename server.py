@@ -1481,6 +1481,13 @@ def telegram_disable_get():
     return {"enabled": False, "message": "🔴 تم إيقاف خدمة تيليجرام"}
 
 
+@app.get("/api/telegram/subscribers")
+def telegram_subscribers():
+    """قائمة المشتركين (يستقبلون التوصيات فقط)."""
+    from telegram_bot import _get_subscribers, _get_authorized
+    return {"subscribers": _get_subscribers(), "full_access": _get_authorized()}
+
+
 @app.get("/api/telegram/webhook-info")
 def telegram_webhook_info():
     """يفحص حالة webhook للتشخيص."""
