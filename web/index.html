@@ -325,7 +325,7 @@ async function skipNext(){const btn=document.getElementById("skipBtn");try{if(bt
 
 // ═══════ الإعدادات ═══════
 function pgSettings(){return `
-<div class="sh"><div class="d" style="background:var(--o);box-shadow:0 0 10px var(--o)"></div><h2>الإعدادات</h2></div>
+<div class="sh" style="justify-content:space-between"><div style="display:flex;align-items:center;gap:8px"><div class="d" style="background:var(--o);box-shadow:0 0 10px var(--o)"></div><h2>الإعدادات</h2></div><button class="bs" onclick="refreshSettings(this)">🔄 تحديث</button></div>
 <div class="pn">
 <label style="font-weight:700;font-size:.88rem;display:block;margin-bottom:5px">📋 رابط Google Sheets / Drive</label>
 <input type="url" id="cs" placeholder="https://docs.google.com/spreadsheets/d/...">
@@ -430,6 +430,7 @@ async function setupWebhook(){const m=document.getElementById("tgMsg");m.textCon
 
 let CFG_TIMES=[];
 async function loadCfg(){try{const c=await api("/api/config");const f=(i,v)=>{const e=document.getElementById(i);if(e)e.value=v||""};f("cs",c.sheet_url);f("ck",c.claude_key);f("cg",c.gemini_key);f("csh",c.sahmk_api_key);f("su",c.supabase_url);f("sk",c.supabase_key)}catch(e){}try{const d=await api("/api/sync/status");CFG_TIMES=d.schedule||[];renderTimes()}catch(e){}}
+async function refreshSettings(btn){const o=btn?btn.innerHTML:'';if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span>'}try{await Promise.all([loadCfg(),loadTg(),loadSubs()]);toast("✅ تم التحديث")}catch(e){toast("❌ "+e.message)}finally{if(btn){btn.disabled=false;btn.innerHTML=o}}}
 function renderTimes(){const el=document.getElementById("timesList");if(!el)return;el.innerHTML=CFG_TIMES.map((t,i)=>`<span style="background:var(--p2);border:1px solid var(--ln);padding:5px 10px;border-radius:8px;font-size:.85rem">${t} <span onclick="rmTime(${i})" style="cursor:pointer;color:var(--r);margin-right:4px">✕</span></span>`).join('')}
 function addTime(){const t=document.getElementById("newTime").value;if(t&&!CFG_TIMES.includes(t)){CFG_TIMES.push(t);CFG_TIMES.sort();renderTimes()}}
 function rmTime(i){CFG_TIMES.splice(i,1);renderTimes()}

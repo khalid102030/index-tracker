@@ -162,9 +162,20 @@ def _add_subscriber(chat_id: str):
     return subs
 
 
-def _remove_subscriber(chat_id: str) -> list:
-    """يحذف مشترك."""
-    subs = [u for u in _get_subscribers() if str(u) != str(chat_id)]
+def _remove_subscriber(chat_id: str, notify: bool = True) -> list:
+    """يحذف مشترك ويرسل له إشعار (اختياري)."""
+    cid = str(chat_id)
+    # إشعار الوداع قبل الحذف
+    if notify:
+        try:
+            _send("sendMessage", {"chat_id": cid,
+                  "text": "🔕 <b>تم إلغاء اشتراكك</b>\n\n"
+                          "لن تصلك توصيات جديدة بعد الآن.\n"
+                          "لإعادة الاشتراك، أرسل الرقم السري مجدداً.",
+                  "parse_mode": "HTML"})
+        except Exception:
+            pass
+    subs = [u for u in _get_subscribers() if str(u) != cid]
     sb = _get_sb()
     if sb:
         try:
