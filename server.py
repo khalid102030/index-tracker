@@ -1460,6 +1460,11 @@ def setup_tables():
         created_at TIMESTAMPTZ DEFAULT NOW()
     );
 
+    CREATE TABLE IF NOT EXISTS idx_settings (
+        key TEXT PRIMARY KEY,
+        value JSONB
+    );
+
     CREATE INDEX IF NOT EXISTS idx_rec_status ON idx_recommendations(status);
     CREATE INDEX IF NOT EXISTS idx_rec_date ON idx_recommendations(appeared_date DESC);
     """
@@ -1610,8 +1615,16 @@ def telegram_get_settings():
 def telegram_save_settings(cfg: TelegramConfig):
     """يحفظ إعدادات تيليجرام."""
     from telegram_bot import save_settings
-    return save_settings(enabled=cfg.enabled, bot_token=cfg.bot_token,
-                         chat_id=cfg.chat_id, access_code=cfg.access_code)
+    result = save_settings(enabled=cfg.enabled, bot_token=cfg.bot_token,
+                          chat_id=cfg.chat_id, access_code=cfg.access_code)
+    # لو فشل الحفظ، وضّح السبب
+    if not result.get("ok"):
+        err = result.get("error", "")
+        if "idx_settings" in err or "does not exist" in err or "relation" in err:
+            raise HTTPException(status_code=500,
+                detail="جدول idx_settings غير موجود. شغّل: CREATE TABLE idx_settings (key TEXT PRIMARY KEY, value JSONB);")
+        raise HTTPException(status_code=500, detail="فشل الحفظ: " + err)
+    return result
 
 
 @app.post("/api/telegram/toggle")
