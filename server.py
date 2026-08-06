@@ -1145,12 +1145,17 @@ def check_symbol(symbol: str):
 @app.post("/api/telegram/resend-today")
 def telegram_resend_today():
     """يعيد إرسال توصيات اليوم لتيليجرام (لو ما وصلت)."""
-    from telegram_bot import notify_batch, is_enabled
+    from telegram_bot import notify_batch, is_enabled, get_settings
     sb = _get_supabase()
     if not sb:
         raise HTTPException(status_code=500, detail="Supabase غير متصل")
     if not is_enabled():
-        return {"ok": False, "message": "خدمة تيليجرام غير مفعّلة"}
+        s = get_settings()
+        missing = []
+        if not s.get("enabled"): missing.append("الخدمة غير مفعّلة (فعّل 🔔 إرسال التوصيات)")
+        if not s.get("bot_token"): missing.append("لا يوجد توكن")
+        if not s.get("chat_id"): missing.append("لا يوجد Chat ID")
+        return {"ok": False, "message": " · ".join(missing) or "غير مفعّلة"}
     from datetime import date
     today = date.today().isoformat()
     try:

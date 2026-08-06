@@ -275,7 +275,8 @@ def _notify_one(pick: dict, chat_id: str) -> dict:
         f"⭐ الثقة: {conf}/10\n\n"
         f"<i>⚠️ تحليل تجريبي — ليس نصيحة مالية</i>"
     )
-    return send_message(text, chat_id=chat_id)
+    # إرسال مباشر (notify_batch فحص enabled أصلاً) — لا نمرّ بـ send_message
+    return _send("sendMessage", {"chat_id": chat_id, "text": text, "parse_mode": "HTML"})
 
 
 # ═══════ بوت الاستعلام ═══════
