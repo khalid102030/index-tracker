@@ -1120,6 +1120,34 @@ def fix_categories():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/telegram/resend-today")
+def telegram_resend_today():
+    """يعيد إرسال توصيات اليوم لتيليجرام (لو ما وصلت)."""
+    from telegram_bot import notify_batch, is_enabled
+    sb = _get_supabase()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase غير متصل")
+    if not is_enabled():
+        return {"ok": False, "message": "خدمة تيليجرام غير مفعّلة"}
+    from datetime import date
+    today = date.today().isoformat()
+    try:
+        rows = sb.table("idx_recommendations").select("*") \
+            .eq("appeared_date", today).eq("status", "active").execute().data or []
+        if not rows:
+            return {"ok": True, "sent": 0, "message": "لا توصيات جديدة اليوم"}
+        picks = [{"symbol": r["symbol"], "name": r["name"],
+                  "entry_price": r["entry_price"], "target_price": r["target_price"],
+                  "confidence": r.get("confidence", 0),
+                  "category": r.get("category", "short_term")} for r in rows]
+        result = notify_batch(picks)
+        return {"ok": True, "sent": result.get("sent", 0),
+                "recipients": result.get("recipients", 0),
+                "message": f"أُرسلت {len(picks)} توصية"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)[:200])
+
+
 @app.get("/api/sheet/debug")
 def sheet_debug():
     """تشخيص: وش يشوف النظام بالشيت (آخر تبويب + البصمة)."""
