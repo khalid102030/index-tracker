@@ -235,7 +235,7 @@ def _analyze_movers(analysis: dict, sb) -> dict:
 
 
 @app.post("/api/analyze-full")
-def analyze_full(url: str = None, skip_duplicate: bool = False):
+def analyze_full(url: str = None, skip_duplicate: bool = False, force: bool = False):
     """
     الزر الواحد: يسحب البيانات → يحدّث النتائج السابقة →
     Claude + Gemini يقيّمون مع مراعاة الأداء → يحفظ التوصيات.
@@ -259,7 +259,7 @@ def analyze_full(url: str = None, skip_duplicate: bool = False):
         snap = fetch_latest_snapshot(sheet_url)
 
         # ── كشف التكرار: نفس التبويب أو نفس الأسعار ──
-        if skip_duplicate:
+        if skip_duplicate and not force:
             try:
                 import scheduler as _sch
                 fp = _sch._data_fingerprint(snap["df"])
@@ -1118,6 +1118,33 @@ def fix_categories():
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/sheet/debug")
+def sheet_debug():
+    """تشخيص: وش يشوف النظام بالشيت (آخر تبويب + البصمة)."""
+    sheet_url = _config.get("sheet_url")
+    if not sheet_url:
+        raise HTTPException(status_code=400, detail="لا يوجد رابط شيت")
+    try:
+        from sheets_reader import fetch_latest_snapshot
+        import scheduler as _sch
+        snap = fetch_latest_snapshot(sheet_url)
+        fp = _sch._data_fingerprint(snap["df"])
+        last = _sch._last_sync
+        return {
+            "current_tab": snap["tab_name"],
+            "all_tabs": snap.get("all_tabs", [])[-5:],
+            "rows": len(snap["df"]),
+            "current_fingerprint": fp[:12] if fp else "",
+            "last_synced_tab": last.get("tab"),
+            "last_synced_fingerprint": (last.get("data_fp") or "")[:12],
+            "same_tab": last.get("tab") == snap["tab_name"],
+            "same_data": bool(fp) and last.get("data_fp") == fp,
+            "verdict": "سيتوقف (مكرر)" if (last.get("tab") == snap["tab_name"] or (fp and last.get("data_fp") == fp)) else "سيحلّل (جديد)",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)[:200])
 
 
 @app.get("/api/longterm/status")
