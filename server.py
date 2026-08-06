@@ -1325,6 +1325,7 @@ def recommendations_latest():
                 "category": r.get("category", ""),
                 "status": r.get("status"), "outcome": r.get("outcome"),
                 "peak_pct": r.get("peak_pct", 0),
+                "highest_price": r.get("highest_price"),
                 "appeared_date": r.get("appeared_date"),
                 "expiry_date": r.get("expiry_date"),
                 "max_expiry_date": r.get("max_expiry_date"),

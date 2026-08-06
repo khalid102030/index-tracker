@@ -190,11 +190,12 @@ let h=`<div class="sh"><div class="d" style="background:var(--o);box-shadow:0 0 
 h+=`<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center"><button class="bs${byStrength?' on':''}" onclick="setSort('strength')">💪 الأقوى</button><button class="bs${S.sortMode==='newest'?' on':''}" onclick="setSort('newest')">🕐 الأحدث</button><button class="bs${S.sortMode==='oldest'?' on':''}" onclick="setSort('oldest')">📅 الأقدم</button><button class="bs${S.sortMode==='gain'?' on':''}" onclick="setSort('gain')">📈 الأداء</button></div>`;
 h+=`<div style="font-size:.68rem;color:var(--mt);margin-bottom:8px;background:var(--bg2);padding:7px 12px;border-radius:8px">${byStrength?'🥇🥈🥉 = أقوى 3 حسب الثقة · ':''}اضغط أي سهم لعرض سبب الترشيح · النسبة = الفرق عن الدخول</div>`;
 h+=`<div class="pn" style="padding:0;overflow:hidden"><div class="tblwrap"><table style="width:100%;border-collapse:collapse;font-size:.82rem">
-<thead><tr style="background:var(--bg);color:var(--ac2);font-size:.72rem"><th style="padding:9px 6px">#</th><th style="padding:9px 6px;text-align:right">السهم</th><th style="padding:9px 6px">الثقة</th><th style="padding:9px 6px">الظهور</th><th style="padding:9px 6px">الدخول</th><th style="padding:9px 6px">الحالي</th><th style="padding:9px 6px">النسبة</th><th style="padding:9px 6px">الهدف</th><th style="padding:9px 6px">متبقّي</th></tr></thead><tbody>`;
+<thead><tr style="background:var(--bg);color:var(--ac2);font-size:.72rem"><th style="padding:9px 6px">#</th><th style="padding:9px 6px;text-align:right">السهم</th><th style="padding:9px 6px">الثقة</th><th style="padding:9px 6px">الظهور</th><th style="padding:9px 6px">الدخول</th><th style="padding:9px 6px">الحالي</th><th style="padding:9px 6px">النسبة</th><th style="padding:9px 6px">أعلى</th><th style="padding:9px 6px">الهدف</th><th style="padding:9px 6px">متبقّي</th></tr></thead><tbody>`;
 let rank=0;for(const p of picks){rank++;const cc=p.confidence>=9?"var(--g)":p.confidence>=8?"var(--ac2)":"var(--mt)";const cp=p.current_pct||0;const cpc=cp>0?"var(--g)":cp<0?"var(--r)":"var(--mt)";const medal=byStrength?(rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`${rank}`):`${rank}`;
 const appDate=p.created_at?p.created_at.slice(0,16).replace('T',' '):(p.appeared_date||'-');const appShort=p.appeared_date||(p.created_at?p.created_at.slice(0,10):'-');
 let remTxt='-',remColor='var(--mt)';const exp=p.max_expiry_date||p.expiry_date;if(exp){const today=new Date();today.setHours(0,0,0,0);const ed=new Date(exp);const diff=Math.ceil((ed-today)/(1000*60*60*24));if(diff>1){remTxt=`${diff} أيام`;remColor='var(--g)'}else if(diff===1){remTxt='يوم واحد';remColor='var(--o)'}else if(diff===0){remTxt='ينتهي اليوم';remColor='var(--o)'}else{remTxt='منتهية';remColor='var(--r)'}}
 const pctBadge=p.current_price?`<span style="background:${cpc}18;color:${cpc};padding:2px 7px;border-radius:6px;font-weight:800;font-size:.74rem;white-space:nowrap">${cp>0?'▲+':cp<0?'▼':''}${cp}%</span>`:'<span style="color:var(--mt)">-</span>';
+const peak=p.peak_pct||0;const peakColor=peak>=1.5?"var(--g)":peak>0?"var(--ac2)":"var(--mt)";const peakCell=peak>0?`<span style="color:${peakColor};font-weight:700;font-size:.74rem">▲${peak}%</span>`:'<span style="color:var(--mt);font-size:.72rem">—</span>';
 h+=`<tr onclick="toggleDetail('${p.symbol}')" style="border-bottom:1px solid var(--ln2);cursor:pointer">
 <td style="padding:9px 6px;text-align:center">${medal}</td>
 <td style="padding:9px 6px"><b>${p.name||''}</b> <span style="font-family:'IBM Plex Mono';color:var(--mt);font-size:.72rem">${p.symbol}</span></td>
@@ -203,10 +204,12 @@ h+=`<tr onclick="toggleDetail('${p.symbol}')" style="border-bottom:1px solid var
 <td style="padding:9px 6px;text-align:center">${p.entry_price||'-'}</td>
 <td style="padding:9px 6px;text-align:center"><b>${p.current_price||'-'}</b></td>
 <td style="padding:9px 6px;text-align:center">${pctBadge}</td>
+<td style="padding:9px 6px;text-align:center">${peakCell}</td>
 <td style="padding:9px 6px;text-align:center">${p.target_price||'-'}</td>
 <td style="padding:9px 6px;text-align:center;font-size:.72rem;color:${remColor};font-weight:700">${remTxt}</td></tr>
-<tr id="detail_${p.symbol}" style="display:none;background:var(--bg2)"><td colspan="9" style="padding:12px 14px">
+<tr id="detail_${p.symbol}" style="display:none;background:var(--bg2)"><td colspan="10" style="padding:12px 14px">
 <div style="font-size:.72rem;color:var(--mt);margin-bottom:6px">📅 ظهرت ${appDate} · تنتهي ${p.max_expiry_date||p.expiry_date||''} · الأفق ${p.category==='long_term'?'مدى بعيد':'1-5 أيام'}</div>
+<div style="font-size:.78rem;margin-bottom:6px">📈 أعلى ارتفاع منذ التوصية: <b style="color:${peakColor}">${peak>0?'+'+peak+'%':'لم يرتفع'}</b>${p.highest_price?` (وصل ${p.highest_price})`:''} · الحالي ${p.current_pct>0?'+':''}${p.current_pct||0}%</div>
 <div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--mt);margin-bottom:4px"><span>درجة الإيجابية</span><span style="color:${cc};font-weight:700">${p.confidence>=9?'عالية جداً':p.confidence>=8?'عالية':'جيدة'}</span></div>
 <div class="sb" style="margin-bottom:8px"><div class="sf" style="width:${Math.round((p.confidence||0)*10)}%;background:linear-gradient(90deg,${cc},var(--g))"></div></div>
 <div style="font-size:.85rem;line-height:1.6">${p.reasoning||'لا تفاصيل'}</div></td></tr>`}
