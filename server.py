@@ -337,12 +337,13 @@ def analyze_full(url: str = None, skip_duplicate: bool = False, force: bool = Fa
                                       "horizon": pick.get("horizon", ""), "category": cat})
 
         # إشعار تيليجرام للتوصيات الجديدة فقط (إذا كانت الخدمة مفعّلة)
+        tg_result = None
         if new_picks:
             try:
                 from telegram_bot import notify_batch
-                notify_batch(new_picks)
-            except Exception:
-                pass
+                tg_result = notify_batch(new_picks)
+            except Exception as _e:
+                tg_result = {"error": str(_e)[:100]}
 
         # حفظ أسهم المدى البعيد النوعية للتتبع (إذا مفعّلة)
         if sb:
@@ -408,6 +409,8 @@ def analyze_full(url: str = None, skip_duplicate: bool = False, force: bool = Fa
             "consensus_note": eval_result.get("consensus_note", ""),
             "rejected": eval_result.get("rejected", []),
             "saved": saved,
+            "telegram": tg_result,
+            "new_count": len(new_picks),
             "models": eval_result.get("models", []),
             "performance": performance,
             "learn_note": learn_note,
@@ -1118,6 +1121,25 @@ def fix_categories():
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/recommendations/check/{symbol}")
+def check_symbol(symbol: str):
+    """تشخيص: كل سجلات سهم معيّن (لمعرفة ليش اعتُبر مكرراً)."""
+    sb = _get_supabase()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase غير متصل")
+    try:
+        rows = sb.table("idx_recommendations").select("*") \
+            .eq("symbol", symbol).order("appeared_date", desc=True).execute().data or []
+        return {"symbol": symbol, "count": len(rows),
+                "records": [{"appeared": r.get("appeared_date"),
+                             "status": r.get("status"), "outcome": r.get("outcome"),
+                             "category": r.get("category"),
+                             "entry": r.get("entry_price"),
+                             "created": r.get("created_at", "")[:16]} for r in rows]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)[:200])
 
 
 @app.post("/api/telegram/resend-today")
