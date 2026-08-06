@@ -1721,17 +1721,29 @@ def telegram_subs_remove(cfg: dict):
 
 @app.get("/api/telegram/webhook-info")
 def telegram_webhook_info():
-    """يفحص حالة webhook للتشخيص."""
+    """يفحص حالة webhook + الإعدادات للتشخيص."""
     from telegram_bot import get_webhook_info, is_enabled, get_settings
     info = get_webhook_info()
     s = get_settings()
+    # تحقق من وجود جدول idx_settings
+    table_ok = True
+    sb = _get_supabase()
+    if sb:
+        try:
+            sb.table("idx_settings").select("key").limit(1).execute()
+        except Exception as e:
+            table_ok = False
     return {
         "webhook": info.get("result", info),
         "is_enabled": is_enabled(),
         "enabled_flag": s.get("enabled"),
         "has_token": bool(s.get("bot_token")),
+        "token_length": len(s.get("bot_token", "")),
+        "token_preview": s.get("bot_token", "")[:10] + "..." if s.get("bot_token") else "فارغ",
         "has_chat_id": bool(s.get("chat_id")),
         "chat_id": s.get("chat_id"),
+        "idx_settings_table_exists": table_ok,
+        "supabase_connected": sb is not None,
     }
 
 
