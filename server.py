@@ -384,14 +384,14 @@ def analyze_full(url: str = None, skip_duplicate: bool = False, force: bool = Fa
 
         # ── التعلّم التلقائي: كل 10 نتائج محسومة، يعيد تقييم الاستراتيجية ──
         learn_note = None
-        if sb and performance and performance.get("closed", 0) >= 10:
+        if sb and performance and performance.get("closed", 0) >= 30:
             try:
                 from dual_evaluator import evaluate_and_learn
                 from weights_manager import save_pending, get_pending
                 closed_n = performance.get("closed", 0)
                 last_learn = _last_analysis.get("last_learn_at", 0)
-                # اقترح مرة كل 10 نتائج، وفقط لو ما فيه اقتراح معلّق
-                if closed_n - last_learn >= 10 and not get_pending().get("weights"):
+                # اقترح مرة كل 30 نتيجة (موثوقية إحصائية)، وفقط لو ما فيه اقتراح معلّق
+                if closed_n - last_learn >= 30 and not get_pending().get("weights"):
                     lr = evaluate_and_learn(performance)
                     if lr.get("new_weights"):
                         save_pending(lr["new_weights"],
