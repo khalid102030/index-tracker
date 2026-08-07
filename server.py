@@ -386,16 +386,19 @@ def analyze_full(url: str = None, skip_duplicate: bool = False, force: bool = Fa
         learn_note = None
         if sb and performance and performance.get("closed", 0) >= 10:
             try:
-                from dual_evaluator import evaluate_and_learn, save_strategy
-                # يتعلّم مرة كل 10 نتائج جديدة (نتحقق من عدّاد بسيط)
+                from dual_evaluator import evaluate_and_learn
+                from weights_manager import save_pending, get_pending
                 closed_n = performance.get("closed", 0)
                 last_learn = _last_analysis.get("last_learn_at", 0)
-                if closed_n - last_learn >= 10:
+                # اقترح مرة كل 10 نتائج، وفقط لو ما فيه اقتراح معلّق
+                if closed_n - last_learn >= 10 and not get_pending().get("weights"):
                     lr = evaluate_and_learn(performance)
                     if lr.get("new_weights"):
-                        save_strategy(lr["new_weights"], lr.get("target_recommendation", {}), sb)
+                        save_pending(lr["new_weights"],
+                                     lr.get("claude_assessment", ""),
+                                     performance.get("success_rate", 0))
                         _last_analysis["last_learn_at"] = closed_n
-                        learn_note = lr.get("claude_assessment", "تم تحديث الاستراتيجية")
+                        learn_note = "💡 يوجد اقتراح تعلّم جديد بانتظار موافقتك (الإعدادات)"
             except Exception:
                 pass
 
@@ -1706,6 +1709,42 @@ def telegram_private_toggle():
         except Exception:
             pass
     return {"private_mode": new_state}
+
+
+@app.get("/api/learning/status")
+def learning_status():
+    """حالة التعلّم: النسخة الفعّالة + الاقتراح المعلّق + التاريخ."""
+    from weights_manager import get_status
+    return get_status()
+
+
+@app.post("/api/learning/approve")
+def learning_approve():
+    """يعتمد اقتراح التعلّم المعلّق (يطبّقه + يحفظ السابق)."""
+    from weights_manager import approve_pending
+    sb = _get_supabase()
+    rate = None
+    if sb:
+        try:
+            from tracker import performance_report
+            rate = performance_report(sb).get("success_rate")
+        except Exception:
+            pass
+    return approve_pending(rate)
+
+
+@app.post("/api/learning/reject")
+def learning_reject():
+    """يرفض اقتراح التعلّم (يبقى على الحالي)."""
+    from weights_manager import reject_pending
+    return reject_pending()
+
+
+@app.post("/api/learning/rollback")
+def learning_rollback():
+    """يرجع للنسخة السابقة (لو الأداء ساء)."""
+    from weights_manager import rollback
+    return rollback()
 
 
 @app.get("/api/telegram/subscribers")

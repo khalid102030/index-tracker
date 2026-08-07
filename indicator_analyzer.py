@@ -69,6 +69,15 @@ def analyze_file(filepath: str) -> dict:
     return analyze_dataframe(pd.read_excel(filepath))
 
 def analyze_dataframe(df: pd.DataFrame) -> dict:
+    # تحميل الأوزان الفعّالة (المعتمدة) — أو الأساسية
+    try:
+        from weights_manager import get_active_weights
+        W = get_active_weights()
+    except Exception:
+        W = {}
+    def _w(name, default):
+        return W.get(name, default)
+
     # تصنيف الأعمدة
     bin_cols = {"short":[],"mid":[],"long":[]}
     for col in df.columns:
@@ -154,32 +163,32 @@ def analyze_dataframe(df: pd.DataFrame) -> dict:
 
         # زخم مؤكد (RSI عالي + سيولة) — وقود حقيقي
         if rsi_state == "زخم مؤكد":
-            bonuses.append(("زخم مؤكد (RSI+سيولة)", 32))
+            bonuses.append(("زخم مؤكد (RSI+سيولة)", _w("زخم مؤكد", 32)))
 
         # سيولة متراكمة (+13%)
         if net_rising and price_quiet:
-            bonuses.append(("سيولة متراكمة", 28))
+            bonuses.append(("سيولة متراكمة", _w("سيولة متراكمة", 28)))
 
         # تجميع صامت
         if price_quiet and net_rising and 1 <= total_active <= 5:
-            bonuses.append(("تجميع صامت", 25))
+            bonuses.append(("تجميع صامت", _w("تجميع صامت", 25)))
 
         # تجميع مبكر (RSI منخفض لكن مع سيولة)
         if rsi_state == "تجميع مبكر":
-            bonuses.append(("تجميع مبكر", 20))
+            bonuses.append(("تجميع مبكر", _w("تجميع مبكر", 20)))
 
         # بوادر مبكرة
         if s_cnt >= 1 and l_cnt <= 1 and price_quiet:
-            bonuses.append(("بوادر مبكرة", 22))
+            bonuses.append(("بوادر مبكرة", _w("بوادر مبكرة", 22)))
 
         # ثبات فوق المتوسط
         ma50 = _safe(row.get(col_idx["ma50_dist"] or "",0))
         if 0 < ma50 < 5:
-            bonuses.append(("قرب من المتوسط", 15))
+            bonuses.append(("قرب من المتوسط", _w("قرب من المتوسط", 15)))
 
         # قصيرة تتصاعد
         if s_cnt >= 2:
-            bonuses.append(("قصيرة نشطة", 14))
+            bonuses.append(("قصيرة نشطة", _w("قصيرة نشطة", 14)))
 
         # أعلى 3 فقط
         bonuses.sort(key=lambda x: x[1], reverse=True)
