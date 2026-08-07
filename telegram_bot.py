@@ -615,7 +615,7 @@ def delete_webhook() -> dict:
 
 
 def test_connection() -> dict:
-    """يختبر التوكن ويرسل رسالة تجريبية."""
+    """يختبر التوكن ويرسل رسالة تجريبية للمالك فقط."""
     s = get_settings()
     if not s.get("bot_token"):
         return {"ok": False, "error": "لا يوجد توكن"}
@@ -624,8 +624,11 @@ def test_connection() -> dict:
     if not me.get("ok"):
         return {"ok": False, "error": "التوكن غير صحيح"}
     bot_name = me.get("result", {}).get("username", "")
-    # رسالة تجريبية
-    if s.get("chat_id"):
-        _send("sendMessage", {"chat_id": s["chat_id"],
-              "text": f"✅ تم ربط <b>راصد بلس</b> بنجاح مع @{bot_name}", "parse_mode": "HTML"})
+    # رسالة تجريبية — للمالك (chat_id بالإعدادات) فقط، لا تمر على المشتركين
+    owner_id = s.get("chat_id")
+    if owner_id:
+        _send("sendMessage", {"chat_id": owner_id,
+              "text": f"✅ <b>اختبار ناجح</b>\nتم ربط راصد بلس مع @{bot_name}\n\n"
+                      f"<i>هذه رسالة اختبار — وصلتك أنت فقط (المالك).</i>",
+              "parse_mode": "HTML"})
     return {"ok": True, "bot": bot_name}
