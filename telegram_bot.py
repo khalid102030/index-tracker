@@ -216,9 +216,7 @@ def check_expired_subscribers() -> dict:
             if datetime.fromisoformat(exp) <= now:
                 # انتهى — أرسل إشعار وأوقف
                 _send("sendMessage", {"chat_id": cid,
-                      "text": "⏰ <b>انتهى اشتراكك في الخدمة</b>\n\n"
-                              "توقّف استقبال التوصيات.\n"
-                              "للتجديد، تواصل مع مالك البوت. 🙏",
+                      "text": "⏰ <b>انتهى اشتراكك في الخدمة</b>",
                       "parse_mode": "HTML"})
                 _remove_subscriber(cid, notify=False)
                 del meta[cid]
