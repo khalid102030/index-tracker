@@ -1768,6 +1768,8 @@ def telegram_subscribers():
                 pass
         detailed.append({"chat_id": cid, "expiry": exp,
                          "days_left": days_left,
+                         "name": info.get("name", ""),
+                         "username": info.get("username", ""),
                          "expiry_date": exp[:10] if exp else None})
     return {"subscribers": subs, "detailed": detailed,
             "full_access": _get_authorized(),

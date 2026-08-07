@@ -146,7 +146,7 @@ def _get_subscribers() -> list:
     return []
 
 
-def _add_subscriber(chat_id: str, days: int = None):
+def _add_subscriber(chat_id: str, days: int = None, name: str = "", username: str = ""):
     """يضيف مشترك (يستقبل التوصيات الجديدة فقط). days = مدة الاشتراك بالأيام."""
     subs = _get_subscribers()
     cid = str(chat_id)
@@ -159,6 +159,14 @@ def _add_subscriber(chat_id: str, days: int = None):
                     {"key": _SUBS_KEY, "value": {"users": subs}}, on_conflict="key").execute()
             except Exception:
                 pass
+    # حفظ الاسم واليوزرنيم في الميتا
+    if name or username:
+        meta = _get_sub_meta()
+        info = meta.get(cid, {})
+        if name: info["name"] = name
+        if username: info["username"] = username
+        meta[cid] = info
+        _save_sub_meta(meta)
     # حفظ تاريخ الانتهاء إن حُدّد
     if days:
         _set_subscriber_expiry(cid, days)
@@ -197,7 +205,10 @@ def _set_subscriber_expiry(chat_id: str, days: int):
     meta = _get_sub_meta()
     cid = str(chat_id)
     expiry = (datetime.now() + timedelta(days=days)).isoformat()
-    meta[cid] = {"expiry": expiry, "days": days}
+    info = meta.get(cid, {})
+    info["expiry"] = expiry
+    info["days"] = days
+    meta[cid] = info
     _save_sub_meta(meta)
     return expiry
 
@@ -436,6 +447,10 @@ def handle_update(update: dict) -> dict:
         text = (msg.get("text") or "").strip()
         text_l = text.lower()
         chat_id = str(msg.get("chat", {}).get("id", ""))
+        # معلومات المستخدم (الاسم واليوزرنيم)
+        _from = msg.get("from", {})
+        user_name = (_from.get("first_name", "") + " " + _from.get("last_name", "")).strip()
+        user_uname = _from.get("username", "")
 
         # ── الوضع الخاص: البوت مقفل عن الجميع عدا المالك ──
         s = get_settings()
@@ -454,7 +469,7 @@ def handle_update(update: dict) -> dict:
                     return send_message(
                         "🔴 الاشتراك مغلق حالياً. تواصل مع مالك البوت.",
                         chat_id=chat_id)
-                _add_subscriber(chat_id)
+                _add_subscriber(chat_id, name=user_name, username=user_uname)
                 welcome = (
                     "✅ <b>تم اشتراكك بنجاح في راصد بلس</b>\n"
                     "━━━━━━━━━━━━━━━\n\n"
@@ -576,15 +591,21 @@ def handle_update(update: dict) -> dict:
                 lines = [f"👥 <b>المشتركون ({len(subs)})</b>\n"]
                 for cid in subs:
                     info = meta.get(str(cid), {})
+                    nm = info.get("name", "")
+                    un = info.get("username", "")
+                    label = nm or ""
+                    if un:
+                        label += f" @{un}"
+                    label = label.strip() or "بدون اسم"
                     exp = info.get("expiry")
                     if exp:
                         try:
                             dl = max(0, (datetime.fromisoformat(exp) - datetime.now()).days)
-                            lines.append(f"• <code>{cid}</code> — {dl} يوم متبقّي")
+                            lines.append(f"• {label}\n  <code>{cid}</code> — {dl} يوم متبقّي")
                         except Exception:
-                            lines.append(f"• <code>{cid}</code>")
+                            lines.append(f"• {label}\n  <code>{cid}</code>")
                     else:
-                        lines.append(f"• <code>{cid}</code> — دائم")
+                        lines.append(f"• {label}\n  <code>{cid}</code> — دائم")
                 txt = "\n".join(lines)
             kb = {"inline_keyboard": [[{"text": "◀️ رجوع", "callback_data": "panel"}]]}
             return send_message(txt, reply_markup=kb, chat_id=chat_id)
