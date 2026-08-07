@@ -395,7 +395,31 @@ def _main_menu() -> dict:
         [{"text": "✅ حققت الهدف", "callback_data": "success"},
          {"text": "📊 الأداء", "callback_data": "stats"}],
         [{"text": "💹 تحديث الأسعار", "callback_data": "refresh"}],
+        [{"text": "⚙️ لوحة التحكم", "callback_data": "panel"}],
     ]}
+
+
+def _control_panel() -> dict:
+    """لوحة تحكم البوت (للمالك) — حالة + تحكم."""
+    s = get_settings()
+    subs_on = s.get("subs_enabled", True) and not s.get("private_mode")
+    priv = s.get("private_mode", False)
+    n_subs = len(_get_subscribers())
+    status = (
+        "⚙️ <b>لوحة تحكم البوت</b>\n\n"
+        f"🔔 الخدمة: {'🟢 مفعّلة' if s.get('enabled') else '🔴 موقوفة'}\n"
+        f"🔧 وضع التطوير: {'🔧 مفعّل (خاص بك)' if priv else '🔓 عام'}\n"
+        f"👥 إرسال للمشتركين: {'🟢 مفعّل' if subs_on else '🔴 موقوف'}\n"
+        f"📊 عدد المشتركين: {n_subs}"
+    )
+    kb = {"inline_keyboard": [
+        [{"text": f"{'🔴 إيقاف' if s.get('enabled') else '🟢 تشغيل'} الخدمة", "callback_data": "tg_toggle"}],
+        [{"text": f"{'🔓 إلغاء' if priv else '🔧 تفعيل'} وضع التطوير", "callback_data": "priv_toggle"}],
+        [{"text": f"{'🔴 إيقاف' if subs_on else '🟢 تشغيل'} إرسال المشتركين", "callback_data": "subs_toggle"}],
+        [{"text": "👥 قائمة المشتركين", "callback_data": "subs_list"}],
+        [{"text": "◀️ رجوع", "callback_data": "menu"}],
+    ]}
+    return {"text": status, "kb": kb}
 
 
 def handle_update(update: dict) -> dict:
@@ -517,8 +541,66 @@ def handle_update(update: dict) -> dict:
             send_message("⏳ جاري تحديث الأسعار من سهمك...", chat_id=chat_id)
             _refresh_prices()
             return send_message(_format_report(), reply_markup=_main_menu(), chat_id=chat_id)
+        if data == "menu":
+            return send_message("القائمة الرئيسية 👇", reply_markup=_main_menu(), chat_id=chat_id)
+        # ═══ لوحة التحكم ═══
+        if data == "panel":
+            p = _control_panel()
+            return send_message(p["text"], reply_markup=p["kb"], chat_id=chat_id)
+        if data == "tg_toggle":
+            s = get_settings()
+            save_settings(enabled=not s.get("enabled"))
+            p = _control_panel()
+            return send_message(p["text"], reply_markup=p["kb"], chat_id=chat_id)
+        if data == "priv_toggle":
+            s = get_settings()
+            cur = get_settings()
+            cur["private_mode"] = not s.get("private_mode", False)
+            _save_full_settings(cur)
+            p = _control_panel()
+            return send_message(p["text"], reply_markup=p["kb"], chat_id=chat_id)
+        if data == "subs_toggle":
+            s = get_settings()
+            cur = get_settings()
+            cur["subs_enabled"] = not s.get("subs_enabled", True)
+            _save_full_settings(cur)
+            p = _control_panel()
+            return send_message(p["text"], reply_markup=p["kb"], chat_id=chat_id)
+        if data == "subs_list":
+            from datetime import datetime
+            subs = _get_subscribers()
+            meta = _get_sub_meta()
+            if not subs:
+                txt = "👥 لا يوجد مشتركون بعد."
+            else:
+                lines = [f"👥 <b>المشتركون ({len(subs)})</b>\n"]
+                for cid in subs:
+                    info = meta.get(str(cid), {})
+                    exp = info.get("expiry")
+                    if exp:
+                        try:
+                            dl = max(0, (datetime.fromisoformat(exp) - datetime.now()).days)
+                            lines.append(f"• <code>{cid}</code> — {dl} يوم متبقّي")
+                        except Exception:
+                            lines.append(f"• <code>{cid}</code>")
+                    else:
+                        lines.append(f"• <code>{cid}</code> — دائم")
+                txt = "\n".join(lines)
+            kb = {"inline_keyboard": [[{"text": "◀️ رجوع", "callback_data": "panel"}]]}
+            return send_message(txt, reply_markup=kb, chat_id=chat_id)
 
     return {"ok": True, "no_action": True}
+
+
+def _save_full_settings(cur: dict):
+    """يحفظ كامل إعدادات تيليجرام (للحقول غير المدعومة بـ save_settings)."""
+    sb = _get_sb()
+    if sb:
+        try:
+            sb.table("idx_settings").upsert(
+                {"key": _SETTINGS_KEY, "value": cur}, on_conflict="key").execute()
+        except Exception:
+            pass
 
 
 def _refresh_prices() -> dict:
