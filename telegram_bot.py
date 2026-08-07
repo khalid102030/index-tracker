@@ -146,8 +146,8 @@ def _get_subscribers() -> list:
     return []
 
 
-def _add_subscriber(chat_id: str):
-    """يضيف مشترك (يستقبل التوصيات الجديدة فقط)."""
+def _add_subscriber(chat_id: str, days: int = None):
+    """يضيف مشترك (يستقبل التوصيات الجديدة فقط). days = مدة الاشتراك بالأيام."""
     subs = _get_subscribers()
     cid = str(chat_id)
     if cid not in subs:
@@ -159,7 +159,75 @@ def _add_subscriber(chat_id: str):
                     {"key": _SUBS_KEY, "value": {"users": subs}}, on_conflict="key").execute()
             except Exception:
                 pass
+    # حفظ تاريخ الانتهاء إن حُدّد
+    if days:
+        _set_subscriber_expiry(cid, days)
     return subs
+
+
+def _get_sub_meta() -> dict:
+    """بيانات المشتركين (تاريخ الانتهاء لكل واحد)."""
+    sb = _get_sb()
+    if sb:
+        try:
+            rows = sb.table("idx_settings").select("*").eq("key", "telegram_subs_meta").limit(1).execute().data
+            if rows:
+                val = rows[0].get("value") or {}
+                if isinstance(val, str):
+                    val = json.loads(val)
+                return val.get("meta", {})
+        except Exception:
+            pass
+    return {}
+
+
+def _save_sub_meta(meta: dict):
+    sb = _get_sb()
+    if sb:
+        try:
+            sb.table("idx_settings").upsert(
+                {"key": "telegram_subs_meta", "value": {"meta": meta}}, on_conflict="key").execute()
+        except Exception:
+            pass
+
+
+def _set_subscriber_expiry(chat_id: str, days: int):
+    """يحدّد تاريخ انتهاء اشتراك (بعد X يوم من الآن)."""
+    from datetime import datetime, timedelta
+    meta = _get_sub_meta()
+    cid = str(chat_id)
+    expiry = (datetime.now() + timedelta(days=days)).isoformat()
+    meta[cid] = {"expiry": expiry, "days": days}
+    _save_sub_meta(meta)
+    return expiry
+
+
+def check_expired_subscribers() -> dict:
+    """يفحص المشتركين المنتهية اشتراكاتهم، يوقفهم ويرسل إشعاراً."""
+    from datetime import datetime
+    meta = _get_sub_meta()
+    now = datetime.now()
+    expired = []
+    for cid, info in list(meta.items()):
+        exp = info.get("expiry")
+        if not exp:
+            continue
+        try:
+            if datetime.fromisoformat(exp) <= now:
+                # انتهى — أرسل إشعار وأوقف
+                _send("sendMessage", {"chat_id": cid,
+                      "text": "⏰ <b>انتهى اشتراكك في الخدمة</b>\n\n"
+                              "توقّف استقبال التوصيات.\n"
+                              "للتجديد، تواصل مع مالك البوت. 🙏",
+                      "parse_mode": "HTML"})
+                _remove_subscriber(cid, notify=False)
+                del meta[cid]
+                expired.append(cid)
+        except Exception:
+            pass
+    if expired:
+        _save_sub_meta(meta)
+    return {"expired": expired, "count": len(expired)}
 
 
 def _remove_subscriber(chat_id: str, notify: bool = True) -> list:

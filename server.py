@@ -1551,12 +1551,25 @@ def sync_set_times(times: list[str]):
     return set_sync_times(times)
 
 
+_last_expiry_check = [0.0]
+
 @app.get("/api/wake")
 def wake():
     """نقطة إيقاظ خفيفة لخدمات cron (تمنع نوم Render Free)."""
     from market_clock import now_riyadh, classify_snapshot_time
+    import time as _t
+    # فحص المشتركين المنتهية اشتراكاتهم (مرة كل ساعة)
+    expired = None
+    if _t.time() - _last_expiry_check[0] > 3600:
+        _last_expiry_check[0] = _t.time()
+        try:
+            from telegram_bot import check_expired_subscribers
+            expired = check_expired_subscribers()
+        except Exception:
+            pass
     return {"awake": True, "time": now_riyadh().strftime("%H:%M"),
-            "market": classify_snapshot_time()}
+            "market": classify_snapshot_time(),
+            "expired_check": expired}
 
 
 @app.get("/api/cron/sync")
@@ -1697,11 +1710,48 @@ def telegram_private_toggle():
 
 @app.get("/api/telegram/subscribers")
 def telegram_subscribers():
-    """قائمة المشتركين + حالة التفعيل."""
-    from telegram_bot import _get_subscribers, _get_authorized, get_settings
+    """قائمة المشتركين + حالة التفعيل + تواريخ الانتهاء."""
+    from telegram_bot import _get_subscribers, _get_authorized, get_settings, _get_sub_meta
+    from datetime import datetime
     s = get_settings()
-    return {"subscribers": _get_subscribers(), "full_access": _get_authorized(),
+    meta = _get_sub_meta()
+    subs = _get_subscribers()
+    detailed = []
+    for cid in subs:
+        info = meta.get(str(cid), {})
+        exp = info.get("expiry")
+        days_left = None
+        if exp:
+            try:
+                delta = datetime.fromisoformat(exp) - datetime.now()
+                days_left = max(0, delta.days)
+            except Exception:
+                pass
+        detailed.append({"chat_id": cid, "expiry": exp,
+                         "days_left": days_left,
+                         "expiry_date": exp[:10] if exp else None})
+    return {"subscribers": subs, "detailed": detailed,
+            "full_access": _get_authorized(),
             "subs_enabled": s.get("subs_enabled", True)}
+
+
+@app.post("/api/telegram/subs-expiry")
+def telegram_subs_expiry(cfg: dict):
+    """يحدّد مدة اشتراك مشترك (بالأيام)."""
+    from telegram_bot import _set_subscriber_expiry
+    cid = cfg.get("chat_id", "")
+    days = int(cfg.get("days", 30))
+    if not cid:
+        raise HTTPException(status_code=400, detail="لا يوجد chat_id")
+    expiry = _set_subscriber_expiry(cid, days)
+    return {"ok": True, "chat_id": cid, "days": days, "expiry": expiry}
+
+
+@app.post("/api/telegram/check-expired")
+def telegram_check_expired():
+    """يفحص ويوقف المشتركين المنتهية اشتراكاتهم."""
+    from telegram_bot import check_expired_subscribers
+    return check_expired_subscribers()
 
 
 @app.post("/api/telegram/subs-toggle")
