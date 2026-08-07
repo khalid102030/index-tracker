@@ -1558,9 +1558,9 @@ def wake():
     """نقطة إيقاظ خفيفة لخدمات cron (تمنع نوم Render Free)."""
     from market_clock import now_riyadh, classify_snapshot_time
     import time as _t
-    # فحص المشتركين المنتهية اشتراكاتهم (مرة كل ساعة)
+    # فحص المشتركين المنتهية اشتراكاتهم (مرة يومياً)
     expired = None
-    if _t.time() - _last_expiry_check[0] > 3600:
+    if _t.time() - _last_expiry_check[0] > 86400:
         _last_expiry_check[0] = _t.time()
         try:
             from telegram_bot import check_expired_subscribers
