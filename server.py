@@ -1749,31 +1749,64 @@ def learning_rollback():
 
 @app.get("/api/telegram/subscribers")
 def telegram_subscribers():
-    """قائمة المشتركين + حالة التفعيل + تواريخ الانتهاء."""
+    """قائمة المشتركين + التفاصيل (اسم، انضمام، توصيات منذ الانضمام)."""
     from telegram_bot import _get_subscribers, _get_authorized, get_settings, _get_sub_meta
     from datetime import datetime
     s = get_settings()
     meta = _get_sub_meta()
     subs = _get_subscribers()
+    # عدّ التوصيات منذ كل تاريخ انضمام
+    sb = _get_supabase()
+    all_recs = []
+    if sb:
+        try:
+            all_recs = sb.table("idx_recommendations").select("appeared_date,created_at") \
+                .order("created_at", desc=True).limit(2000).execute().data or []
+        except Exception:
+            pass
     detailed = []
     for cid in subs:
         info = meta.get(str(cid), {})
         exp = info.get("expiry")
+        joined = info.get("joined")
         days_left = None
         if exp:
             try:
-                delta = datetime.fromisoformat(exp) - datetime.now()
-                days_left = max(0, delta.days)
+                days_left = max(0, (datetime.fromisoformat(exp) - datetime.now()).days)
+            except Exception:
+                pass
+        # كم توصية استقبل منذ انضمامه
+        recs_since = None
+        if joined:
+            try:
+                jd = datetime.fromisoformat(joined)
+                recs_since = sum(1 for r in all_recs
+                                 if r.get("created_at") and
+                                 datetime.fromisoformat(r["created_at"].replace("Z", "+00:00")).replace(tzinfo=None) >= jd)
             except Exception:
                 pass
         detailed.append({"chat_id": cid, "expiry": exp,
                          "days_left": days_left,
                          "name": info.get("name", ""),
                          "username": info.get("username", ""),
+                         "joined": joined[:10] if joined else None,
+                         "recs_since_join": recs_since,
                          "expiry_date": exp[:10] if exp else None})
     return {"subscribers": subs, "detailed": detailed,
             "full_access": _get_authorized(),
-            "subs_enabled": s.get("subs_enabled", True)}
+            "subs_enabled": s.get("subs_enabled", True),
+            "subs_delay_min": s.get("subs_delay_min", 0)}
+
+
+@app.post("/api/telegram/subs-delay")
+def telegram_subs_delay(cfg: dict):
+    """يحدّد تأخير إرسال التوصيات للمشتركين (بالدقائق)."""
+    from telegram_bot import get_settings, _save_full_settings
+    minutes = int(cfg.get("minutes", 0))
+    cur = get_settings()
+    cur["subs_delay_min"] = max(0, minutes)
+    _save_full_settings(cur)
+    return {"ok": True, "subs_delay_min": cur["subs_delay_min"]}
 
 
 @app.post("/api/telegram/subs-expiry")

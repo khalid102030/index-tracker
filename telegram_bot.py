@@ -159,14 +159,16 @@ def _add_subscriber(chat_id: str, days: int = None, name: str = "", username: st
                     {"key": _SUBS_KEY, "value": {"users": subs}}, on_conflict="key").execute()
             except Exception:
                 pass
-    # حفظ الاسم واليوزرنيم في الميتا
-    if name or username:
-        meta = _get_sub_meta()
-        info = meta.get(cid, {})
-        if name: info["name"] = name
-        if username: info["username"] = username
-        meta[cid] = info
-        _save_sub_meta(meta)
+    # حفظ الاسم واليوزرنيم وتاريخ الانضمام في الميتا
+    meta = _get_sub_meta()
+    info = meta.get(cid, {})
+    if name: info["name"] = name
+    if username: info["username"] = username
+    if "joined" not in info:
+        from datetime import datetime
+        info["joined"] = datetime.now().isoformat()
+    meta[cid] = info
+    _save_sub_meta(meta)
     # حفظ تاريخ الانتهاء إن حُدّد
     if days:
         _set_subscriber_expiry(cid, days)
@@ -322,31 +324,53 @@ def notify_new_recommendation(pick: dict) -> dict:
 
 
 def notify_batch(picks: list) -> dict:
-    """يرسل دفعة توصيات جديدة للمالك وكل المشتركين."""
+    """يرسل التوصيات: للمالك فوراً، وللمشتركين بعد تأخير اختياري."""
     if not is_enabled() or not picks:
         return {"skipped": True}
     s = get_settings()
     owner = s.get("chat_id", "")
     private = s.get("private_mode", False)
-    subs_on = s.get("subs_enabled", True) and not private  # الوضع الخاص يوقف المشتركين
-    # المستقبِلون: المالك دائماً + المشتركون (إذا مفعّل وليس وضع خاص)
-    recipients = set()
+    subs_on = s.get("subs_enabled", True) and not private
+    delay_min = int(s.get("subs_delay_min", 0) or 0)  # تأخير المشتركين بالدقائق
+
+    # ① المالك + المصرّح لهم — فوراً
+    priority = set()
     if owner:
-        recipients.add(str(owner))
+        priority.add(str(owner))
     if not private:
         for u in _get_authorized():
-            recipients.add(str(u))
-    if subs_on:
-        for u in _get_subscribers():
-            recipients.add(str(u))
+            priority.add(str(u))
 
     sent = 0
     for p in picks:
-        for cid in recipients:
+        for cid in priority:
             r = _notify_one(p, cid)
             if r.get("ok"):
                 sent += 1
-    return {"sent": sent, "recipients": len(recipients)}
+
+    # ② المشتركون — فوراً أو بعد تأخير
+    subs = [str(u) for u in _get_subscribers()] if subs_on else []
+    subs = [u for u in subs if u not in priority]  # لا تكرار
+    if subs:
+        if delay_min > 0:
+            # إرسال مؤجّل بخيط خلفي
+            import threading
+            def _delayed():
+                import time
+                time.sleep(delay_min * 60)
+                for p in picks:
+                    for cid in subs:
+                        _notify_one(p, cid)
+            threading.Thread(target=_delayed, daemon=True).start()
+        else:
+            for p in picks:
+                for cid in subs:
+                    r = _notify_one(p, cid)
+                    if r.get("ok"):
+                        sent += 1
+
+    return {"sent": sent, "priority": len(priority),
+            "subscribers": len(subs), "delay_min": delay_min}
 
 
 def _notify_one(pick: dict, chat_id: str) -> dict:
