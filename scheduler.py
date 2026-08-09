@@ -30,6 +30,34 @@ def _get_sb():
         return None
 
 
+def _save_last_sync_fp(tab, fp):
+    """يحفظ آخر بصمة بـ Supabase (تبقى حتى لو نام السيرفر)."""
+    sb = _get_sb()
+    if sb:
+        try:
+            sb.table("idx_settings").upsert(
+                {"key": "last_sync_fp", "value": {"tab": tab, "fp": fp,
+                 "at": now_riyadh().isoformat()}}, on_conflict="key").execute()
+        except Exception:
+            pass
+
+
+def _load_last_sync_fp():
+    """يقرأ آخر بصمة من Supabase (استرجاع بعد نوم السيرفر)."""
+    sb = _get_sb()
+    if sb:
+        try:
+            rows = sb.table("idx_settings").select("*").eq("key", "last_sync_fp").limit(1).execute().data
+            if rows:
+                val = rows[0].get("value") or {}
+                if isinstance(val, str):
+                    val = json.loads(val)
+                return val.get("tab"), val.get("fp")
+        except Exception:
+            pass
+    return None, None
+
+
 def _load_state():
     global SYNC_TIMES, _scheduler_paused
     # ① من Supabase (يبقى بعد إعادة التشغيل)
@@ -223,9 +251,17 @@ def run_sync(force: bool = False, full: bool = True) -> dict:
         # ── بصمة البيانات: hash للأسعار (يكشف نفس البيانات حتى باسم تبويب مختلف) ──
         data_fp = _data_fingerprint(df)
 
+        # لو الذاكرة فاضية (السيرفر نام)، استرجع آخر بصمة من Supabase
+        mem_tab = _last_sync.get("tab")
+        mem_fp = _last_sync.get("data_fp")
+        if not mem_fp:
+            saved_tab, saved_fp = _load_last_sync_fp()
+            if saved_fp:
+                mem_tab, mem_fp = saved_tab, saved_fp
+
         # ── كشف التكرار: نفس التبويب أو نفس بصمة الأسعار ──
-        same_tab = _last_sync.get("tab") == tab
-        same_data = data_fp and _last_sync.get("data_fp") == data_fp
+        same_tab = mem_tab == tab and tab not in ("Sheet1", "Sheet", "")  # تجاهل الأسماء العامة
+        same_data = data_fp and mem_fp == data_fp
         if not force and (same_tab or same_data):
             reason = "نفس التبويب" if same_tab else "نفس الأسعار (بيانات مطابقة للسابق)"
             result = {
@@ -335,6 +371,8 @@ def run_sync(force: bool = False, full: bool = True) -> dict:
             stocks=analysis["summary"]["total_stocks"], error=None,
             data_fp=data_fp,
         )
+        # احفظ البصمة بـ Supabase (تبقى بعد نوم السيرفر)
+        _save_last_sync_fp(tab, data_fp)
         _log(result)
         return result
 

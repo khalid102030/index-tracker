@@ -263,14 +263,22 @@ def analyze_full(url: str = None, skip_duplicate: bool = False, force: bool = Fa
             try:
                 import scheduler as _sch
                 fp = _sch._data_fingerprint(snap["df"])
-                same_tab = _sch._last_sync.get("tab") == snap["tab_name"]
-                same_data = fp and _sch._last_sync.get("data_fp") == fp
+                # استرجع آخر بصمة (من الذاكرة أو Supabase لو نام السيرفر)
+                mem_tab = _sch._last_sync.get("tab")
+                mem_fp = _sch._last_sync.get("data_fp")
+                if not mem_fp:
+                    saved_tab, saved_fp = _sch._load_last_sync_fp()
+                    if saved_fp:
+                        mem_tab, mem_fp = saved_tab, saved_fp
+                tab_name = snap["tab_name"]
+                same_tab = mem_tab == tab_name and tab_name not in ("Sheet1", "Sheet", "")
+                same_data = fp and mem_fp == fp
                 if same_tab or same_data:
                     reason = "نفس التبويب" if same_tab else "نفس الأسعار (مطابقة للسابق)"
                     return {
                         "ok": True, "skipped": True, "no_update": True,
                         "message": f"⚠️ البيانات لم تتغير — {reason}. لم يُجرَ تحليل جديد.",
-                        "tab": snap["tab_name"],
+                        "tab": tab_name,
                     }
             except Exception:
                 pass
@@ -279,7 +287,7 @@ def analyze_full(url: str = None, skip_duplicate: bool = False, force: bool = Fa
         analysis["source"] = {"tab": snap["tab_name"],
                               "market_status": classify_snapshot_time()}
         _last_analysis["data"] = analysis
-        # سجّل وقت آخر تحليل (يدوي) في حالة المجدوِل
+        # سجّل وقت آخر تحليل (يدوي) + احفظ البصمة بـ Supabase
         try:
             import scheduler as _sch
             from market_clock import now_riyadh
@@ -287,6 +295,7 @@ def analyze_full(url: str = None, skip_duplicate: bool = False, force: bool = Fa
             _sch._last_sync.update(time=now_riyadh().isoformat(), tab=snap["tab_name"],
                                    status="success", stocks=analysis["summary"]["total_stocks"],
                                    error=None, data_fp=_fp)
+            _sch._save_last_sync_fp(snap["tab_name"], _fp)
         except Exception:
             pass
 
