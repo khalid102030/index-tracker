@@ -646,7 +646,7 @@ def recommendations_tracking():
         raise HTTPException(status_code=500, detail="Supabase غير متصل")
     try:
         rows = sb.table("idx_recommendations").select("*") \
-            .order("appeared_date", desc=True).limit(200).execute().data or []
+            .order("created_at", desc=True).limit(2000).execute().data or []
 
         active = [r for r in rows if r["status"] == "active"]
         success = [r for r in rows if r.get("outcome") == "success"]
@@ -1297,6 +1297,27 @@ def recommendations_longterm(url: str = None):
     except Exception as e:
         traceback.print_exc()
         return {"picks": [], "error": str(e)[:150]}
+
+
+@app.get("/api/recommendations/recent-all")
+def recommendations_recent_all():
+    """تشخيص: آخر التوصيات بكل الحالات (نشطة/محسومة) لكشف المفقودة."""
+    sb = _get_supabase()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase غير متصل")
+    try:
+        rows = sb.table("idx_recommendations").select("*") \
+            .order("created_at", desc=True).limit(30).execute().data or []
+        return {"count": len(rows),
+                "records": [{"symbol": r.get("symbol"), "name": r.get("name"),
+                             "status": r.get("status"), "outcome": r.get("outcome"),
+                             "category": r.get("category"),
+                             "appeared": r.get("appeared_date"),
+                             "created": (r.get("created_at") or "")[:19],
+                             "entry": r.get("entry_price"),
+                             "current": r.get("current_price")} for r in rows]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)[:200])
 
 
 @app.get("/api/recommendations/latest")
