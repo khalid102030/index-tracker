@@ -143,10 +143,10 @@ let h=`<div class="pn" style="background:linear-gradient(165deg,var(--p),var(--b
 <div style="text-align:center"><div style="font-size:2.2rem;font-weight:900;color:${rc};line-height:1">${rate}%</div><div style="font-size:.68rem;color:var(--mt)">دقة القريبة (+1.5%)</div>${d.flat_rate>0?`<div style="font-size:.6rem;color:var(--mt);margin-top:2px">⚪ بلا حركة: ${d.flat_rate}%</div>`:''}</div>
 <div style="height:44px;width:1px;background:var(--ln2)"></div>
 <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:.82rem">
-<span style="color:var(--g)" title="ناجحة">✅ ${d.success||0}</span>
-<span style="color:var(--r)" title="فاشلة">❌ ${d.failed||0}</span>
-<span style="color:var(--mt)" title="بلا حركة">⚪ ${d.flat||0}</span>
-<span style="color:#5aafff" title="كل الجارية">🔵 ${d.active||0} جارية (الكل)</span>
+<span style="color:var(--g)" title="ناجحة (قريبة)">✅ ${d.short_success_n!=null?d.short_success_n:(d.success||0)}</span>
+<span style="color:var(--r)" title="فاشلة (قريبة)">❌ ${d.short_fail_n!=null?d.short_fail_n:(d.failed||0)}</span>
+<span style="color:var(--mt)" title="بلا حركة (قريبة)">⚪ ${d.short_flat_n!=null?d.short_flat_n:(d.flat||0)}</span>
+<span style="color:#5aafff" title="الجارية القريبة">🔵 ${d.short_active_n!=null?d.short_active_n:(d.active||0)} جارية</span>
 ${d.late_success>0?`<span style="color:var(--ac2)">🔄 ${d.late_success}</span>`:''}</div></div>
 <div style="text-align:left;font-size:.72rem;color:var(--mt)">${d.avg_peak?`متوسط الذروة ${d.avg_peak}%`:''}</div></div>`;
 // دقة المدى البعيد منفصلة (هدف +5%)

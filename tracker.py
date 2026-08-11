@@ -274,6 +274,8 @@ def performance_report(supabase=None):
     # نسبة "بلا حركة" للقصير (للعلم فقط — غير ناجحة، لكن مهمة للتطوير)
     short_flat = [r for r in short_closed if r["outcome"]=="flat"]
     flat_rate = round(len(short_flat)/len(short_closed)*100,1) if short_closed else 0
+    short_fail = [r for r in short_closed if r["outcome"]=="failed"]
+    short_active = [r for r in active if r.get("category") != "long_term"]
     # نسبة المدى البعيد منفصلة (هدف +5%)
     lt_rate = round(len(long_succ)/len(long_closed)*100,1) if long_closed else 0
     lt_avg_peak = round(sum(r.get("peak_pct",0) for r in long_closed)/len(long_closed),2) if long_closed else 0
@@ -298,6 +300,8 @@ def performance_report(supabase=None):
     return {"total":len(all_r),"active":len(active),"closed":len(closed),
             "success":len(success),"failed":len(failed),"flat":len(flat),
             "success_rate":rate,"avg_peak":avg_peak,"flat_rate":flat_rate,
+            "short_success_n":len(short_succ),"short_fail_n":len(short_fail),
+            "short_flat_n":len(short_flat),"short_active_n":len(short_active),
             "short_closed":len(short_closed),"short_success":len(short_succ),
             "longterm":{"closed":len(long_closed),"success":len(long_succ),
                         "rate":lt_rate,"avg_peak":lt_avg_peak,"target":"+5%"},
