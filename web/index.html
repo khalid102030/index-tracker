@@ -140,7 +140,7 @@ async function loadAccuracy(){const c=document.getElementById("accuracyCard");if
 let h=`<div class="pn" style="background:linear-gradient(165deg,var(--p),var(--bg2));border:1px solid ${rate>=50?'rgba(0,230,118,.25)':'rgba(255,82,82,.2)'}">
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
 <div style="display:flex;align-items:center;gap:14px">
-<div style="text-align:center"><div style="font-size:2.2rem;font-weight:900;color:${rc};line-height:1">${rate}%</div><div style="font-size:.68rem;color:var(--mt)">دقة القريبة (+1.5%)</div></div>
+<div style="text-align:center"><div style="font-size:2.2rem;font-weight:900;color:${rc};line-height:1">${rate}%</div><div style="font-size:.68rem;color:var(--mt)">دقة القريبة (+1.5%)</div>${d.flat_rate>0?`<div style="font-size:.6rem;color:var(--mt);margin-top:2px">⚪ بلا حركة: ${d.flat_rate}%</div>`:''}</div>
 <div style="height:44px;width:1px;background:var(--ln2)"></div>
 <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:.82rem">
 <span style="color:var(--g)" title="ناجحة">✅ ${d.success||0}</span>
