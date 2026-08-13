@@ -504,6 +504,10 @@ const si=d.avg_indicators?.success||{},fi=d.avg_indicators?.failed||{};
 h+=`<div style="font-weight:700;margin:10px 0 4px">📈 متوسط المؤشرات (ناجحة مقابل فاشلة):</div>`;
 const lbls={rsi:"RSI",weekly_change:"أسبوعي",monthly_change:"شهري",net_liquidity:"سيولة",pre_launch:"قوة الانطلاق",total_active:"عدد النشطة"};
 for(const k in lbls){if(si[k]!=null||fi[k]!=null)h+=`<div>• ${lbls[k]}: ناجحة <b style="color:var(--g)">${si[k]??'-'}</b> · فاشلة <b style="color:var(--r)">${fi[k]??'-'}</b></div>`}
+// تحليل الثقة مقابل النجاح
+try{const ca=await api("/api/learning/confidence-analysis");if(ca.buckets&&ca.buckets.length){h+=`<div style="font-weight:700;margin:10px 0 4px">⭐ الثقة مقابل النجاح الفعلي:</div>`;
+for(const b of ca.buckets){const c=b.success_rate>=70?"var(--g)":b.success_rate>=50?"var(--ac2)":"var(--r)";h+=`<div>• ثقة ${b.bucket}: <b style="color:${c}">${b.success_rate}%</b> نجاح <span style="color:var(--mt);font-size:.7rem">(${b.count} توصية · ذروة ${b.avg_peak}%)</span></div>`}
+if(ca.verdict){h+=`<div style="margin-top:6px;padding:8px 10px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.15);border-radius:8px;font-size:.75rem;line-height:1.6">${ca.verdict}</div>`}}}catch(e){}
 h+=`</div>`;m.innerHTML=h}catch(e){m.innerHTML=`<span style="color:var(--r)">❌ ${e.message}</span>`}}
 
 // ═══ تحديث تلقائي بعد كل توقيت سحب مجدول ═══

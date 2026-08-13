@@ -1741,6 +1741,72 @@ def telegram_private_toggle():
     return {"private_mode": new_state}
 
 
+@app.get("/api/learning/confidence-analysis")
+def learning_confidence_analysis():
+    """
+    تحليل العلاقة بين الثقة والنجاح الفعلي.
+    يكشف: هل الثقة العالية فعلاً تنجح أكثر؟ أم العكس (مقياس معكوس)؟
+    """
+    sb = _get_supabase()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase غير متصل")
+    try:
+        rows = sb.table("idx_recommendations").select("confidence,outcome,peak_pct,status,category,score") \
+            .eq("status", "closed").limit(5000).execute().data or []
+        rows = [r for r in rows if r.get("category") != "long_term"]
+        if not rows:
+            return {"note": "لا نتائج محسومة بعد", "buckets": []}
+
+        # تجميع حسب مستوى الثقة
+        buckets = {}
+        for r in rows:
+            conf = r.get("confidence") or 0
+            # سلة الثقة: 6-7 / 7.5-8 / 8.5-9 / 9.5-10
+            if conf <= 7: b = "6-7"
+            elif conf <= 8: b = "7.5-8"
+            elif conf <= 9: b = "8.5-9"
+            else: b = "9.5-10"
+            d = buckets.setdefault(b, {"n": 0, "success": 0, "peaks": [], "confs": []})
+            d["n"] += 1
+            if r.get("outcome") == "success":
+                d["success"] += 1
+            if isinstance(r.get("peak_pct"), (int, float)):
+                d["peaks"].append(r["peak_pct"])
+            d["confs"].append(conf)
+
+        order = ["6-7", "7.5-8", "8.5-9", "9.5-10"]
+        result = []
+        for b in order:
+            if b not in buckets:
+                continue
+            d = buckets[b]
+            result.append({
+                "bucket": b,
+                "count": d["n"],
+                "success_rate": round(d["success"]/d["n"]*100, 1) if d["n"] else 0,
+                "avg_peak": round(sum(d["peaks"])/len(d["peaks"]), 2) if d["peaks"] else 0,
+            })
+
+        # حساب الارتباط (هل الثقة الأعلى = نجاح أعلى؟)
+        verdict = None
+        rates = [(x["bucket"], x["success_rate"]) for x in result if x["count"] >= 5]
+        if len(rates) >= 2:
+            first, last = rates[0][1], rates[-1][1]
+            diff = last - first
+            if diff >= 10:
+                verdict = f"✅ الثقة تعمل صح: الأعلى ثقة تنجح أكثر (+{round(diff,1)}% فرق)"
+            elif diff <= -10:
+                verdict = (f"⚠️ ملاحظتك صحيحة! الثقة معكوسة: الأقل ثقة تنجح أكثر "
+                           f"({round(-diff,1)}% فرق) — مقياس الثقة يحتاج إعادة معايرة")
+            else:
+                verdict = f"➖ الثقة محايدة تقريباً (فرق {round(diff,1)}% فقط) — لا تميّز بين الجيد والضعيف"
+
+        return {"buckets": result, "total_closed": len(rows), "verdict": verdict}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e)[:200])
+
+
 @app.get("/api/learning/versions-performance")
 def learning_versions_performance():
     """
