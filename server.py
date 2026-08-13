@@ -1329,6 +1329,68 @@ def recommendations_recent_all():
         raise HTTPException(status_code=500, detail=str(e)[:200])
 
 
+@app.get("/api/feed")
+def integration_feed(limit: int = 500):
+    """
+    تغذية موحّدة للقراءة فقط — لربط راصد بلس مع منصّة خارجية.
+    صيغ موحّدة: رمز بلا لاحقة · وقت ISO مع منطقة زمنية · سعر خام.
+    لا يحسب الهدف/المهلة (المنصّة تحسبهما بقاعدة موحّدة).
+    """
+    from datetime import datetime, timezone, timedelta
+    sb = _get_supabase()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase غير متصل")
+    try:
+        rows = sb.table("idx_recommendations").select(
+            "symbol,name,entry_price,confidence,score,category,"
+            "weights_version,created_at,appeared_date,status,outcome,peak_pct") \
+            .order("created_at", desc=True).limit(min(limit, 2000)).execute().data or []
+
+        riyadh = timezone(timedelta(hours=3))
+        feed = []
+        for r in rows:
+            # تنظيف الرمز (1120.0 → 1120)
+            sym = str(r.get("symbol", "")).split(".")[0]
+            # الوقت ISO مع منطقة الرياض
+            created = r.get("created_at") or ""
+            iso_time = None
+            if created:
+                try:
+                    dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=riyadh)  # التوقيت فعلياً الرياض
+                    iso_time = dt.astimezone(riyadh).isoformat()
+                except Exception:
+                    iso_time = created
+            feed.append({
+                "symbol": sym,
+                "company_name": r.get("name", ""),
+                "first_seen": iso_time,
+                "raw_entry_price": r.get("entry_price"),
+                "engine": "algo+dual_ai",
+                "confidence": r.get("confidence"),
+                "confidence_scale": "0-10",
+                "signal_score": r.get("score"),
+                "horizon": r.get("category"),
+                "engine_version": r.get("weights_version", 0),
+                "verify_status": r.get("status"),
+                "verify_outcome": r.get("outcome"),
+                "verify_peak_pct": r.get("peak_pct"),
+            })
+        return {
+            "source": "rasid_plus",
+            "confidence_scale": "0-10 (decimal, derived from signal_score)",
+            "engines": ["algo (signal scoring)", "dual_ai (Claude+Gemini consensus)"],
+            "note": "raw entry price only; target/deadline computed downstream",
+            "last_updated": datetime.now(riyadh).isoformat(),
+            "count": len(feed),
+            "data": feed,
+        }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e)[:200])
+
+
 @app.get("/api/recommendations/latest")
 def recommendations_latest():
     """التوصيات الجارية (كلها) مرتّبة بالقوة — الأقوى دائماً ظاهر."""
