@@ -1849,8 +1849,16 @@ def learning_versions_performance():
                 "reliable": d["closed"] >= 15,  # عينة كافية للحكم
             })
 
-        # النصيحة: قارن النسخة الحالية بالأفضل تاريخياً
+        # أظهر النسخة الفعّالة حتى لو ما لها نتائج بعد
         current_v = get_active_version().get("version", 0)
+        if not any(x["version"] == current_v for x in versions):
+            versions.append({
+                "version": current_v,
+                "label": "الأساسية" if current_v == 0 else f"النسخة {current_v}",
+                "closed": 0, "success": 0, "rate": 0, "flat_rate": 0,
+                "avg_peak": 0, "reliable": False, "no_data": True,
+            })
+            versions.sort(key=lambda x: x["version"])
         advice = None
         cur = next((x for x in versions if x["version"] == current_v), None)
         # الأفضل بين النسخ الموثوقة (عينة >= 15)
