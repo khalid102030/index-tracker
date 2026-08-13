@@ -117,6 +117,13 @@ def create_recommendation(stock, category, supabase=None):
         except Exception:
             pass
 
+    # وسم التوصية برقم نسخة الأوزان التي أنتجتها (لقياس أداء كل نسخة)
+    try:
+        from weights_manager import get_active_version
+        weights_version = get_active_version().get("version", 0)
+    except Exception:
+        weights_version = 0
+
     rec = {
         "symbol":stock["symbol"],"name":stock["name"],"category":category,
         "entry_price":entry,"target_price":target,"target_pct":tgt_pct,
@@ -124,6 +131,7 @@ def create_recommendation(stock, category, supabase=None):
         "confidence":stock.get("confidence",0),
         "trend":stock.get("trend",""),
         "reason":stock.get("reason",""),
+        "weights_version":weights_version,
         "signals_summary":{f:stock.get("frame_scores",{}).get(f,{}) for f in ["short","mid","long"]},
         "top3_signals":stock.get("top3_signals",[]),
         # بيانات تحليلية للدراسة

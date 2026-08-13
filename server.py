@@ -1741,6 +1741,71 @@ def telegram_private_toggle():
     return {"private_mode": new_state}
 
 
+@app.get("/api/learning/versions-performance")
+def learning_versions_performance():
+    """
+    أداء كل نسخة أوزان باستمرار (حتى بعد تغييرها).
+    يقارن النسخ بالأرقام وينصح: استمر أو ارجع لنسخة معيّنة.
+    """
+    from weights_manager import get_active_version
+    sb = _get_supabase()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase غير متصل")
+    try:
+        rows = sb.table("idx_recommendations").select("weights_version,status,outcome,category,peak_pct") \
+            .eq("status", "closed").limit(5000).execute().data or []
+        # قصير المدى فقط (المعيار الموحّد للمقارنة)
+        rows = [r for r in rows if r.get("category") != "long_term"]
+
+        by_ver = {}
+        for r in rows:
+            v = r.get("weights_version")
+            v = 0 if v is None else v
+            d = by_ver.setdefault(v, {"closed": 0, "success": 0, "flat": 0, "peaks": []})
+            d["closed"] += 1
+            if r.get("outcome") == "success":
+                d["success"] += 1
+            elif r.get("outcome") == "flat":
+                d["flat"] += 1
+            if isinstance(r.get("peak_pct"), (int, float)):
+                d["peaks"].append(r["peak_pct"])
+
+        versions = []
+        for v, d in sorted(by_ver.items()):
+            rate = round(d["success"]/d["closed"]*100, 1) if d["closed"] else 0
+            flat_r = round(d["flat"]/d["closed"]*100, 1) if d["closed"] else 0
+            avg_peak = round(sum(d["peaks"])/len(d["peaks"]), 2) if d["peaks"] else 0
+            versions.append({
+                "version": v,
+                "label": "الأساسية" if v == 0 else f"النسخة {v}",
+                "closed": d["closed"], "success": d["success"],
+                "rate": rate, "flat_rate": flat_r, "avg_peak": avg_peak,
+                "reliable": d["closed"] >= 15,  # عينة كافية للحكم
+            })
+
+        # النصيحة: قارن النسخة الحالية بالأفضل تاريخياً
+        current_v = get_active_version().get("version", 0)
+        advice = None
+        cur = next((x for x in versions if x["version"] == current_v), None)
+        # الأفضل بين النسخ الموثوقة (عينة >= 15)
+        reliable = [x for x in versions if x["reliable"]]
+        if reliable:
+            best = max(reliable, key=lambda x: x["rate"])
+            if cur and cur["closed"] < 15:
+                advice = (f"⏳ {cur['label']} الحالية عينتها صغيرة ({cur['closed']} نتيجة) — "
+                          f"أعطها وقتاً حتى 15+ نتيجة قبل الحكم. "
+                          f"أفضل نسخة موثوقة حتى الآن: {best['label']} ({best['rate']}%)")
+            elif cur and best["version"] != current_v and best["rate"] - cur["rate"] >= 5:
+                advice = (f"⚠️ {best['label']} كانت أفضل ({best['rate']}% مقابل {cur['rate']}% للحالية) "
+                          f"بفارق {round(best['rate']-cur['rate'],1)}% — يُنصح بالرجوع إليها")
+            elif cur:
+                advice = (f"✅ {cur['label']} الحالية أداؤها جيد ({cur['rate']}%) — استمر عليها")
+        return {"versions": versions, "current_version": current_v, "advice": advice}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e)[:200])
+
+
 @app.get("/api/learning/status")
 def learning_status():
     """حالة التعلّم: النسخة الفعّالة + الاقتراح المعلّق + التاريخ."""
