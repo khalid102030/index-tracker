@@ -1347,6 +1347,8 @@ def integration_feed(limit: int = 500):
             .order("created_at", desc=True).limit(min(limit, 2000)).execute().data or []
 
         riyadh = timezone(timedelta(hours=3))
+        # معايير النظام الداخلية لتعريف "النجاح" (للعلم — المنصّة تحسب بقاعدتها)
+        from tracker import TARGET_PCT, MAX_DAYS, VALIDITY_DAYS, LT_TARGET_PCT, LT_MAX_DAYS
         feed = []
         for r in rows:
             # تنظيف الرمز (1120.0 → 1120)
@@ -1362,6 +1364,7 @@ def integration_feed(limit: int = 500):
                     iso_time = dt.astimezone(riyadh).isoformat()
                 except Exception:
                     iso_time = created
+            is_long = r.get("category") == "long_term"
             feed.append({
                 "symbol": sym,
                 "company_name": r.get("name", ""),
@@ -1373,6 +1376,9 @@ def integration_feed(limit: int = 500):
                 "signal_score": r.get("score"),
                 "horizon": r.get("category"),
                 "engine_version": r.get("weights_version", 0),
+                # معايير النظام الداخلية لنجاح هذه التوصية (وصفية — المنصّة حرة بقاعدتها)
+                "system_target_pct": LT_TARGET_PCT if is_long else TARGET_PCT,
+                "system_max_trading_days": LT_MAX_DAYS if is_long else MAX_DAYS,
                 "verify_status": r.get("status"),
                 "verify_outcome": r.get("outcome"),
                 "verify_peak_pct": r.get("peak_pct"),
@@ -1381,7 +1387,15 @@ def integration_feed(limit: int = 500):
             "source": "rasid_plus",
             "confidence_scale": "0-10 (decimal, derived from signal_score)",
             "engines": ["algo (signal scoring)", "dual_ai (Claude+Gemini consensus)"],
-            "note": "raw entry price only; target/deadline computed downstream",
+            "note": "raw entry price only; system_target_pct/max_days are the "
+                    "system's OWN success criteria (informational) — platform may "
+                    "compute its own target/deadline",
+            "success_criteria": {
+                "short_term": {"target_pct": TARGET_PCT, "max_trading_days": MAX_DAYS,
+                               "validity_days": VALIDITY_DAYS},
+                "long_term": {"target_pct": LT_TARGET_PCT, "max_trading_days": LT_MAX_DAYS},
+                "definition": "success = peak reaches +target_pct within max_trading_days"
+            },
             "last_updated": datetime.now(riyadh).isoformat(),
             "count": len(feed),
             "data": feed,
