@@ -318,6 +318,15 @@ return h}
 // ═══════ المزامنة ═══════
 async function loadSync(){try{const d=await api("/api/sync/status");const st=document.getElementById("syncStatus");const tm=document.getElementById("syncTimes");const pb=document.getElementById("pauseBtn");if(!st)return;if(tm)tm.textContent="· "+(d.schedule||[]).join(" · ")+" أيام التداول";if(pb){pb.innerHTML=d.paused?"▶️ استئناف":"⏸️ إيقاف مؤقت";pb.className=`bs${d.paused?' on':''}`}
 const skb=document.getElementById("skipBtn");if(skb){if(d.skip_next){skb.innerHTML=`↩️ إلغاء تخطّي ${d.skip_next}`;skb.className='bs on';skb.dataset.active='1'}else{skb.innerHTML='⏭️ تخطّي القادم';skb.className='bs';skb.dataset.active='0'}}const ls=d.last_sync||{};let m=d.paused?'🔴 موقوف حتى إشعار آخر':d.scheduler_active?'🟢 نشط':'⚪ متوقف';
+// أحدث بيانات مسحوبة (اسم التبويب = التاريخ والوقت)
+if(ls.tab){const tabName=ls.tab;let dataInfo='';
+// صيغة التبويب: 2026-08-09_15-15 → تاريخ ووقت واضح
+const mm=tabName.match(/(\d{4})-(\d{2})-(\d{2})[_ ](\d{2})[-:](\d{2})/);
+if(mm){dataInfo=`📄 أحدث بيانات: ${mm[3]}/${mm[2]}/${mm[1]} الساعة ${mm[4]}:${mm[5]}`}
+else{dataInfo=`📄 أحدث بيانات: ${tabName}`}
+m=`${dataInfo}<br><span style="font-size:.72rem">⏰ الجدولة: ${m}`;
+if(ls.status==='no_update')m+=` · ⚠️ آخر فحص: لا بيانات جديدة`;
+if(!d.paused)m+=` · القادم: ${d.next_sync||''}`;m+='</span>';st.innerHTML=m;return}
 if(ls.status==='success'){const dt=ls.time?ls.time.slice(0,16).replace('T',' '):'';m+=` · 🕐 آخر تحليل: <b style="color:var(--ac2)">${dt}</b> · ${ls.tab||''} (${ls.stocks} سهم)`;const lg=(d.log||[]).slice(-1)[0];if(lg&&lg.saved!==undefined)m+=` · 🏆 ${lg.picks_count||0} توصية`}else if(ls.status==='no_update'){const dt=ls.time?ls.time.slice(0,16).replace('T',' '):'';m+=` · 🕐 آخر تحليل: <b style="color:var(--ac2)">${dt}</b> · ⚠️ لا تحديث جديد`}else if(ls.status==='error')m+=` · ❌ ${ls.error||''}`;
 if(!d.paused)m+=` · القادم: ${d.next_sync||''}`;st.innerHTML=m}catch(e){}}
 async function togglePause(){try{const d=await api("/api/sync/status");if(d.paused)await api("/api/sync/resume",{method:"POST"});else await api("/api/sync/pause",{method:"POST"});loadSync()}catch(e){toast("❌ "+e.message)}}

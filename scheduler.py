@@ -143,10 +143,17 @@ _load_state()
 
 def get_sync_status() -> dict:
     _ensure_state()
+    ls = dict(_last_sync)
+    # لو الذاكرة فاضية (السيرفر نام)، استرجع آخر تبويب من Supabase
+    if not ls.get("tab"):
+        saved_tab, saved_fp = _load_last_sync_fp()
+        if saved_tab:
+            ls["tab"] = saved_tab
+            ls["_from_storage"] = True
     return {
         "scheduler_active": _scheduler_running,
         "paused": _scheduler_paused,
-        "last_sync": _last_sync,
+        "last_sync": ls,
         "schedule": SYNC_TIMES,
         "next_sync": _next_sync_time(),
         "skip_next": _skip_next[0],
