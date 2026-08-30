@@ -44,6 +44,12 @@ def _save_last_sync_fp(tab, fp):
 
 def _load_last_sync_fp():
     """يقرأ آخر بصمة من Supabase (استرجاع بعد نوم السيرفر)."""
+    d = _load_last_sync_full()
+    return d.get("tab"), d.get("fp")
+
+
+def _load_last_sync_full():
+    """يقرأ آخر سحب كاملاً (tab + fp + at) من Supabase."""
     sb = _get_sb()
     if sb:
         try:
@@ -52,10 +58,10 @@ def _load_last_sync_fp():
                 val = rows[0].get("value") or {}
                 if isinstance(val, str):
                     val = json.loads(val)
-                return val.get("tab"), val.get("fp")
+                return val
         except Exception:
             pass
-    return None, None
+    return {}
 
 
 def _load_state():
@@ -144,11 +150,12 @@ _load_state()
 def get_sync_status() -> dict:
     _ensure_state()
     ls = dict(_last_sync)
-    # لو الذاكرة فاضية (السيرفر نام)، استرجع آخر تبويب من Supabase
-    if not ls.get("tab"):
-        saved_tab, saved_fp = _load_last_sync_fp()
-        if saved_tab:
-            ls["tab"] = saved_tab
+    # لو الذاكرة فاضية (السيرفر نام)، استرجع آخر تبويب ووقت من Supabase
+    if not ls.get("tab") and not ls.get("time"):
+        saved = _load_last_sync_full()
+        if saved.get("tab"):
+            ls["tab"] = saved["tab"]
+            ls["time"] = saved.get("at")
             ls["_from_storage"] = True
     return {
         "scheduler_active": _scheduler_running,

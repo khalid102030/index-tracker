@@ -70,10 +70,18 @@ def fetch_latest_snapshot(sheet_url: str) -> dict:
     with_dates = [(t, parse_snapshot_time(t)) for t in tabs]
     with_dates = [(t,d) for t,d in with_dates if d]
     if with_dates:
+        # يوجد تبويبات بتواريخ — خذ الأحدث
         with_dates.sort(key=lambda x: x[1], reverse=True)
         tab, snap_time = with_dates[0]
     else:
-        tab, snap_time = tabs[-1], None
+        # لا تبويب بتاريخ (مثل Sheet1) — استخدم وقت السحب الحالي
+        from market_clock import now_riyadh
+        tab = tabs[-1]
+        snap_time = now_riyadh().replace(tzinfo=None)
     df = read_tab(sid, tab)
-    return {"df": df, "tab_name": tab, "snapshot_time": snap_time,
-            "all_tabs": tabs, "sheet_id": sid}
+    # اسم عرض واضح: التاريخ_الوقت (حتى لو التبويب اسمه عام)
+    display_name = tab
+    if snap_time and not parse_snapshot_time(tab):
+        display_name = snap_time.strftime("%Y-%m-%d_%H-%M")
+    return {"df": df, "tab_name": tab, "display_name": display_name,
+            "snapshot_time": snap_time, "all_tabs": tabs, "sheet_id": sid}

@@ -318,11 +318,15 @@ return h}
 // ═══════ المزامنة ═══════
 async function loadSync(){try{const d=await api("/api/sync/status");const st=document.getElementById("syncStatus");const tm=document.getElementById("syncTimes");const pb=document.getElementById("pauseBtn");if(!st)return;if(tm)tm.textContent="· "+(d.schedule||[]).join(" · ")+" أيام التداول";if(pb){pb.innerHTML=d.paused?"▶️ استئناف":"⏸️ إيقاف مؤقت";pb.className=`bs${d.paused?' on':''}`}
 const skb=document.getElementById("skipBtn");if(skb){if(d.skip_next){skb.innerHTML=`↩️ إلغاء تخطّي ${d.skip_next}`;skb.className='bs on';skb.dataset.active='1'}else{skb.innerHTML='⏭️ تخطّي القادم';skb.className='bs';skb.dataset.active='0'}}const ls=d.last_sync||{};let m=d.paused?'🔴 موقوف حتى إشعار آخر':d.scheduler_active?'🟢 نشط':'⚪ متوقف';
-// أحدث بيانات مسحوبة (اسم التبويب = التاريخ والوقت)
-if(ls.tab){const tabName=ls.tab;let dataInfo='';
+// أحدث بيانات مسحوبة (اسم التبويب = التاريخ والوقت، أو وقت آخر سحب)
+if(ls.tab||ls.time){const tabName=ls.tab||'';let dataInfo='';
 // صيغة التبويب: 2026-08-09_15-15 → تاريخ ووقت واضح
 const mm=tabName.match(/(\d{4})-(\d{2})-(\d{2})[_ ](\d{2})[-:](\d{2})/);
 if(mm){dataInfo=`📄 أحدث بيانات: ${mm[3]}/${mm[2]}/${mm[1]} الساعة ${mm[4]}:${mm[5]}`}
+else if(ls.time){
+// التبويب اسمه عام (Sheet1) — استخدم وقت آخر سحب
+const t=new Date(ls.time);if(!isNaN(t)){const p=n=>String(n).padStart(2,'0');dataInfo=`📄 آخر سحب: ${p(t.getDate())}/${p(t.getMonth()+1)}/${t.getFullYear()} الساعة ${p(t.getHours())}:${p(t.getMinutes())}`}
+else{dataInfo=`📄 أحدث بيانات: ${tabName}`}}
 else{dataInfo=`📄 أحدث بيانات: ${tabName}`}
 m=`${dataInfo}<br><span style="font-size:.72rem">⏰ الجدولة: ${m}`;
 if(ls.status==='no_update')m+=` · ⚠️ آخر فحص: لا بيانات جديدة`;
