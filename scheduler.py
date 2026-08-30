@@ -253,7 +253,7 @@ def run_sync(force: bool = False, full: bool = True) -> dict:
         return result
 
     try:
-        from sheets_reader import fetch_latest_snapshot
+        from data_source import fetch_latest_snapshot
         from indicator_analyzer import analyze_dataframe
         from market_clock import classify_snapshot_time
 

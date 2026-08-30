@@ -96,6 +96,35 @@ class ConfigReq(BaseModel):
     sahmk_api_key: str = ""
 
 
+@app.get("/api/data-source")
+def data_source_status():
+    """المصدر الحالي لبيانات المؤشرات (sheet / supabase)."""
+    from data_source import get_source_mode
+    return {"mode": get_source_mode()}
+
+
+@app.post("/api/data-source")
+def data_source_set(cfg: dict):
+    """تبديل مصدر بيانات المؤشرات."""
+    from data_source import set_source_mode
+    mode = cfg.get("mode", "sheet")
+    return set_source_mode(mode)
+
+
+@app.get("/api/data-source/test")
+def data_source_test():
+    """يختبر القراءة من المصدر الحالي (تشخيص)."""
+    from data_source import fetch_latest_snapshot, get_source_mode
+    try:
+        snap = fetch_latest_snapshot(_config.get("sheet_url"))
+        return {"ok": True, "mode": get_source_mode(),
+                "rows": len(snap["df"]),
+                "display_name": snap.get("display_name"),
+                "columns": list(snap["df"].columns)[:15]}
+    except Exception as e:
+        return {"ok": False, "mode": get_source_mode(), "error": str(e)[:200]}
+
+
 @app.get("/api/config")
 def get_config():
     """يرجّع الإعدادات (مع إخفاء المفاتيح)."""
@@ -241,7 +270,7 @@ def analyze_full(url: str = None, skip_duplicate: bool = False, force: bool = Fa
     Claude + Gemini يقيّمون مع مراعاة الأداء → يحفظ التوصيات.
     كل شي في خطوة واحدة بدون مراحل.
     """
-    from sheets_reader import fetch_latest_snapshot
+    from data_source import fetch_latest_snapshot
     from indicator_analyzer import analyze_dataframe
     from market_clock import classify_snapshot_time
     from dual_evaluator import dual_evaluate
@@ -538,7 +567,8 @@ def recommendations_update():
 @app.post("/api/sheets/fetch")
 def sheets_fetch(url: str = None):
     """يقرأ آخر لقطة من Google Sheets ويحلّلها."""
-    from sheets_reader import fetch_latest_snapshot, extract_sheet_id
+    from data_source import fetch_latest_snapshot;
+    from sheets_reader import extract_sheet_id
     from indicator_analyzer import analyze_dataframe
     from market_clock import classify_snapshot_time
 
@@ -602,7 +632,7 @@ def sheets_analyze_tab(tab: str, url: str = None):
 @app.post("/api/recommendations/generate")
 def recommendations_generate(url: str = None):
     """يحلّل آخر لقطة ويولّد توصيات ويحفظها."""
-    from sheets_reader import fetch_latest_snapshot
+    from data_source import fetch_latest_snapshot
     from indicator_analyzer import analyze_dataframe
     from tracker import create_recommendation
 
@@ -784,7 +814,7 @@ def test_keys():
         results["sheet"] = {"ok": False, "msg": "الرابط غير مضاف"}
     else:
         try:
-            from sheets_reader import fetch_latest_snapshot
+            from data_source import fetch_latest_snapshot
             snap = fetch_latest_snapshot(sheet)
             results["sheet"] = {"ok": True, "msg": f"آخر تبويب: {snap['tab_name']}"}
         except Exception as e:
@@ -1194,7 +1224,7 @@ def sheet_debug():
     if not sheet_url:
         raise HTTPException(status_code=400, detail="لا يوجد رابط شيت")
     try:
-        from sheets_reader import fetch_latest_snapshot
+        from data_source import fetch_latest_snapshot
         import scheduler as _sch
         snap = fetch_latest_snapshot(sheet_url)
         fp = _sch._data_fingerprint(snap["df"])
@@ -1255,7 +1285,7 @@ def recommendations_longterm(url: str = None):
     معايير صارمة: إشارات طويلة قوية، لم ترتفع كثيراً، جودة عالية.
     قليلة ونادرة التغيّر (صعبة التشكّل).
     """
-    from sheets_reader import fetch_latest_snapshot
+    from data_source import fetch_latest_snapshot
     from indicator_analyzer import analyze_dataframe
     sheet_url = url or _config.get("sheet_url")
     if not sheet_url:
@@ -1472,7 +1502,7 @@ def _get_current_prices() -> dict:
     prices = {}
     # محاولة 1: من Google Sheets
     try:
-        from sheets_reader import fetch_latest_snapshot
+        from data_source import fetch_latest_snapshot
         sheet_url = _config.get("sheet_url")
         if sheet_url:
             snap = fetch_latest_snapshot(sheet_url)
@@ -1499,7 +1529,7 @@ def _get_current_prices_full() -> dict:
     """يجلب {symbol: {price, high, low}} من الشيت — يشمل عمود 'أعلى'."""
     result = {}
     try:
-        from sheets_reader import fetch_latest_snapshot
+        from data_source import fetch_latest_snapshot
         sheet_url = _config.get("sheet_url")
         if not sheet_url:
             return result
