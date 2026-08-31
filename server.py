@@ -1219,28 +1219,62 @@ def telegram_resend_today():
 
 @app.get("/api/sheet/debug")
 def sheet_debug():
-    """تشخيص: وش يشوف النظام بالشيت (آخر تبويب + البصمة)."""
+    """تشخيص: أحدث بيانات بالشيت مقابل آخر بيانات فُحصت."""
     sheet_url = _config.get("sheet_url")
     if not sheet_url:
         raise HTTPException(status_code=400, detail="لا يوجد رابط شيت")
     try:
         from data_source import fetch_latest_snapshot
         import scheduler as _sch
+
+        def _fmt_tab(tab, snap_time=None):
+            """يحوّل اسم التبويب لتاريخ ووقت واضح."""
+            import re
+            m = re.search(r"(\d{4})-(\d{2})-(\d{2})[_ ](\d{2})[-:](\d{2})", str(tab or ""))
+            if m:
+                return f"{m.group(3)}/{m.group(2)}/{m.group(1)} الساعة {m.group(4)}:{m.group(5)}"
+            return str(tab or "—")
+
+        # أحدث بيانات بالشيت الآن
         snap = fetch_latest_snapshot(sheet_url)
         fp = _sch._data_fingerprint(snap["df"])
-        last = _sch._last_sync
+        cur_tab = snap["tab_name"]
+        cur_time = snap.get("snapshot_time")
+        cur_display = snap.get("display_name") or cur_tab
+
+        # آخر بيانات فُحصت (من الذاكرة أو Supabase)
+        last = dict(_sch._last_sync)
+        if not last.get("tab"):
+            saved = _sch._load_last_sync_full()
+            last["tab"] = saved.get("tab")
+            last["data_fp"] = saved.get("fp")
+            last["time"] = saved.get("at")
+
+        same_tab = last.get("tab") == cur_tab and cur_tab not in ("Sheet1", "Sheet", "")
+        same_data = bool(fp) and last.get("data_fp") == fp
+        will_skip = same_tab or same_data
+
         return {
-            "current_tab": snap["tab_name"],
-            "all_tabs": snap.get("all_tabs", [])[-5:],
-            "rows": len(snap["df"]),
-            "current_fingerprint": fp[:12] if fp else "",
-            "last_synced_tab": last.get("tab"),
-            "last_synced_fingerprint": (last.get("data_fp") or "")[:12],
-            "same_tab": last.get("tab") == snap["tab_name"],
-            "same_data": bool(fp) and last.get("data_fp") == fp,
-            "verdict": "سيتوقف (مكرر)" if (last.get("tab") == snap["tab_name"] or (fp and last.get("data_fp") == fp)) else "سيحلّل (جديد)",
+            "أحدث_بيانات_بالشيت": {
+                "التبويب": cur_tab,
+                "التاريخ_والوقت": _fmt_tab(cur_display, cur_time),
+                "عدد_الصفوف": len(snap["df"]),
+                "البصمة": fp[:12] if fp else "",
+            },
+            "آخر_بيانات_فُحصت": {
+                "التبويب": last.get("tab") or "—",
+                "التاريخ_والوقت": _fmt_tab(last.get("tab")) if last.get("tab") not in (None, "Sheet1") else (last.get("time", "")[:16].replace("T", " ") if last.get("time") else "—"),
+                "البصمة": (last.get("data_fp") or "")[:12],
+            },
+            "المقارنة": {
+                "نفس_التبويب": same_tab,
+                "نفس_البيانات": same_data,
+                "الحكم": "⚠️ سيتوقف (البيانات مطابقة)" if will_skip else "✅ سيحلّل (بيانات جديدة)",
+            },
+            "all_tabs": snap.get("all_tabs", [])[-8:],
         }
     except Exception as e:
+        import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e)[:200])
 
 

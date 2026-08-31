@@ -170,15 +170,19 @@ def get_sync_status() -> dict:
 
 def _data_fingerprint(df) -> str:
     """
-    بصمة للأسعار — تكشف البيانات المطابقة حتى لو اسم التبويب مختلف.
-    تعتمد على الرمز + السعر لكل سهم.
+    بصمة للبيانات — تكشف البيانات المطابقة.
+    تعتمد على أعمدة متعددة (السعر + المؤشرات) لدقة أعلى.
     """
     import hashlib
     try:
-        cols = [c for c in df.columns if str(c).strip() in
-                ("الرمز", "رمز", "السعر", "سعر", "آخر", "الأخير", "close")]
-        # لو ما لقينا أعمدة محددة، استخدم أول عمودين
-        sub = df[cols] if cols else df.iloc[:, :3]
+        # أعمدة مميّزة: السعر + التغيّرات + السيولة + RSI (تتغيّر مع كل تحديث حقيقي)
+        keywords = ("الرمز", "رمز", "السعر", "سعر", "آخر", "الأخير", "close",
+                    "التغير", "السيولة", "RSI", "rsi", "الحجم", "MFI")
+        cols = [c for c in df.columns if any(k in str(c) for k in keywords)]
+        if cols:
+            sub = df[cols]
+        else:
+            sub = df  # كل الأعمدة كملاذ أخير
         raw = sub.to_csv(index=False)
         return hashlib.md5(raw.encode("utf-8")).hexdigest()
     except Exception:
