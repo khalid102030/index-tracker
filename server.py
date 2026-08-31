@@ -291,7 +291,7 @@ def analyze_full(url: str = None, skip_duplicate: bool = False, force: bool = Fa
         if skip_duplicate and not force:
             try:
                 import scheduler as _sch
-                fp = _sch._data_fingerprint(snap["df"])
+                fp = _sch._data_fingerprint(snap["df"], snap.get("snapshot_time"))
                 # استرجع آخر بصمة (من الذاكرة أو Supabase لو نام السيرفر)
                 mem_tab = _sch._last_sync.get("tab")
                 mem_fp = _sch._last_sync.get("data_fp")
@@ -320,7 +320,7 @@ def analyze_full(url: str = None, skip_duplicate: bool = False, force: bool = Fa
         try:
             import scheduler as _sch
             from market_clock import now_riyadh
-            _fp = _sch._data_fingerprint(snap["df"])
+            _fp = _sch._data_fingerprint(snap["df"], snap.get("snapshot_time"))
             _sch._last_sync.update(time=now_riyadh().isoformat(), tab=snap["tab_name"],
                                    status="success", stocks=analysis["summary"]["total_stocks"],
                                    error=None, data_fp=_fp)
@@ -1237,7 +1237,7 @@ def sheet_debug():
 
         # أحدث بيانات بالشيت الآن
         snap = fetch_latest_snapshot(sheet_url)
-        fp = _sch._data_fingerprint(snap["df"])
+        fp = _sch._data_fingerprint(snap["df"], snap.get("snapshot_time"))
         cur_tab = snap["tab_name"]
         cur_time = snap.get("snapshot_time")
         cur_display = snap.get("display_name") or cur_tab

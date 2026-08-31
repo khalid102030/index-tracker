@@ -168,22 +168,43 @@ def get_sync_status() -> dict:
     }
 
 
-def _data_fingerprint(df) -> str:
+def _session_key(snap_time=None) -> str:
     """
-    بصمة للبيانات — تكشف البيانات المطابقة.
-    تعتمد على أعمدة متعددة (السعر + المؤشرات) لدقة أعلى.
+    معرّف فترة السوق — يحدّد إن كانت لقطتان في "نفس الفترة".
+    - أثناء التداول: كل نصف ساعة فترة مميّزة (السوق يتحرك)
+    - خارج التداول (بعد الإغلاق/عطلة): الفترة كلها واحدة (نفس اليوم)
+    """
+    from market_clock import now_riyadh, classify_snapshot_time, MARKET_CLOSE
+    dt = snap_time or now_riyadh()
+    if hasattr(dt, "tzinfo") and dt.tzinfo:
+        dt = dt.replace(tzinfo=None)
+    try:
+        status = classify_snapshot_time(dt)
+    except Exception:
+        status = "live"
+    day = dt.strftime("%Y-%m-%d")
+    if status in ("post_close", "weekend", "pre_open"):
+        # خارج التداول — كل الفترة واحدة (نفس اليوم + الحالة)
+        return f"{day}_{status}"
+    else:
+        # أثناء التداول — كل نصف ساعة فترة (السوق يتحرك)
+        half = "00" if dt.minute < 30 else "30"
+        return f"{day}_{dt.hour:02d}{half}"
+
+
+def _data_fingerprint(df, snap_time=None) -> str:
+    """
+    بصمة موحّدة = فترة السوق + بيانات الأسعار/المؤشرات.
+    لقطتان في نفس الفترة (مثل نهاية التداول + العصر) = بصمة واحدة.
     """
     import hashlib
     try:
-        # أعمدة مميّزة: السعر + التغيّرات + السيولة + RSI (تتغيّر مع كل تحديث حقيقي)
+        session = _session_key(snap_time)
         keywords = ("الرمز", "رمز", "السعر", "سعر", "آخر", "الأخير", "close",
                     "التغير", "السيولة", "RSI", "rsi", "الحجم", "MFI")
         cols = [c for c in df.columns if any(k in str(c) for k in keywords)]
-        if cols:
-            sub = df[cols]
-        else:
-            sub = df  # كل الأعمدة كملاذ أخير
-        raw = sub.to_csv(index=False)
+        sub = df[cols] if cols else df
+        raw = session + "|" + sub.to_csv(index=False)
         return hashlib.md5(raw.encode("utf-8")).hexdigest()
     except Exception:
         return ""
@@ -267,7 +288,7 @@ def run_sync(force: bool = False, full: bool = True) -> dict:
         df = snap["df"]
 
         # ── بصمة البيانات: hash للأسعار (يكشف نفس البيانات حتى باسم تبويب مختلف) ──
-        data_fp = _data_fingerprint(df)
+        data_fp = _data_fingerprint(df, snap_time)
 
         # لو الذاكرة فاضية (السيرفر نام)، استرجع آخر بصمة من Supabase
         mem_tab = _last_sync.get("tab")
