@@ -293,19 +293,23 @@ def run_sync(force: bool = False, full: bool = True) -> dict:
         # لو الذاكرة فاضية (السيرفر نام)، استرجع آخر بصمة من Supabase
         mem_tab = _last_sync.get("tab")
         mem_fp = _last_sync.get("data_fp")
+        mem_status = _last_sync.get("status")
         if not mem_fp:
-            saved_tab, saved_fp = _load_last_sync_fp()
-            if saved_fp:
-                mem_tab, mem_fp = saved_tab, saved_fp
+            saved = _load_last_sync_full()
+            if saved.get("fp"):
+                mem_tab, mem_fp = saved.get("tab"), saved.get("fp")
+                mem_status = "success"  # البصمة تُحفظ فقط بعد نجاح، فوجودها = تحليل سابق ناجح
 
-        # ── كشف التكرار: نفس التبويب أو نفس بصمة الأسعار ──
-        same_tab = mem_tab == tab and tab not in ("Sheet1", "Sheet", "")  # تجاهل الأسماء العامة
+        # ── كشف التكرار: يتخطّى فقط لو فيه تحليل ناجح سابق لنفس البيانات ──
+        # (البصمة تُحفظ حصراً بعد تحليل ناجح — فوجود تطابق = الفترة اتحللت فعلاً)
+        analyzed_before = mem_status == "success" and bool(mem_fp)
+        same_tab = mem_tab == tab and tab not in ("Sheet1", "Sheet", "")
         same_data = data_fp and mem_fp == data_fp
-        if not force and (same_tab or same_data):
-            reason = "نفس التبويب" if same_tab else "نفس الأسعار (بيانات مطابقة للسابق)"
+        if not force and analyzed_before and (same_tab or same_data):
+            reason = "نفس التبويب" if same_tab else "نفس البيانات (فترة محلّلة سابقاً)"
             result = {
                 "ok": True, "skipped": True,
-                "message": f"⚠️ البيانات لم تتغير — {reason}. تم إيقاف التحليل (لا توصيات مكررة).",
+                "message": f"⚠️ تم تحليل هذه الفترة سابقاً — {reason}. لا توصيات مكررة.",
                 "tab": tab, "time": now_riyadh().isoformat(),
             }
             _last_sync["status"] = "no_update"
