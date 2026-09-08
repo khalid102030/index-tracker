@@ -194,17 +194,16 @@ def _session_key(snap_time=None) -> str:
 
 def _data_fingerprint(df, snap_time=None) -> str:
     """
-    بصمة موحّدة = فترة السوق + بيانات الأسعار/المؤشرات.
-    لقطتان في نفس الفترة (مثل نهاية التداول + العصر) = بصمة واحدة.
+    بصمة محتوى البيانات — لو تغيّر أي سعر/مؤشر = بيانات جديدة.
+    (بدون فترة السوق — الاعتماد على المحتوى الفعلي فقط لتفادي الإنذار الخاطئ)
     """
     import hashlib
     try:
-        session = _session_key(snap_time)
         keywords = ("الرمز", "رمز", "السعر", "سعر", "آخر", "الأخير", "close",
-                    "التغير", "السيولة", "RSI", "rsi", "الحجم", "MFI")
+                    "التغير", "السيولة", "RSI", "rsi", "الحجم", "MFI", "الاسم")
         cols = [c for c in df.columns if any(k in str(c) for k in keywords)]
         sub = df[cols] if cols else df
-        raw = session + "|" + sub.to_csv(index=False)
+        raw = sub.to_csv(index=False)
         return hashlib.md5(raw.encode("utf-8")).hexdigest()
     except Exception:
         return ""
