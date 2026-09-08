@@ -1254,16 +1254,28 @@ def sheet_debug():
         same_data = bool(fp) and last.get("data_fp") == fp
         will_skip = same_tab or same_data
 
+        def _fmt_iso(dt):
+            """صيغة موحّدة: سنة-شهر-يوم ساعة:دقيقة"""
+            if not dt:
+                return "—"
+            try:
+                if isinstance(dt, str):
+                    dt = datetime.fromisoformat(dt.replace("Z", "+00:00").replace(" ", "T"))
+                return dt.strftime("%Y-%m-%d الساعة %H:%M")
+            except Exception:
+                return str(dt)[:16]
+
         return {
             "أحدث_بيانات_بالشيت": {
                 "التبويب": cur_tab,
-                "التاريخ_والوقت": _fmt_tab(cur_display, cur_time),
+                "وقت_القراءة": _fmt_iso(cur_time),
+                "ملاحظة": "التبويب Sheet1 بلا تاريخ — الوقت هو وقت قراءة النظام" if cur_tab in ("Sheet1", "Sheet") else "الوقت من اسم التبويب",
                 "عدد_الصفوف": len(snap["df"]),
                 "البصمة": fp[:12] if fp else "",
             },
             "آخر_بيانات_فُحصت": {
                 "التبويب": last.get("tab") or "—",
-                "التاريخ_والوقت": _fmt_tab(last.get("tab")) if last.get("tab") not in (None, "Sheet1") else (last.get("time", "")[:16].replace("T", " ") if last.get("time") else "—"),
+                "وقت_الفحص": _fmt_iso(last.get("time")),
                 "البصمة": (last.get("data_fp") or "")[:12],
             },
             "المقارنة": {
