@@ -1217,6 +1217,42 @@ def telegram_resend_today():
         raise HTTPException(status_code=500, detail=str(e)[:200])
 
 
+@app.get("/api/sheet/sample")
+def sheet_sample():
+    """عيّنة من آخر بيانات فعلية بالشيت — للتأكد من الصيغة والقراءة."""
+    sheet_url = _config.get("sheet_url")
+    if not sheet_url:
+        raise HTTPException(status_code=400, detail="لا يوجد رابط شيت")
+    try:
+        from data_source import fetch_latest_snapshot
+        from indicator_analyzer import COL_MAP, _find_col
+        snap = fetch_latest_snapshot(sheet_url)
+        df = snap["df"]
+
+        # هل النظام يتعرّف على الأعمدة المهمة؟
+        recognized = {}
+        for key, aliases in COL_MAP.items():
+            col = _find_col(df, aliases)
+            recognized[key] = col if col else "❌ غير موجود"
+
+        # عيّنة أول 3 صفوف (أعمدة مختارة)
+        sample = []
+        for _, row in df.head(3).iterrows():
+            sample.append({str(c): (str(row[c])[:20] if row[c] is not None else "") for c in df.columns[:12]})
+
+        return {
+            "التبويب": snap["tab_name"],
+            "عدد_الصفوف": len(df),
+            "عدد_الأعمدة": len(df.columns),
+            "كل_الأعمدة": [str(c) for c in df.columns],
+            "الأعمدة_المتعرّف_عليها": recognized,
+            "عيّنة_أول_3_صفوف": sample,
+        }
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e)[:200])
+
+
 @app.get("/api/sheet/debug")
 def sheet_debug():
     """تشخيص: أحدث بيانات بالشيت مقابل آخر بيانات فُحصت."""
