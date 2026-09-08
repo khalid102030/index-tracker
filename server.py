@@ -2303,6 +2303,18 @@ async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
 # ══════════════════════════════════════════════════════════════
 #  Static Files
 # ══════════════════════════════════════════════════════════════
+@app.get("/")
+def root_index():
+    """يخدم الصفحة بدون تخزين مؤقت (لضمان ظهور آخر تحديث)."""
+    idx = WEB_DIR / "index.html"
+    if idx.exists():
+        return FileResponse(str(idx), headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache", "Expires": "0",
+        })
+    return {"error": "index not found"}
+
+
 if WEB_DIR.exists():
     app.mount("/", StaticFiles(directory=str(WEB_DIR), html=True), name="web")
 
