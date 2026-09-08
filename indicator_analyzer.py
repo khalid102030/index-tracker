@@ -29,7 +29,7 @@ COL_MAP = {
     "change":["التغير %","التغير%"],
     "high":["أعلى"],
     "low":["أدنى"],
-    "volume":["الحجم"],
+    "volume":["الحجم الحالي","حجم التداول","الكمية"],
     "weekly":["التغير الاسبوعي","التغير الاسبوعي %"],
     "monthly":["التغير الشهري","التغير الشهري %"],
     "yearly":["التغير السنوي"],
@@ -47,9 +47,17 @@ COL_MAP = {
 }
 
 def _find_col(df, aliases):
+    cols = [str(c) for c in df.columns]
+    # أولاً: مطابقة تامة (الاسم كامل، بعد إزالة الفراغات)
     for a in aliases:
         for c in df.columns:
-            if a in c: return c
+            if str(c).strip() == a.strip():
+                return c
+    # ثانياً: مطابقة جزئية (احتياطي)
+    for a in aliases:
+        for c in df.columns:
+            if a in str(c):
+                return c
     return None
 
 def _safe(v, d=0.0):
