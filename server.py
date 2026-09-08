@@ -1253,6 +1253,37 @@ def sheet_sample():
         raise HTTPException(status_code=500, detail=str(e)[:200])
 
 
+@app.get("/api/sheet/latest-info")
+def sheet_latest_info():
+    """معلومة خفيفة: أحدث بيانات بالشيت (بدون تحليل) — للعرض التلقائي."""
+    sheet_url = _config.get("sheet_url")
+    if not sheet_url:
+        return {"ok": False}
+    try:
+        from data_source import fetch_latest_snapshot
+        import scheduler as _sch
+        snap = fetch_latest_snapshot(sheet_url)
+        fp = _sch._data_fingerprint(snap["df"], snap.get("snapshot_time"))
+        # آخر بصمة فُحصت
+        last = dict(_sch._last_sync)
+        if not last.get("data_fp"):
+            saved = _sch._load_last_sync_full()
+            last["data_fp"] = saved.get("fp")
+        is_new = bool(fp) and last.get("data_fp") != fp
+        st = snap.get("snapshot_time")
+        from market_clock import now_riyadh
+        read_time = (st or now_riyadh().replace(tzinfo=None))
+        return {
+            "ok": True,
+            "tab": snap["tab_name"],
+            "rows": len(snap["df"]),
+            "read_time": read_time.strftime("%Y-%m-%d %H:%M") if hasattr(read_time, "strftime") else str(read_time),
+            "is_new": is_new,  # هل تختلف عن آخر فحص؟
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:100]}
+
+
 @app.get("/api/sheet/debug")
 def sheet_debug():
     """تشخيص: أحدث بيانات بالشيت مقابل آخر بيانات فُحصت."""

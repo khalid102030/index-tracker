@@ -318,22 +318,20 @@ return h}
 
 // ═══════ المزامنة ═══════
 async function loadSync(){try{const d=await api("/api/sync/status");const st=document.getElementById("syncStatus");const tm=document.getElementById("syncTimes");const pb=document.getElementById("pauseBtn");if(!st)return;if(tm)tm.textContent="· "+(d.schedule||[]).join(" · ")+" أيام التداول";if(pb){pb.innerHTML=d.paused?"▶️ استئناف":"⏸️ إيقاف مؤقت";pb.className=`bs${d.paused?' on':''}`}
-const skb=document.getElementById("skipBtn");if(skb){if(d.skip_next){skb.innerHTML=`↩️ إلغاء تخطّي ${d.skip_next}`;skb.className='bs on';skb.dataset.active='1'}else{skb.innerHTML='⏭️ تخطّي القادم';skb.className='bs';skb.dataset.active='0'}}const ls=d.last_sync||{};let m=d.paused?'🔴 موقوف حتى إشعار آخر':d.scheduler_active?'🟢 نشط':'⚪ متوقف';
-// أحدث بيانات مسحوبة (اسم التبويب = التاريخ والوقت، أو وقت آخر سحب)
-if(ls.tab||ls.time){const tabName=ls.tab||'';let dataInfo='';
-// صيغة التبويب: 2026-08-09_15-15 → تاريخ ووقت واضح
-const mm=tabName.match(/(\d{4})-(\d{2})-(\d{2})[_ ](\d{2})[-:](\d{2})/);
-if(mm){dataInfo=`📄 أحدث بيانات: ${mm[3]}/${mm[2]}/${mm[1]} الساعة ${mm[4]}:${mm[5]}`}
-else if(ls.time){
-// التبويب اسمه عام (Sheet1) — استخدم وقت آخر سحب
-const t=new Date(ls.time);if(!isNaN(t)){const p=n=>String(n).padStart(2,'0');dataInfo=`📄 آخر سحب: ${p(t.getDate())}/${p(t.getMonth()+1)}/${t.getFullYear()} الساعة ${p(t.getHours())}:${p(t.getMinutes())}`}
-else{dataInfo=`📄 أحدث بيانات: ${tabName}`}}
-else{dataInfo=`📄 أحدث بيانات: ${tabName}`}
-m=`${dataInfo}<br><span style="font-size:.72rem">⏰ الجدولة: ${m}`;
-if(ls.status==='no_update')m+=` · ⚠️ آخر فحص: لا بيانات جديدة`;
-if(!d.paused)m+=` · القادم: ${d.next_sync||''}`;m+=' · <a onclick="showSheetDebug()" style="color:var(--ac2);cursor:pointer;text-decoration:underline">🔍 فحص الشيت</a></span>';st.innerHTML=m;return}
-if(ls.status==='success'){const dt=ls.time?ls.time.slice(0,16).replace('T',' '):'';m+=` · 🕐 آخر تحليل: <b style="color:var(--ac2)">${dt}</b> · ${ls.tab||''} (${ls.stocks} سهم)`;const lg=(d.log||[]).slice(-1)[0];if(lg&&lg.saved!==undefined)m+=` · 🏆 ${lg.picks_count||0} توصية`}else if(ls.status==='no_update'){const dt=ls.time?ls.time.slice(0,16).replace('T',' '):'';m+=` · 🕐 آخر تحليل: <b style="color:var(--ac2)">${dt}</b> · ⚠️ لا تحديث جديد`}else if(ls.status==='error')m+=` · ❌ ${ls.error||''}`;
-if(!d.paused)m+=` · القادم: ${d.next_sync||''}`;st.innerHTML=m}catch(e){}}
+const skb=document.getElementById("skipBtn");if(skb){if(d.skip_next){skb.innerHTML=`↩️ إلغاء تخطّي ${d.skip_next}`;skb.className='bs on';skb.dataset.active='1'}else{skb.innerHTML='⏭️ تخطّي القادم';skb.className='bs';skb.dataset.active='0'}}const ls=d.last_sync||{};let sched=d.paused?'🔴 موقوف':d.scheduler_active?'🟢 نشط':'⚪ متوقف';
+// وقت آخر سحب/تحليل
+let lastTxt='';if(ls.time){const t=new Date(ls.time);if(!isNaN(t)){const p=n=>String(n).padStart(2,'0');lastTxt=`${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())} ${p(t.getHours())}:${p(t.getMinutes())}`}}
+let m=`<div id="sheetLatest" style="color:var(--mt)">📄 جاري قراءة أحدث بيانات الشيت...</div>`;
+m+=`<div style="font-size:.75rem;margin-top:3px">🔍 آخر سحب حلّله النظام: <b style="color:var(--ac2)">${lastTxt||'—'}</b>`;
+if(ls.status==='no_update')m+=` · ⚠️ لا جديد`;
+m+=`</div><div style="font-size:.72rem;margin-top:3px">⏰ الجدولة: ${sched}`;
+if(!d.paused)m+=` · القادم: ${d.next_sync||''}`;m+='</div>';
+st.innerHTML=m;
+// جلب أحدث بيانات الشيت تلقائياً (خفيف)
+loadLatestSheet();
+return;
+}catch(e){}}
+async function loadLatestSheet(){const el=document.getElementById("sheetLatest");if(!el)return;try{const s=await api("/api/sheet/latest-info");if(s.ok){const badge=s.is_new?'<span style="color:var(--g)">● جديدة</span>':'<span style="color:var(--mt)">○ محلّلة</span>';el.innerHTML=`📄 أحدث بيانات بالشيت: <b style="color:var(--tx)">${s.read_time}</b> (${s.rows} سهم) ${badge}`}else{el.innerHTML='📄 تعذّر قراءة الشيت'}}catch(e){el.innerHTML='📄 تعذّر قراءة الشيت'}}
 async function togglePause(){try{const d=await api("/api/sync/status");if(d.paused)await api("/api/sync/resume",{method:"POST"});else await api("/api/sync/pause",{method:"POST"});loadSync()}catch(e){toast("❌ "+e.message)}}
 async function showSheetDebug(){toast("⏳ جاري فحص الشيت...");try{const d=await api("/api/sheet/debug");const a=d["أحدث_بيانات_بالشيت"]||{};const b=d["آخر_بيانات_فُحصت"]||{};const c=d["المقارنة"]||{};
 let msg=`📄 أحدث بيانات بالشيت:\n   ${a["التاريخ_والوقت"]} (${a["عدد_الصفوف"]} صف)\n   بصمة: ${a["البصمة"]}\n\n🔍 آخر بيانات فُحصت:\n   ${b["التاريخ_والوقت"]}\n   بصمة: ${b["البصمة"]}\n\n${c["الحكم"]}`;
