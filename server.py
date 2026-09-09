@@ -1485,6 +1485,36 @@ def recommendations_longterm(url: str = None):
         return {"picks": [], "error": str(e)[:150]}
 
 
+@app.get("/api/recommendations/why-empty")
+def why_empty():
+    """تشخيص: ليش التوصيات ما تظهر — يوري حالة كل توصية."""
+    sb = _get_supabase()
+    if not sb:
+        raise HTTPException(status_code=500, detail="Supabase غير متصل")
+    from tracker import _is_past_expiry
+    try:
+        allrows = sb.table("idx_recommendations").select("*") \
+            .order("created_at", desc=True).limit(50).execute().data or []
+        active = [r for r in allrows if r.get("status") == "active"]
+        closed = [r for r in allrows if r.get("status") == "closed"]
+        active_info = []
+        for r in active:
+            mx = r.get("max_expiry_date")
+            active_info.append({
+                "symbol": r.get("symbol"), "appeared": r.get("appeared_date"),
+                "max_expiry": mx, "is_past_expiry": _is_past_expiry(mx) if mx else "no_date",
+            })
+        return {
+            "total": len(allrows),
+            "active_count": len(active),
+            "closed_count": len(closed),
+            "active_details": active_info[:20],
+            "note": "is_past_expiry=true يعني ستُحسم تلقائياً وتختفي من النشطة",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)[:200])
+
+
 @app.get("/api/recommendations/recent-all")
 def recommendations_recent_all():
     """تشخيص: آخر التوصيات بكل الحالات (نشطة/محسومة) لكشف المفقودة."""
@@ -1595,11 +1625,13 @@ def _auto_close_expired(sb):
         active = sb.table("idx_recommendations").select("*") \
             .eq("status", "active").limit(500).execute().data or []
         for r in active:
-            if _is_past_expiry(r.get("max_expiry_date", "9999")):
-                # لم تحقق الهدف خلال المهلة → تُحسم حسب أدائها
+            mx = r.get("max_expiry_date")
+            # أمان: لا تحسم إلا لو التاريخ موجود وصحيح وفعلاً منتهي
+            if not mx or mx == "9999":
+                continue
+            if _is_past_expiry(mx):
                 peak = r.get("peak_pct", 0) or 0
                 cur_pct = r.get("current_pct", 0) or 0
-                # النتيجة: بلا حركة لو ضمن ±1%، وإلا فاشلة
                 outcome = "flat" if abs(cur_pct) <= 1.0 else "failed"
                 sb.table("idx_recommendations").update({
                     "status": "closed", "outcome": outcome,
