@@ -1616,7 +1616,6 @@ def integration_feed(limit: int = 500):
         raise HTTPException(status_code=500, detail=str(e)[:200])
 
 
-@app.get("/api/recommendations/latest")
 def _auto_close_expired(sb):
     """يحسم التوصيات المنتهية تلقائياً (نشطة عدّت مهلتها → محسومة)."""
     from tracker import _is_past_expiry
@@ -1642,6 +1641,7 @@ def _auto_close_expired(sb):
         pass
 
 
+@app.get("/api/recommendations/latest")
 def recommendations_latest():
     """التوصيات الجارية (كلها) مرتّبة بالقوة — الأقوى دائماً ظاهر."""
     sb = _get_supabase()
