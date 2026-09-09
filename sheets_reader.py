@@ -17,8 +17,7 @@ def extract_sheet_id(url: str) -> str:
     raise ValueError("رابط Google Sheets غير صالح")
 
 def list_sheet_tabs(sheet_id: str) -> list:
-    """يجلب أسماء التبويبات — أنماط متعددة لصيغ Google المختلفة."""
-    # الطريقة الأفضل: gviz يعطي أسماء التبويبات في الأخطاء أحياناً — نجرّب HTML أولاً
+    """يجلب أسماء التبويبات — يعطي أولوية لأسماء التواريخ."""
     for view in ("edit", "htmlview"):
         try:
             url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/{view}"
@@ -26,33 +25,28 @@ def list_sheet_tabs(sheet_id: str) -> list:
             if r.status_code != 200:
                 continue
             txt = r.text
-            tabs = []
-            # أنماط متعددة لصيغ Google المختلفة
-            patterns = [
-                r'\{"name":"([^"]+)"',              # قديم
-                r'"([^"]+)"\s*,\s*\d+\s*,\s*\d+\s*,\s*null',  # صيغة جدول
-                r'itemName="([^"]+)"',
-                r'aria-label="([^"]+)"[^>]*role="tab"',
-                r'data-sheet-name="([^"]+)"',
-                r'"sheetId":\d+,"title":"([^"]+)"',  # JSON صيغة
-                r'"title":"([^"]+)","sheetType"',
-                r'gid=\d+[^>]*>([^<]+)</',
-            ]
-            for pat in patterns:
+
+            # ① الأولوية: تبويبات بأسماء تواريخ (YYYY-MM-DD_HH-MM) — الأكثر موثوقية
+            dated = re.findall(r'(\d{4}-\d{2}-\d{2}_\d{2}-\d{2})', txt)
+            if dated:
+                seen, result = set(), []
+                for t in dated:
+                    if t not in seen:
+                        seen.add(t); result.append(t)
+                return result
+
+            # ② احتياطي: أنماط أخرى لأسماء تبويبات عامة
+            for pat in (r'\{"name":"([^"]+)"', r'"sheetId":\d+,"title":"([^"]+)"',
+                        r'"title":"([^"]+)","sheetType"'):
                 found = re.findall(pat, txt)
                 if found:
-                    tabs = found
-                    break
-            # تنظيف
-            seen, result = set(), []
-            for t in tabs:
-                t = str(t).strip()
-                # فلترة: تواريخ أو أسماء تبويبات منطقية
-                if (t and t not in seen and 2 < len(t) < 60
-                        and not t.startswith("http") and "{" not in t and "}" not in t):
-                    seen.add(t); result.append(t)
-            if result:
-                return result
+                    seen, result = set(), []
+                    for t in found:
+                        t = str(t).strip()
+                        if t and t not in seen and 2 < len(t) < 60 and "{" not in t:
+                            seen.add(t); result.append(t)
+                    if result:
+                        return result
         except Exception:
             continue
     return ["Sheet1"]
