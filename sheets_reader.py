@@ -17,22 +17,42 @@ def extract_sheet_id(url: str) -> str:
     raise ValueError("رابط Google Sheets غير صالح")
 
 def list_sheet_tabs(sheet_id: str) -> list:
-    """يجلب أسماء التبويبات — يجرّب عدة طرق موثوقة."""
-    for view in ("htmlview", "edit"):
+    """يجلب أسماء التبويبات — أنماط متعددة لصيغ Google المختلفة."""
+    # الطريقة الأفضل: gviz يعطي أسماء التبويبات في الأخطاء أحياناً — نجرّب HTML أولاً
+    for view in ("edit", "htmlview"):
         try:
             url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/{view}"
-            r = requests.get(url, timeout=15)
-            if r.status_code == 200:
-                tabs = re.findall(r'\{"name":"([^"]+)"', r.text)
-                if not tabs:
-                    tabs = re.findall(r'"name"\s*:\s*"([^"]+)"', r.text)
-                seen, result = set(), []
-                for t in tabs:
-                    t = t.strip()
-                    if t and t not in seen and len(t) < 60 and not t.startswith("http"):
-                        seen.add(t); result.append(t)
-                if result:
-                    return result
+            r = requests.get(url, timeout=20)
+            if r.status_code != 200:
+                continue
+            txt = r.text
+            tabs = []
+            # أنماط متعددة لصيغ Google المختلفة
+            patterns = [
+                r'\{"name":"([^"]+)"',              # قديم
+                r'"([^"]+)"\s*,\s*\d+\s*,\s*\d+\s*,\s*null',  # صيغة جدول
+                r'itemName="([^"]+)"',
+                r'aria-label="([^"]+)"[^>]*role="tab"',
+                r'data-sheet-name="([^"]+)"',
+                r'"sheetId":\d+,"title":"([^"]+)"',  # JSON صيغة
+                r'"title":"([^"]+)","sheetType"',
+                r'gid=\d+[^>]*>([^<]+)</',
+            ]
+            for pat in patterns:
+                found = re.findall(pat, txt)
+                if found:
+                    tabs = found
+                    break
+            # تنظيف
+            seen, result = set(), []
+            for t in tabs:
+                t = str(t).strip()
+                # فلترة: تواريخ أو أسماء تبويبات منطقية
+                if (t and t not in seen and 2 < len(t) < 60
+                        and not t.startswith("http") and "{" not in t and "}" not in t):
+                    seen.add(t); result.append(t)
+            if result:
+                return result
         except Exception:
             continue
     return ["Sheet1"]

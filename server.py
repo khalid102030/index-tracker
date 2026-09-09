@@ -1263,15 +1263,25 @@ def sheet_tabs_raw():
     import requests as _rq
     sid = extract_sheet_id(sheet_url)
     result = {"sheet_id": sid, "tabs_found": list_sheet_tabs(sid)}
-    # حالة الاتصال الخام
-    for view in ("htmlview", "edit"):
+    import re as _re
+    # اختبر أنماط متعددة لمعرفة أيها يلتقط أسماء التبويبات
+    patterns = {
+        "old": r'\{"name":"([^"]+)"',
+        "table": r'"([^"]+)"\s*,\s*\d+\s*,\s*\d+\s*,\s*null',
+        "json_title": r'"sheetId":\d+,"title":"([^"]+)"',
+        "title2": r'"title":"([^"]+)","sheetType"',
+        "date_like": r'(\d{4}-\d{2}-\d{2}_\d{2}-\d{2})',  # تواريخ مباشرة
+    }
+    for view in ("edit", "htmlview"):
         try:
             u = f"https://docs.google.com/spreadsheets/d/{sid}/{view}"
-            r = _rq.get(u, timeout=15)
-            import re as _re
-            names = _re.findall(r'\{"name":"([^"]+)"', r.text)[:10]
-            result[view] = {"status": r.status_code, "length": len(r.text),
-                            "sample_names": names}
+            r = _rq.get(u, timeout=20)
+            view_res = {"status": r.status_code, "length": len(r.text)}
+            for name, pat in patterns.items():
+                m = _re.findall(pat, r.text)[:8]
+                if m:
+                    view_res[name] = list(dict.fromkeys(m))  # فريدة
+            result[view] = view_res
         except Exception as e:
             result[view] = {"error": str(e)[:100]}
     return result
