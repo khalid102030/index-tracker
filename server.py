@@ -1553,13 +1553,39 @@ def integration_feed(limit: int = 500):
 
 
 @app.get("/api/recommendations/latest")
+def _auto_close_expired(sb):
+    """يحسم التوصيات المنتهية تلقائياً (نشطة عدّت مهلتها → محسومة)."""
+    from tracker import _is_past_expiry
+    from datetime import date
+    try:
+        active = sb.table("idx_recommendations").select("*") \
+            .eq("status", "active").limit(500).execute().data or []
+        for r in active:
+            if _is_past_expiry(r.get("max_expiry_date", "9999")):
+                # لم تحقق الهدف خلال المهلة → تُحسم حسب أدائها
+                peak = r.get("peak_pct", 0) or 0
+                cur_pct = r.get("current_pct", 0) or 0
+                # النتيجة: بلا حركة لو ضمن ±1%، وإلا فاشلة
+                outcome = "flat" if abs(cur_pct) <= 1.0 else "failed"
+                sb.table("idx_recommendations").update({
+                    "status": "closed", "outcome": outcome,
+                    "closed_date": date.today().isoformat(),
+                    "post_watch": True,
+                }).eq("id", r["id"]).execute()
+    except Exception:
+        pass
+
+
 def recommendations_latest():
     """التوصيات الجارية (كلها) مرتّبة بالقوة — الأقوى دائماً ظاهر."""
     sb = _get_supabase()
     if not sb:
         return {"picks": [], "note": "Supabase غير متصل"}
     try:
-        # الجارية فقط — تبقى ظاهرة حتى تُحسم (كلها، بدون حد فعلي)
+        # ① حسم التوصيات المنتهية تلقائياً (نقلها من نشطة لمحسومة)
+        _auto_close_expired(sb)
+
+        # ② الجارية فقط — تبقى ظاهرة حتى تُحسم (كلها، بدون حد فعلي)
         rows = sb.table("idx_recommendations").select("*") \
             .eq("status", "active") \
             .order("created_at", desc=True).limit(500).execute().data or []
