@@ -1253,6 +1253,30 @@ def sheet_sample():
         raise HTTPException(status_code=500, detail=str(e)[:200])
 
 
+@app.get("/api/sheet/tabs-raw")
+def sheet_tabs_raw():
+    """تشخيص خام: وش يرجّع جلب التبويبات فعلياً + حالة الاتصال."""
+    sheet_url = _config.get("sheet_url")
+    if not sheet_url:
+        return {"error": "لا رابط"}
+    from sheets_reader import extract_sheet_id, list_sheet_tabs
+    import requests as _rq
+    sid = extract_sheet_id(sheet_url)
+    result = {"sheet_id": sid, "tabs_found": list_sheet_tabs(sid)}
+    # حالة الاتصال الخام
+    for view in ("htmlview", "edit"):
+        try:
+            u = f"https://docs.google.com/spreadsheets/d/{sid}/{view}"
+            r = _rq.get(u, timeout=15)
+            import re as _re
+            names = _re.findall(r'\{"name":"([^"]+)"', r.text)[:10]
+            result[view] = {"status": r.status_code, "length": len(r.text),
+                            "sample_names": names}
+        except Exception as e:
+            result[view] = {"error": str(e)[:100]}
+    return result
+
+
 @app.get("/api/sheet/latest-info")
 def sheet_latest_info():
     """معلومة خفيفة: أحدث بيانات بالشيت (بدون تحليل) — للعرض التلقائي."""

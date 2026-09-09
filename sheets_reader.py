@@ -17,17 +17,24 @@ def extract_sheet_id(url: str) -> str:
     raise ValueError("رابط Google Sheets غير صالح")
 
 def list_sheet_tabs(sheet_id: str) -> list:
-    """يجلب أسماء التبويبات من الشيت العام."""
-    url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/edit"
-    try:
-        r = requests.get(url, timeout=15)
-        tabs = re.findall(r'"name"\s*:\s*"([^"]+)"', r.text)
-        seen, result = set(), []
-        for t in tabs:
-            if t not in seen and len(t) < 100:
-                seen.add(t); result.append(t)
-        if result: return result
-    except Exception: pass
+    """يجلب أسماء التبويبات — يجرّب عدة طرق موثوقة."""
+    for view in ("htmlview", "edit"):
+        try:
+            url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/{view}"
+            r = requests.get(url, timeout=15)
+            if r.status_code == 200:
+                tabs = re.findall(r'\{"name":"([^"]+)"', r.text)
+                if not tabs:
+                    tabs = re.findall(r'"name"\s*:\s*"([^"]+)"', r.text)
+                seen, result = set(), []
+                for t in tabs:
+                    t = t.strip()
+                    if t and t not in seen and len(t) < 60 and not t.startswith("http"):
+                        seen.add(t); result.append(t)
+                if result:
+                    return result
+        except Exception:
+            continue
     return ["Sheet1"]
 
 def read_tab(sheet_id: str, tab_name: str = None) -> pd.DataFrame:
