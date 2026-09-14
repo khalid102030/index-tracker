@@ -111,6 +111,48 @@ def data_source_set(cfg: dict):
     return set_source_mode(mode)
 
 
+@app.get("/api/data-source/list-all")
+def list_all_tables():
+    """يسرد كل الجداول والعروض بـ Supabase عبر information_schema."""
+    sb = _get_supabase()
+    if not sb:
+        return {"ok": False, "error": "Supabase غير متصل"}
+    result = {}
+    # جرّب استعلام information_schema عبر RPC أو REST
+    try:
+        # محاولة قراءة قائمة الجداول
+        import os, requests as _rq
+        url = os.environ.get("SUPABASE_URL", "")
+        key = os.environ.get("SUPABASE_KEY", "") or os.environ.get("SUPABASE_SERVICE_KEY", "")
+        if url and key:
+            # استعلام أسماء الجداول من information_schema
+            r = _rq.get(f"{url}/rest/v1/",
+                        headers={"apikey": key, "Authorization": f"Bearer {key}"},
+                        timeout=15)
+            # الـ root endpoint يرجّع تعريف OpenAPI فيه كل الجداول
+            if r.status_code == 200:
+                data = r.json()
+                paths = data.get("definitions", {}) or data.get("paths", {})
+                tables = list(paths.keys())
+                result["all_tables_views"] = tables
+                # افحص أعمدة كل واحد
+                details = {}
+                for t in tables[:30]:
+                    try:
+                        rows = sb.table(t).select("*").limit(1).execute().data or []
+                        if rows:
+                            details[t] = len(rows[0].keys())
+                    except Exception:
+                        pass
+                result["column_counts"] = details
+                result["ok"] = True
+                return result
+    except Exception as e:
+        result["error"] = str(e)[:200]
+    result["ok"] = False
+    return result
+
+
 @app.get("/api/data-source/scan-tables")
 def scan_tables():
     """يفحص كل الجداول/العروض المحتملة لبيانات المؤشرات."""
