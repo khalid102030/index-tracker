@@ -1475,7 +1475,8 @@ def sheet_latest_info():
             "tab": snap["tab_name"],
             "rows": len(snap["df"]),
             "read_time": read_time.strftime("%Y-%m-%d %H:%M") if hasattr(read_time, "strftime") else str(read_time),
-            "is_new": is_new,  # هل تختلف عن آخر فحص؟
+            "is_new": is_new,
+            "source": snap.get("source", "sheet"),  # sheet أو supabase
         }
     except Exception as e:
         return {"ok": False, "error": str(e)[:100]}
