@@ -111,6 +111,30 @@ def data_source_set(cfg: dict):
     return set_source_mode(mode)
 
 
+@app.get("/api/data-source/liquidity-tables")
+def liquidity_tables_check():
+    """يفحص الجداول المتعلقة بالسيولة/السوق بالتفصيل."""
+    sb = _get_supabase()
+    if not sb:
+        return {"ok": False}
+    targets = ["v_market_data", "v_liquidity_radar", "v_liquidity_history",
+               "tc_liquidity", "tc_liquidity_intraday", "liquidity_radar_signals",
+               "liq_strategy_snapshots", "market_cache", "rasad_snapshots"]
+    result = {}
+    for t in targets:
+        try:
+            rows = sb.table(t).select("*").limit(2).execute().data or []
+            if rows:
+                result[t] = {
+                    "columns": list(rows[0].keys()),
+                    "count": len(rows[0].keys()),
+                    "sample": {k: str(rows[0][k])[:25] for k in list(rows[0].keys())[:8]},
+                }
+        except Exception as e:
+            result[t] = {"error": str(e)[:60]}
+    return {"ok": True, "tables": result}
+
+
 @app.get("/api/data-source/list-all")
 def list_all_tables():
     """يسرد كل الجداول والعروض بـ Supabase عبر information_schema."""
