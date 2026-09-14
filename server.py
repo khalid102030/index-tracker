@@ -111,6 +111,45 @@ def data_source_set(cfg: dict):
     return set_source_mode(mode)
 
 
+@app.get("/api/data-source/supabase-check")
+def supabase_data_check():
+    """تشخيص: يفحص جدول plus_sessions (المصدر الصحيح)."""
+    sb = _get_supabase()
+    if not sb:
+        return {"ok": False, "error": "Supabase غير متصل"}
+    try:
+        # أحدث جلسة إغلاق
+        latest = sb.table("plus_sessions").select("session_name,session_ts,is_closing") \
+            .eq("is_closing", True).order("session_ts", desc=True).limit(1).execute().data
+        if not latest:
+            latest = sb.table("plus_sessions").select("session_name,session_ts") \
+                .order("session_ts", desc=True).limit(1).execute().data
+        if not latest:
+            return {"ok": False, "error": "جدول plus_sessions فارغ"}
+        session = latest[0]["session_name"]
+        # صف عيّنة
+        rows = sb.table("plus_sessions").select("*") \
+            .eq("session_name", session).limit(2).execute().data or []
+        sample = rows[0] if rows else {}
+        extra = sample.get("extra") or {}
+        if isinstance(extra, str):
+            import json as _j
+            try: extra = _j.loads(extra)
+            except: extra = {}
+        count_rows = sb.table("plus_sessions").select("symbol", count="exact") \
+            .eq("session_name", session).execute()
+        return {
+            "ok": True,
+            "latest_session": session,
+            "rows_in_session": count_rows.count if hasattr(count_rows, "count") else len(rows),
+            "key_columns": [k for k in sample.keys() if k != "extra"],
+            "extra_keys_count": len(extra) if isinstance(extra, dict) else 0,
+            "extra_sample_keys": list(extra.keys())[:20] if isinstance(extra, dict) else [],
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:200]}
+
+
 @app.get("/api/data-source/liquidity-tables")
 def liquidity_tables_check():
     """يفحص الجداول المتعلقة بالسيولة/السوق بالتفصيل."""

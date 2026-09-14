@@ -71,48 +71,80 @@ def fetch_latest_snapshot(sheet_url: str = None) -> dict:
 
 def _fetch_from_supabase() -> dict:
     """
-    يقرأ بيانات المؤشرات من جدول Supabase.
-    الجدول المتوقّع: idx_market_data (صف لكل سهم، أحدث لقطة).
-    العمود snapshot_batch يحدّد اللقطة (التاريخ_الوقت).
+    يقرأ بيانات المؤشرات من جدول plus_sessions.
+    - أحدث جلسة إغلاق (is_closing=true)
+    - يفرد extra JSONB (كل الـ140 مؤشر بأسماء الشيت العربية)
     """
     from market_clock import now_riyadh
     sb = _get_sb()
     if not sb:
         raise RuntimeError("Supabase غير متصل")
 
-    # أحدث لقطة (batch)
-    latest = sb.table("idx_market_data").select("snapshot_batch") \
-        .order("snapshot_batch", desc=True).limit(1).execute().data
+    # ① أحدث جلسة إغلاق
+    latest = sb.table("plus_sessions").select("session_name,session_ts") \
+        .eq("is_closing", True) \
+        .order("session_ts", desc=True).limit(1).execute().data
     if not latest:
-        raise RuntimeError("لا توجد بيانات مؤشرات في Supabase (جدول idx_market_data فارغ)")
-    batch = latest[0]["snapshot_batch"]
+        # احتياطي: أحدث جلسة بغض النظر عن الإغلاق
+        latest = sb.table("plus_sessions").select("session_name,session_ts") \
+            .order("session_ts", desc=True).limit(1).execute().data
+    if not latest:
+        raise RuntimeError("جدول plus_sessions فارغ")
+    session = latest[0]["session_name"]
+    session_ts = latest[0].get("session_ts")
 
-    # كل صفوف هذه اللقطة
-    rows = sb.table("idx_market_data").select("*") \
-        .eq("snapshot_batch", batch).limit(1000).execute().data or []
+    # ② كل صفوف هذه الجلسة
+    rows = sb.table("plus_sessions").select("*") \
+        .eq("session_name", session).limit(1000).execute().data or []
     if not rows:
-        raise RuntimeError("اللقطة فارغة")
+        raise RuntimeError("الجلسة فارغة")
 
-    # حوّل لـ DataFrame (نفس شكل الشيت)
-    # عمود data JSONB يحمل كل أعمدة المؤشرات كما هي
+    # ③ أعِد بناء كل صف: الأعمدة المفتاحية + فرد extra بالكامل
     records = []
     for r in rows:
-        d = r.get("data") or {}
-        if isinstance(d, str):
-            try: d = json.loads(d)
-            except: d = {}
-        records.append(d)
+        extra = r.get("extra") or {}
+        if isinstance(extra, str):
+            try: extra = json.loads(extra)
+            except: extra = {}
+        # ابدأ بـ extra (كل المؤشرات) ثم أضف/اطغَ بالأعمدة المفتاحية بأسماء الشيت
+        row = dict(extra)  # كل الـ140 مؤشر بأسماء الشيت العربية
+        # الأعمدة المفتاحية بأسماء الشيت التي يتوقعها المحلّل
+        row["الرمز"] = r.get("symbol", "")
+        row["الاسم"] = r.get("name", "")
+        if r.get("close") is not None:
+            row.setdefault("آخر", r.get("close"))
+        if r.get("change_pct") is not None:
+            row.setdefault("التغير %", r.get("change_pct"))
+        if r.get("net_liq") is not None:
+            row.setdefault("صافي السيولة", r.get("net_liq"))
+        if r.get("high") is not None:
+            row.setdefault("أعلى", r.get("high"))
+        if r.get("low") is not None:
+            row.setdefault("أدنى", r.get("low"))
+        if r.get("weekly_pct") is not None:
+            row.setdefault("التغير الاسبوعي", r.get("weekly_pct"))
+        if r.get("monthly_pct") is not None:
+            row.setdefault("التغير الشهري", r.get("monthly_pct"))
+        if r.get("yearly_pct") is not None:
+            row.setdefault("التغير السنوي", r.get("yearly_pct"))
+        records.append(row)
+
     df = pd.DataFrame(records)
 
-    # وقت اللقطة
+    # ④ وقت الجلسة (من session_name أو session_ts)
     snap_time = None
     try:
         from datetime import datetime
-        snap_time = datetime.fromisoformat(str(batch).replace("Z", "+00:00")).replace(tzinfo=None)
+        import re
+        m = re.search(r"(\d{4})-(\d{2})-(\d{2})[_ ](\d{2})[-:](\d{2})", str(session))
+        if m:
+            snap_time = datetime(int(m[1]), int(m[2]), int(m[3]), int(m[4]), int(m[5]))
+        elif session_ts:
+            snap_time = datetime.fromisoformat(str(session_ts).replace("Z", "+00:00")).replace(tzinfo=None)
     except Exception:
         snap_time = now_riyadh().replace(tzinfo=None)
 
-    display_name = snap_time.strftime("%Y-%m-%d_%H-%M") if snap_time else str(batch)
-    return {"df": df, "tab_name": str(batch), "display_name": display_name,
-            "snapshot_time": snap_time, "all_tabs": [str(batch)],
+    display_name = str(session)
+    return {"df": df, "tab_name": str(session), "display_name": display_name,
+            "snapshot_time": snap_time, "all_tabs": [str(session)],
             "source": "supabase"}
