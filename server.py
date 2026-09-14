@@ -111,6 +111,40 @@ def data_source_set(cfg: dict):
     return set_source_mode(mode)
 
 
+@app.get("/api/data-source/supabase-check")
+def supabase_data_check():
+    """تشخيص: هل بيانات المؤشرات بـ Supabase صحيحة؟"""
+    sb = _get_supabase()
+    if not sb:
+        return {"ok": False, "error": "Supabase غير متصل"}
+    try:
+        # هل الجدول موجود وفيه بيانات؟
+        rows = sb.table("idx_market_data").select("*") \
+            .order("snapshot_batch", desc=True).limit(3).execute().data or []
+        if not rows:
+            return {"ok": False, "error": "جدول idx_market_data فارغ أو غير موجود",
+                    "hint": "تأكد من إنشاء الجدول ورفع البيانات"}
+        # أحدث لقطة
+        batch = rows[0].get("snapshot_batch")
+        count = sb.table("idx_market_data").select("id", count="exact") \
+            .eq("snapshot_batch", batch).execute()
+        sample = rows[0].get("data")
+        if isinstance(sample, str):
+            import json as _j
+            try: sample = _j.loads(sample)
+            except: pass
+        return {
+            "ok": True,
+            "latest_batch": batch,
+            "rows_in_batch": count.count if hasattr(count, "count") else "؟",
+            "sample_columns": list(sample.keys())[:15] if isinstance(sample, dict) else "data ليس JSON",
+            "sample_row": {k: sample[k] for k in list(sample.keys())[:6]} if isinstance(sample, dict) else sample,
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:200],
+                "hint": "تحقق من: اسم الجدول idx_market_data، أعمدة snapshot_batch/data"}
+
+
 @app.get("/api/data-source/test")
 def data_source_test():
     """يختبر القراءة من المصدر الحالي (تشخيص)."""
