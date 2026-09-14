@@ -111,6 +111,30 @@ def data_source_set(cfg: dict):
     return set_source_mode(mode)
 
 
+@app.get("/api/data-source/scan-tables")
+def scan_tables():
+    """يفحص كل الجداول/العروض المحتملة لبيانات المؤشرات."""
+    sb = _get_supabase()
+    if not sb:
+        return {"ok": False, "error": "Supabase غير متصل"}
+    # أسماء محتملة للجدول الأصلي والعروض
+    candidates = ["v_market_data", "market_data", "idx_market_data",
+                  "market_data_raw", "raw_market_data", "indicators",
+                  "market_snapshot", "snapshots", "tradingview_data",
+                  "sheet_data", "market_data_full", "stocks"]
+    found = {}
+    for tbl in candidates:
+        try:
+            rows = sb.table(tbl).select("*").limit(1).execute().data or []
+            if rows:
+                found[tbl] = {"columns": list(rows[0].keys()),
+                              "column_count": len(rows[0].keys())}
+        except Exception:
+            pass
+    return {"ok": bool(found), "tables_found": found,
+            "note": "ابحث عن الجدول بأكثر أعمدة (فيه كل المؤشرات)"}
+
+
 @app.get("/api/data-source/supabase-check")
 def supabase_data_check():
     """تشخيص: يفحص جداول بيانات المؤشرات المحتملة."""
