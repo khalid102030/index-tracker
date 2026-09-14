@@ -113,36 +113,36 @@ def data_source_set(cfg: dict):
 
 @app.get("/api/data-source/supabase-check")
 def supabase_data_check():
-    """تشخيص: هل بيانات المؤشرات بـ Supabase صحيحة؟"""
+    """تشخيص: يفحص جداول بيانات المؤشرات المحتملة."""
     sb = _get_supabase()
     if not sb:
         return {"ok": False, "error": "Supabase غير متصل"}
-    try:
-        # هل الجدول موجود وفيه بيانات؟
-        rows = sb.table("idx_market_data").select("*") \
-            .order("snapshot_batch", desc=True).limit(3).execute().data or []
-        if not rows:
-            return {"ok": False, "error": "جدول idx_market_data فارغ أو غير موجود",
-                    "hint": "تأكد من إنشاء الجدول ورفع البيانات"}
-        # أحدث لقطة
-        batch = rows[0].get("snapshot_batch")
-        count = sb.table("idx_market_data").select("id", count="exact") \
-            .eq("snapshot_batch", batch).execute()
-        sample = rows[0].get("data")
-        if isinstance(sample, str):
-            import json as _j
-            try: sample = _j.loads(sample)
-            except: pass
-        return {
-            "ok": True,
-            "latest_batch": batch,
-            "rows_in_batch": count.count if hasattr(count, "count") else "؟",
-            "sample_columns": list(sample.keys())[:15] if isinstance(sample, dict) else "data ليس JSON",
-            "sample_row": {k: sample[k] for k in list(sample.keys())[:6]} if isinstance(sample, dict) else sample,
-        }
-    except Exception as e:
-        return {"ok": False, "error": str(e)[:200],
-                "hint": "تحقق من: اسم الجدول idx_market_data، أعمدة snapshot_batch/data"}
+    # جرّب أسماء جداول محتملة
+    candidates = ["v_market_data", "idx_market_data", "market_data"]
+    for tbl in candidates:
+        try:
+            rows = sb.table(tbl).select("*").limit(3).execute().data or []
+            if rows:
+                sample = rows[0]
+                # هل فيه عمود data JSONB أو أعمدة مباشرة؟
+                cols = list(sample.keys())
+                data_col = sample.get("data")
+                if isinstance(data_col, str):
+                    import json as _j
+                    try: data_col = _j.loads(data_col)
+                    except: pass
+                return {
+                    "ok": True,
+                    "table_found": tbl,
+                    "table_columns": cols[:20],
+                    "has_data_jsonb": isinstance(data_col, dict),
+                    "data_jsonb_keys": list(data_col.keys())[:15] if isinstance(data_col, dict) else None,
+                    "sample_row": {k: str(sample[k])[:30] for k in cols[:8]},
+                    "row_count_sample": len(rows),
+                }
+        except Exception:
+            continue
+    return {"ok": False, "error": "لم يُعثر على جدول بيانات (جرّبت: " + ", ".join(candidates) + ")"}
 
 
 @app.get("/api/data-source/test")
